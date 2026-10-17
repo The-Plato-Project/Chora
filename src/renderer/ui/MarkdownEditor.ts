@@ -10,6 +10,7 @@ import { wrapInList } from "@milkdown/kit/prose/schema-list";
 import { undo, redo } from "@milkdown/kit/prose/history";
 import { Bold, Italic, List, ListOrdered, Quote, Link, Unlink, Undo2, Redo2, Check, X, createElement, type IconNode } from "lucide";
 import type { ErrorManager } from "../core/diagnostics/RendererErrorManager.js";
+import { LayoutSettings, type LayoutDimension } from "../core/settings/LayoutSettingsStore.js";
 import { MarkdownEditorGateway } from "./MarkdownEditorGateway.js";
 
 // A persistent Milkdown editor that stores Markdown through its owning feature's change handler.
@@ -44,9 +45,11 @@ export class MarkdownEditor
 	private readonly keyHandler = this.HandleLinkKeyDown.bind(this);
 	private readonly contextHandler = this.HandleContextMenuAsync.bind(this);
 	private readonly gateway = new MarkdownEditorGateway();
+	// Persists an optional reader-adjusted editor height.
+	private readonly resizeObserver: ResizeObserver | null;
 
 	// Creates the editor without claiming ownership of the Dream or its persistence.
-	public constructor(markdown: string, private readonly label: string, private readonly onChange: (value: string) => void, private readonly errors: ErrorManager, private readonly readOnly = false)
+	public constructor(markdown: string, private readonly label: string, private readonly onChange: (value: string) => void, private readonly errors: ErrorManager, private readonly readOnly = false, placeholder = "", private readonly layoutDimension: LayoutDimension | null = null)
 	{
 		this.markdown = markdown;
 		this.Root.className = "markdown-editor";
@@ -65,6 +68,12 @@ export class MarkdownEditor
 		this.AddButton("undo", "Undo", Undo2);
 		this.AddButton("redo", "Redo", Redo2);
 		this.content.className = "markdown-content";
+		if (this.layoutDimension !== null)
+		{
+			const height = LayoutSettings.GetDimension(this.layoutDimension, 0);
+			if (height > 0) this.content.style.height = `${height}px`;
+		}
+		if (placeholder.length > 0) this.content.dataset.placeholder = placeholder;
 		this.linkForm.className = "markdown-link-form";
 		this.linkForm.hidden = true;
 		this.linkInput.type = "url";
@@ -76,6 +85,8 @@ export class MarkdownEditor
 		const cancel = this.CreateButton("cancel-link", "Cancel link", X);
 		this.linkForm.append(this.linkInput, apply, cancel);
 		this.Root.append(this.toolbar, this.linkForm, this.content);
+		this.resizeObserver = this.layoutDimension === null ? null : new ResizeObserver(this.HandleResize.bind(this));
+		this.resizeObserver?.observe(this.content);
 		this.Root.addEventListener("click", this.clickHandler);
 		if (!readOnly) this.content.addEventListener("contextmenu", this.contextHandler);
 		this.toolbar.addEventListener("pointerdown", this.pointerHandler);
@@ -158,6 +169,7 @@ export class MarkdownEditor
 		this.toolbar.removeEventListener("pointerdown", this.pointerHandler);
 		this.linkForm.removeEventListener("submit", this.submitHandler);
 		this.linkForm.removeEventListener("keydown", this.keyHandler);
+		this.resizeObserver?.disconnect();
 		this.Root.remove();
 		if (this.initialized) void this.DestroyAsync();
 	}
@@ -177,6 +189,16 @@ export class MarkdownEditor
 	private IsEditable(): boolean
 	{
 		return !this.readOnly;
+	}
+
+	// Persists visible writing-surface height changes caused by the native resize handle.
+	private HandleResize(): void
+	{
+		if (this.layoutDimension !== null)
+		{
+			const height = this.content.getBoundingClientRect().height;
+			if (height >= 40) LayoutSettings.SetDimension(this.layoutDimension, height);
+		}
 	}
 
 	// Displays image alt text without loading media from a Dream's Markdown.
@@ -292,6 +314,22 @@ export class MarkdownEditor
 	{
 		const target = event.target as Element | null;
 		if (target?.closest("a") != null) event.preventDefault();
+		if (target === this.content && !this.readOnly && this.initialized && !this.disposed)
+		{
+			const view = this.editor.ctx.get(editorViewCtx);
+			const browserSelection = window.getSelection();
+			const anchor = browserSelection?.anchorNode ?? null;
+			const focus = browserSelection?.focusNode ?? null;
+			const selectionBelongsToEditor = (anchor !== null && this.content.contains(anchor))
+				|| (focus !== null && this.content.contains(focus));
+			const hasSelectedText = browserSelection !== null && !browserSelection.isCollapsed && selectionBelongsToEditor;
+			if (view.state.selection.empty && !hasSelectedText)
+			{
+				const selection = TextSelection.atEnd(view.state.doc);
+				view.dispatch(view.state.tr.setSelection(selection));
+				view.focus();
+			}
+		}
 		const command = target?.closest<HTMLElement>("[data-markdown-command]")?.dataset.markdownCommand;
 		if (command !== undefined && this.initialized && !this.disposed)
 		{

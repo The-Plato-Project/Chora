@@ -1,23 +1,23 @@
-import type { Dream, DreamSignal } from "./DreamTypes.js";
-import type { TextSelection } from "../library/SelectionTypes.js";
+import type { DreamSnapshot } from "./DreamTypes.js";
+import type { SignalRecord } from "../signals/SignalTypes.js";
 
 // Serializes one complete Signal for clipboard export.
 export class SignalMarkdownDocument
 {
-	public static Serialize(dream: Dream, signal: DreamSignal): string
+	public static Serialize(dream: DreamSnapshot, signal: SignalRecord): string
 	{
 		const markdown = `${this.SerializeSection(dream, signal, 1)}\n`;
 		return markdown;
 	}
 
-	public static SerializeSection(dream: Dream, signal: DreamSignal, headingDepth: number): string
+	public static SerializeSection(dream: DreamSnapshot, signal: SignalRecord, headingDepth: number): string
 	{
 		const heading = "#".repeat(headingDepth);
 		const sectionHeading = "#".repeat(headingDepth + 1);
 		const blocks = [
 			`${heading} Signal`,
 			this.Quote(signal.text),
-			`Source: ${dream.dialogue ?? dream.workId} · ${this.FormatSelection(signal.selection, signal.sourceRef)}`,
+			`Source: ${dream.dialogue ?? dream.workId} · ${this.FormatSelection(signal.sourceRef)}`,
 			`${sectionHeading} Observation`,
 			signal.description.trim() || "_No observation._"
 		];
@@ -26,10 +26,10 @@ export class SignalMarkdownDocument
 		return markdown;
 	}
 
-	private static FormatSelection(selection: TextSelection, fallback: string): string
+	private static FormatSelection(fallback: string): string
 	{
-		const start = selection.locatorStart?.value ?? fallback;
-		const end = selection.locatorEnd?.value ?? start;
+		const start = fallback;
+		const end = fallback;
 		const location = start === end ? start : `${start}–${end}`;
 		return location;
 	}

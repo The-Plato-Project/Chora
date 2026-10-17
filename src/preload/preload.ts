@@ -1,9 +1,8 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { ChatContext, ChatConversationSnapshot, ChatConversationSummary, ChatResult, ChatStreamDelta, ChatToolDefinition } from "../shared/chat/ChatTypes.js";
-import type { ModelSelection, ProviderId, ProviderOption } from "../shared/chat/ModelTypes.js";
-import type { SelectionAction } from "../shared/library/SelectionTypes.js";
-import type { LibraryText, LibraryTextSummary, SourceNotice } from "../shared/library/LibraryTypes.js";
-import type { Dream } from "../shared/dreams/DreamTypes.js";
+import type { SelectionAction } from "../shared/text/TextSelection.js";
+import type { TextDocument, LibraryTextSummary, SourceNotice } from "../shared/library/LibraryTypes.js";
+import type { DreamSnapshot, DreamSynopticViewRequest } from "../shared/dreams/DreamTypes.js";
+import type { SaveSignalCommand, SignalRecord } from "../shared/signals/SignalTypes.js";
 import type { DeleteIdeaCommand, IdeaDiscoveryRequest, IdeaDiscoverySuggestion, IdeaRecord, SaveIdeaCommand } from "../shared/ideas/IdeaTypes.js";
 import { IPC_CHANNELS } from "../shared/contracts/IpcChannels.js";
 import type { ApiSubscription, ChoraApi, FormattingAction } from "../shared/contracts/ChoraApi.js";
@@ -15,10 +14,10 @@ async function ListLibraryTexts(): Promise<LibraryTextSummary[]>
 	return works as LibraryTextSummary[];
 }
 
-async function LoadLibraryText(workId: string): Promise<LibraryText>
+async function LoadLibraryText(workId: string): Promise<TextDocument>
 {
 	const work = await ipcRenderer.invoke(IPC_CHANNELS.loadLibraryText, workId);
-	return work as LibraryText;
+	return work as TextDocument;
 }
 
 function SubscribeLibraryTextSelected(callback: (workId: string) => void): ApiSubscription
@@ -31,19 +30,19 @@ function SubscribeLibraryTextSelected(callback: (workId: string) => void): ApiSu
 	return () => ipcRenderer.removeListener(IPC_CHANNELS.selectLibraryText, listener);
 }
 
-function SubscribeExternalTextLoaded(callback: (work: LibraryText) => void): ApiSubscription
+function SubscribeExternalTextLoaded(callback: (work: TextDocument) => void): ApiSubscription
 {
 	const listener = (_event: Electron.IpcRendererEvent, work: unknown): void =>
 	{
-		callback(work as LibraryText);
+		callback(work as TextDocument);
 	};
 	ipcRenderer.on(IPC_CHANNELS.externalTextLoaded, listener);
 	return () => ipcRenderer.removeListener(IPC_CHANNELS.externalTextLoaded, listener);
 }
 
-async function ShowSelectionContextMenu(): Promise<SelectionAction>
+async function ShowSelectionContextMenu(canAddSignal: boolean): Promise<SelectionAction>
 {
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.showSelectionContextMenu);
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.showSelectionContextMenu, canAddSignal);
 	return result as SelectionAction;
 }
 
@@ -109,76 +108,24 @@ function SubscribeLookupState(callback: (state: LookupState) => void): ApiSubscr
 	return Unsubscribe;
 }
 
-async function StartChat(context: ChatContext, selection: ModelSelection, question: string, requestId: string): Promise<ChatResult>
-{
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.startChat, context, selection, question, requestId);
-
-	return result as ChatResult;
-}
-
-async function ContinueChat(conversationId: string, context: ChatContext, question: string, requestId: string): Promise<ChatResult>
-{
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.continueChat, conversationId, context, question, requestId);
-
-	return result as ChatResult;
-}
-
-async function ListChatConversations(): Promise<ChatConversationSummary[]>
-{
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.listChatConversations);
-
-	return result as ChatConversationSummary[];
-}
-
-// Deletes a saved conversation through the isolated bridge.
-async function DeleteChatConversation(conversationId: string): Promise<void>
-{
-	await ipcRenderer.invoke(IPC_CHANNELS.deleteChatConversation, conversationId);
-}
-
-// Loads a saved conversation through the isolated bridge.
-async function LoadChatConversation(conversationId: string): Promise<ChatConversationSnapshot>
-{
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.loadChatConversation, conversationId);
-
-	return result as ChatConversationSnapshot;
-}
-
-async function GetChatTools(): Promise<ChatToolDefinition[]>
-{
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.getChatTools);
-
-	return result as ChatToolDefinition[];
-}
-
-function SubscribeChatDelta(callback: (delta: ChatStreamDelta) => void): ApiSubscription
-{
-	const listener = (_event: Electron.IpcRendererEvent, delta: unknown): void =>
-	{
-		callback(delta as ChatStreamDelta);
-	};
-	ipcRenderer.on(IPC_CHANNELS.chatDelta, listener);
-	return () => ipcRenderer.removeListener(IPC_CHANNELS.chatDelta, listener);
-}
-
-async function GetConfiguredProvider(): Promise<ProviderId>
-{
-	const provider = await ipcRenderer.invoke(IPC_CHANNELS.getConfiguredProvider);
-
-	return provider as ProviderId;
-}
-
-async function GetProviderOptions(): Promise<ProviderOption[]>
-{
-	const options = await ipcRenderer.invoke(IPC_CHANNELS.getProviderOptions);
-
-	return options as ProviderOption[];
-}
-
 async function GetSourceNotice(workId: string): Promise<SourceNotice>
 {
 	const result = await ipcRenderer.invoke(IPC_CHANNELS.getSourceNotice, workId);
 	return result as SourceNotice;
+}
+
+async function ListSignals(workId: string): Promise<SignalRecord[]>
+{
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.listSignals, workId);
+
+	return result as SignalRecord[];
+}
+
+async function SaveSignal(command: SaveSignalCommand): Promise<SignalRecord>
+{
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.saveSignal, command);
+
+	return result as SignalRecord;
 }
 
 // Lists durable Ideas through the isolated renderer bridge.
@@ -211,18 +158,18 @@ async function DeleteIdea(command: DeleteIdeaCommand): Promise<void>
 	await ipcRenderer.invoke(IPC_CHANNELS.deleteIdea, command);
 }
 
-async function SaveDream(dream: Dream): Promise<Dream>
+async function SaveDream(dream: DreamSnapshot): Promise<DreamSnapshot>
 {
 	const result = await ipcRenderer.invoke(IPC_CHANNELS.saveDream, dream);
 
-	return result as Dream;
+	return result as DreamSnapshot;
 }
 
-async function ListDreams(): Promise<Dream[]>
+async function ListDreams(): Promise<DreamSnapshot[]>
 {
 	const result = await ipcRenderer.invoke(IPC_CHANNELS.listDreams);
 
-	return result as Dream[];
+	return result as DreamSnapshot[];
 }
 
 async function DeleteDream(dreamId: string): Promise<void>
@@ -235,6 +182,18 @@ async function AllocateDreamId(): Promise<string>
 	const result = await ipcRenderer.invoke(IPC_CHANNELS.allocateDreamId);
 
 	return result as string;
+}
+
+async function CreateDreamSynopticView(request: DreamSynopticViewRequest): Promise<string>
+{
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.createDreamSynopticView, request);
+
+	return result as string;
+}
+
+async function CancelDreamSynopticView(dreamId: string): Promise<void>
+{
+	await ipcRenderer.invoke(IPC_CHANNELS.cancelDreamSynopticView, dreamId);
 }
 
 const api: ChoraApi = {
@@ -251,16 +210,9 @@ const api: ChoraApi = {
 	SetLookupBounds,
 	ExecuteLookupCommand,
 	SubscribeLookupState,
-	StartChat,
-	ContinueChat,
-	ListChatConversations,
-	LoadChatConversation,
-	DeleteChatConversation,
-	GetChatTools,
-	SubscribeChatDelta,
-	GetConfiguredProvider,
-	GetProviderOptions,
 	GetSourceNotice,
+	ListSignals,
+	SaveSignal,
 	ListIdeas,
 	DiscoverIdeaSignals,
 	SaveIdea,
@@ -268,7 +220,9 @@ const api: ChoraApi = {
 	SaveDream,
 	DeleteDream,
 	ListDreams,
-	AllocateDreamId
+	AllocateDreamId,
+	CreateDreamSynopticView,
+	CancelDreamSynopticView
 };
 
 contextBridge.exposeInMainWorld("chora", api);

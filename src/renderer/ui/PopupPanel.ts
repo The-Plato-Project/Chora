@@ -5,12 +5,15 @@ export class PopupPanel
 	private readonly overlay: HTMLElement;
 	// Contains caller-supplied popup content.
 	private readonly body: HTMLElement;
+	// Contains the popup title updated by reusable confirmation workflows.
+	private readonly heading: HTMLHeadingElement;
 	// Handles backdrop clicks for the popup lifetime.
 	private readonly overlayClickHandler: (event: MouseEvent) => void;
 	// Handles the close button for the popup lifetime.
 	private readonly closeClickHandler: () => void;
 	// Tracks whether the popup is visible.
 	private isOpen = false;
+	private readonly closeHandlers = new Set<() => void>();
 
 	// Creates and mounts one titled modal popup beneath the document body.
 	public constructor(title: string)
@@ -27,15 +30,15 @@ export class PopupPanel
 
 		const header = document.createElement("header");
 		header.className = "popup-header";
-		const heading = document.createElement("h4");
-		heading.textContent = title;
+		this.heading = document.createElement("h4");
+		this.heading.textContent = title;
 		const closeButton = document.createElement("button");
 		closeButton.type = "button";
 		closeButton.className = "popup-close button-control";
 		closeButton.setAttribute("aria-label", "Close");
 		closeButton.textContent = "\u00d7";
 		closeButton.addEventListener("click", this.closeClickHandler);
-		header.append(heading, closeButton);
+		header.append(this.heading, closeButton);
 
 		this.body = document.createElement("div");
 		this.body.className = "popup-body";
@@ -62,14 +65,32 @@ export class PopupPanel
 	// Hides the popup.
 	public Close(): void
 	{
+		const wasOpen = this.isOpen;
 		this.isOpen = false;
 		this.overlay.hidden = true;
+
+		if (wasOpen)
+		{
+			for (const handler of this.closeHandlers) handler();
+		}
+	}
+
+	// Registers a callback for every completed close transition.
+	public OnClose(handler: () => void): void
+	{
+		this.closeHandlers.add(handler);
 	}
 
 	// Replaces all popup body markup.
 	public SetBodyHtml(html: string): void
 	{
 		this.body.innerHTML = html;
+	}
+
+	// Replaces the visible title of a reusable popup.
+	public SetTitle(title: string): void
+	{
+		this.heading.textContent = title;
 	}
 
 	// Registers delegated click handling within the popup body.
@@ -111,6 +132,7 @@ export class PopupPanel
 	public Dispose(): void
 	{
 		this.overlay.removeEventListener("click", this.overlayClickHandler);
+		this.closeHandlers.clear();
 		this.overlay.remove();
 	}
 

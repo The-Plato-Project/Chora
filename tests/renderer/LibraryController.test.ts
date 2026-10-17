@@ -5,7 +5,7 @@ import type { ChoraEvents } from "../../src/renderer/core/events/ChoraEvents.js"
 import { LibraryController } from "../../src/renderer/library/LibraryController.js";
 import { LibraryGateway } from "../../src/renderer/library/LibraryGateway.js";
 import { LibraryStore } from "../../src/renderer/library/LibraryStore.js";
-import type { LibraryText, LibraryTextSummary, SourceNotice } from "../../src/shared/library/LibraryTypes.js";
+import type { TextDocument, LibraryTextSummary, SourceNotice } from "../../src/shared/library/LibraryTypes.js";
 
 const summary: LibraryTextSummary = {
 	id: "republic",
@@ -18,13 +18,13 @@ const summary: LibraryTextSummary = {
 	fileName: "republic.json"
 };
 
-const document: LibraryText = {
+const document: TextDocument = {
 	...summary,
 	edition: { editor: null, title: null, volume: null, publisher: null, publicationPlace: null, publicationDate: null },
 	provenance: { repository: "PerseusDL", commit: "test", sourceFile: "republic.xml", license: "CC" },
 	segments: [
-		{ key: "s1", locator: { scheme: "Stephanus", value: "327a" }, speaker: null, text: "abcdef", blockKind: "narration" },
-		{ key: "s2", locator: { scheme: "Stephanus", value: "327b" }, speaker: null, text: "ghijkl", blockKind: "narration" }
+		{ key: "s1", citation: { system: "stephanus", value: "327a" }, text: "abcdef" },
+		{ key: "s2", citation: { system: "stephanus", value: "327b" }, text: "ghijkl" }
 	]
 };
 
@@ -68,7 +68,11 @@ describe("LibraryController", function LibraryControllerTests()
 		await controller.StartAsync();
 
 		expect(opened).toBe(true);
-		expect(store.GetText()).toEqual(document);
+		expect(store.GetText()?.id).toBe(document.id);
+		expect(store.GetText()?.segments.map(function GetText(segment): string
+		{
+			return segment.text;
+		})).toEqual(["abcdef", "ghijkl"]);
 		expect(store.GetSourceNotice()).toEqual(sourceNotice);
 		expect(store.GetSnapshot().texts).toEqual([summary]);
 	});
@@ -88,9 +92,11 @@ describe("LibraryController", function LibraryControllerTests()
 		controller.SetSelection(browserSelection);
 		controller.SetSelection(browserSelection);
 
-		expect(store.GetSelection()?.selectedText).toBe("cdef\nghi");
-		expect(store.GetSelection()?.locatorStart?.value).toBe("327a");
-		expect(store.GetSelection()?.locatorEnd?.value).toBe("327b");
+		const selection = store.GetSelection();
+		const text = store.GetText();
+		expect(selection === null || text === null ? "" : text.ReconstructText(selection)).toBe("cdef\nghi");
+		expect(selection === null || text === null ? null : text.ResolveCitation(selection.start)?.value).toBe("327a");
+		expect(selection === null || text === null ? null : text.ResolveCitation(selection.end)?.value).toBe("327b");
 	});
 
 	it("rejects selections belonging to another document", async function RejectsWrongDocument()
@@ -113,10 +119,13 @@ describe("LibraryController", function LibraryControllerTests()
 		});
 		await controller.StartAsync();
 
-		expect(store.GetContextSelection()?.selectedText).toBe("abcdef");
+		let selection = store.GetContextSelection();
+		const text = store.GetText();
+		expect(selection === null || text === null ? "" : text.ReconstructText(selection)).toBe("abcdef");
 		controller.SetFocusSegment("s2");
 
-		expect(store.GetContextSelection()?.selectedText).toBe("ghijkl");
+		selection = store.GetContextSelection();
+		expect(selection === null || text === null ? "" : text.ReconstructText(selection)).toBe("ghijkl");
 		expect(focusedSegment).toBe("s2");
 	});
 });

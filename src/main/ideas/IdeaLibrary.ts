@@ -1,17 +1,17 @@
 import { randomUUID } from "node:crypto";
-import type { Dream } from "../../shared/dreams/DreamTypes.js";
 import type { DeleteIdeaCommand, IdeaRecord, IdeaSignalReference, SaveIdeaCommand } from "../../shared/ideas/IdeaTypes.js";
+import type { SignalRecord } from "../../shared/signals/SignalTypes.js";
 import { Idea } from "./Idea.js";
 import { IdeaRepository } from "./IdeaRepository.js";
 
-// Provides authoritative Dream records needed to resolve Idea evidence.
-export interface IdeaDreamAccess
+// Provides authoritative work-owned Signals used to validate Idea associations.
+export interface IdeaSignalAccess
 {
-	// Lists the reader-owned Dreams visible to Ideas.
-	ListAsync(): Promise<Dream[]>;
+	ListAsync(workId: string): Promise<SignalRecord[]>;
+	DeleteIfOrphanedAsync(signalId: string): Promise<void>;
 }
 
-// Owns durable Ideas, canonical identities, and cross-Dream evidence validation.
+// Owns durable Ideas, canonical identities, and Signal association validation.
 export class IdeaLibrary
 {
 	// Aggregates keyed by main-owned Idea identity.
@@ -22,7 +22,7 @@ export class IdeaLibrary
 	// Creates the authoritative Idea library and its required collaborators.
 	public constructor(
 		private readonly repository: IdeaRepository,
-		private readonly dreams: IdeaDreamAccess)
+		private readonly signals: IdeaSignalAccess)
 	{
 	}
 
@@ -50,7 +50,10 @@ export class IdeaLibrary
 	public async SaveAsync(command: SaveIdeaCommand): Promise<IdeaRecord>
 	{
 		await this.EnsureLoadedAsync();
-		const originSignal = await this.ResolveReferenceAsync(command.workId, command.originSignal);
+		const previous = command.ideaId === null ? null : this.ideas.get(command.ideaId)?.ToRecord() ?? null;
+		const originSignal = command.originSignal === null
+			? null
+			: await this.ResolveReferenceAsync(command.workId, command.originSignal);
 		const relatedSignals = await this.ResolveReferencesAsync(command.workId, command.relatedSignals);
 		const normalizedCommand: SaveIdeaCommand = {
 			...structuredClone(command),
@@ -83,6 +86,22 @@ export class IdeaLibrary
 		const ideaId = idea.GetId();
 		this.ideas.set(ideaId, idea);
 
+		if (previous !== null)
+		{
+			const previousReferences = previous.originSignal === null
+				? [...previous.relatedSignals]
+				: [previous.originSignal, ...previous.relatedSignals];
+			const currentReferences = record.originSignal === null
+				? [...record.relatedSignals]
+				: [record.originSignal, ...record.relatedSignals];
+			const currentIds = new Set(currentReferences.map((reference) => reference.signalId));
+
+			for (const reference of previousReferences)
+			{
+				if (!currentIds.has(reference.signalId)) await this.signals.DeleteIfOrphanedAsync(reference.signalId);
+			}
+		}
+
 		return record;
 	}
 
@@ -101,8 +120,14 @@ export class IdeaLibrary
 			throw new Error("Idea does not belong to the requested work");
 		}
 
+		const record = idea.ToRecord();
+		const references = record.originSignal === null
+			? [...record.relatedSignals]
+			: [record.originSignal, ...record.relatedSignals];
 		await this.repository.DeleteAsync(command.ideaId);
 		this.ideas.delete(command.ideaId);
+
+		for (const reference of references) await this.signals.DeleteIfOrphanedAsync(reference.signalId);
 	}
 
 	// Loads and validates persisted Idea aggregates once.
@@ -128,49 +153,40 @@ export class IdeaLibrary
 		}
 	}
 
-	// Resolves submitted references against authoritative same-work Dreams.
+	// Resolves submitted references against authoritative same-work Signals.
 	private async ResolveReferencesAsync(workId: string, references: readonly IdeaSignalReference[]): Promise<IdeaSignalReference[]>
 	{
-		const dreams = await this.dreams.ListAsync();
+		const signals = await this.signals.ListAsync(workId);
 		const resolved: IdeaSignalReference[] = [];
 		const identities = new Set<string>();
 
 		for (const reference of references)
 		{
-			const dreamId = reference.dreamId.trim();
 			const signalId = reference.signalId.trim();
-			const dream = this.FindDream(dreams, dreamId);
-
-			if (dream === null)
-			{
-				throw new Error(`Idea Signal reference Dream is unresolved: ${dreamId}`);
-			}
-			if (dream.workId !== workId)
-			{
-				throw new Error(`Idea Signal reference belongs to another work: ${dreamId}`);
-			}
-
-			const hasSignal = this.HasSignal(dream, signalId);
+			const hasSignal = signals.some((signal) => signal.id === signalId);
 
 			if (!hasSignal)
 			{
 				throw new Error(`Idea Signal reference is unresolved: ${signalId}`);
 			}
 
-			const identity = this.CreateReferenceIdentity(dreamId, signalId);
+			const identity = this.CreateReferenceIdentity(signalId);
 			const isKnown = identities.has(identity);
 
 			if (!isKnown)
 			{
 				identities.add(identity);
-				resolved.push({ dreamId, signalId });
+				const resolvedReference: IdeaSignalReference = reference.rationale === undefined
+					? { signalId }
+					: { signalId, rationale: reference.rationale };
+				resolved.push(resolvedReference);
 			}
 		}
 
 		return resolved;
 	}
 
-	// Resolves one submitted Signal against authoritative same-work Dreams.
+	// Resolves one submitted Signal against the authoritative work-owned collection.
 	private async ResolveReferenceAsync(workId: string, reference: IdeaSignalReference): Promise<IdeaSignalReference>
 	{
 		const references = await this.ResolveReferencesAsync(workId, [reference]);
@@ -184,42 +200,10 @@ export class IdeaLibrary
 		return resolved;
 	}
 
-	// Finds one Dream by its stable identity.
-	private FindDream(dreams: readonly Dream[], dreamId: string): Dream | null
-	{
-		let found: Dream | null = null;
-
-		for (const dream of dreams)
-		{
-			if (dream.id === dreamId)
-			{
-				found = dream;
-			}
-		}
-
-		return found;
-	}
-
-	// Determines whether one Dream owns the submitted Signal identity.
-	private HasSignal(dream: Dream, signalId: string): boolean
-	{
-		let hasSignal = false;
-
-		for (const signal of dream.signals)
-		{
-			if (signal.id === signalId)
-			{
-				hasSignal = true;
-			}
-		}
-
-		return hasSignal;
-	}
-
 	// Creates the stable identity used to remove duplicate references.
-	private CreateReferenceIdentity(dreamId: string, signalId: string): string
+	private CreateReferenceIdentity(signalId: string): string
 	{
-		const identity = `signal:${dreamId}:${signalId}`;
+		const identity = `signal:${signalId}`;
 
 		return identity;
 	}

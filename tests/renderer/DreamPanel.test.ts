@@ -11,26 +11,51 @@ import { SessionStore } from "../../src/renderer/core/session/SessionStore.js";
 import { ChoraEventBus } from "../../src/renderer/core/events/ChoraEventBus.js";
 import { ErrorManager } from "../../src/renderer/core/diagnostics/RendererErrorManager.js";
 import type { ChoraEvents } from "../../src/renderer/core/events/ChoraEvents.js";
-import type { Dream } from "../../src/shared/dreams/DreamTypes.js";
+import type { DreamView } from "../../src/renderer/dreams/DreamView.js";
+import type { IdeaRecord } from "../../src/shared/ideas/IdeaTypes.js";
+import { IdeaStore } from "../../src/renderer/ideas/IdeaStore.js";
+import { AddIcon } from "../../src/renderer/ui/Icons.js";
 
-// Creates a small persisted Dream with two independently editable signals.
-function CreateDream(): Dream
+// Creates a small persisted DreamView with two independently editable signals.
+function CreateDream(): DreamView
 {
 	const selection = {
 		documentId: "republic", start: { segmentKey: "s1", offset: 0 },
 		end: { segmentKey: "s1", offset: 6 }, selectedText: "abcdef",
 		locatorStart: null, locatorEnd: null
 	};
-	const dream: Dream = {
+	const dream: DreamView = {
 		id: "dream-1", workId: "republic", dialogue: "Republic", title: "A long Dream title",
 		source: { ...selection, sourceRefs: ["s1"], startSourceRef: "s1", endSourceRef: "s1" },
 		signals: [
 			{ id: "signal-1", text: "abc", description: "First description", sourceRef: "s1", selection },
 			{ id: "signal-2", text: "def", description: "Second description", sourceRef: "s1", selection }
 		],
-		reflection: "Initial Exegesis", linkedDreamIds: [], createdAt: "2026-09-06", updatedAt: "2026-09-06"
+		reflection: "Initial Reflections", synopticView: "", linkedDreamIds: [], createdAt: "2026-09-06", updatedAt: "2026-09-06"
 	};
 	return dream;
+}
+
+function CreateIdeas(): IdeaRecord[]
+{
+	return [
+		{
+			id: "idea-origin", workId: "republic", title: "Descent", content: "",
+			originSignal: { signalId: "signal-1" }, relatedSignals: [],
+			createdAt: "2026-01-01", updatedAt: "2026-01-01"
+		},
+		{
+			id: "idea-related", workId: "republic", title: "Seeing", content: "",
+			originSignal: { signalId: "another-signal" },
+			relatedSignals: [{ signalId: "signal-1" }],
+			createdAt: "2026-01-01", updatedAt: "2026-01-01"
+		},
+		{
+			id: "idea-available", workId: "republic", title: "Justice", content: "",
+			originSignal: null, relatedSignals: [],
+			createdAt: "2026-01-01", updatedAt: "2026-01-01"
+		}
+	];
 }
 
 // Selects editor content and activates its bold toolbar action.
@@ -82,6 +107,7 @@ describe("DreamPanel", function DreamPanelTests()
 	let gateway: DreamGateway;
 	let controller: DreamController;
 	let library: LibraryStore;
+	let ideas: IdeaStore;
 	let auxiliaryPanels: DreamPanel[];
 
 	beforeEach(async function SetupAsync()
@@ -100,11 +126,35 @@ describe("DreamPanel", function DreamPanelTests()
 			const saved = structuredClone(record);
 			return saved;
 		});
+
+		vi.spyOn(gateway, "SaveSignalDescriptionAsync").mockImplementation(async function SaveSignalDescriptionAsync(signal, workId, description)
+		{
+			return {
+				...structuredClone(signal),
+				workId,
+				description,
+				createdAt: "2026-01-01",
+				updatedAt: "2026-01-01"
+			};
+		});
 		library = new LibraryStore();
+		library.Open({
+			id: "republic",
+			urn: null,
+			title: "Republic",
+			titleGreek: null,
+			author: "Plato",
+			language: "grc",
+			edition: { editor: null, title: null, volume: null, publisher: null, publicationPlace: null, publicationDate: null },
+			provenance: { repository: "test", commit: "test", sourceFile: "test.xml", license: "test" },
+			segments: [{ key: "s1", citation: { system: "stephanus", value: "327a" }, text: "abcdef" }]
+		} as never, null);
+		ideas = new IdeaStore();
+		ideas.SetWork("republic", CreateIdeas());
 		auxiliaryPanels = [];
 		const errors = new ErrorManager(events);
 		controller = new DreamController(events, errors, library, store, gateway);
-		panel = new DreamPanel(root, events, store, controller, library, "editor");
+		panel = new DreamPanel(root, events, store, controller, library, "editor", ideas);
 		await vi.waitFor(function EditorsReady(): void
 		{
 			expect(root.querySelectorAll('[aria-busy="true"]')).toHaveLength(0);
@@ -122,7 +172,14 @@ describe("DreamPanel", function DreamPanelTests()
 		vi.useRealTimers();
 	});
 
-	// Opens the rename workflow from the Dream Explorer, where title editing is exposed.
+	it("keeps Dream deletion out of the editor surface", function HidesDeleteFromEditor(): void
+	{
+		const deleteDream = vi.spyOn(gateway, "DeleteAsync").mockResolvedValue();
+		expect(root.querySelector("[data-delete-dream]")).toBeNull();
+		expect(deleteDream).not.toHaveBeenCalled();
+	});
+
+	// Opens the rename workflow from the DreamView Explorer, where title editing is exposed.
 	function OpenRenameFromCatalogue(): void
 	{
 		const activeDream = store.GetActiveDream();
@@ -150,11 +207,11 @@ describe("DreamPanel", function DreamPanelTests()
 		controller.ActivateTab("dream-1");
 
 		expect(store.GetActiveDream()?.id).toBe("dream-1");
-		expect(root.querySelector<HTMLButtonElement>('.dream-tabs-host [role=tab][aria-selected="true"]')?.textContent).toBe("General Observations");
+		expect(root.querySelector<HTMLButtonElement>('.dream-tabs-host [role=tab][aria-selected="true"]')?.textContent).toBe("Reflections");
 		const restoredStore = new DreamStore(new SessionStore());
 		expect(restoredStore.GetOpenTabs()).toHaveLength(2);
 		expect(restoredStore.GetActiveDream()?.id).toBe("dream-1");
-		expect(restoredStore.GetEditorTab("dream-1")).toBe("exegesis");
+		expect(restoredStore.GetEditorTab("dream-1")).toBe("reflections");
 		restoredStore.Dispose();
 
 		await controller.CloseTabAsync("dream-1");
@@ -164,9 +221,14 @@ describe("DreamPanel", function DreamPanelTests()
 
 	it("copies the complete Dream as Markdown from the outer document menu", async function CopiesDreamMarkdownAsync()
 	{
+		controller.UpdateSynopticView("The reader's developing account is visible.");
 		const copy = vi.spyOn(gateway, "CopyAsync").mockResolvedValue(undefined);
 		const tabs = root.querySelectorAll<HTMLButtonElement>('.dream-tabs-host [role="tab"]');
-		expect(Array.from(tabs, function Label(tab): string | null { return tab.textContent; })).toEqual(["Signals", "General Observations"]);
+		expect(Array.from(tabs, function Label(tab): string | null { return tab.textContent; })).toEqual(["Signals", "Reflections", "Clarity Check"]);
+		tabs[2]?.click();
+		const checkButton = root.querySelector<HTMLButtonElement>("[data-create-synoptic-view]");
+		expect(checkButton?.title).toBe("Check clarity");
+		expect(root.querySelector("[data-dream-synoptic-view] .markdown-toolbar")?.getAttribute("aria-label")).toBe("Clarity Check formatting");
 		void controller.CopyDreamAsMarkdownAsync();
 		await vi.waitFor(function DreamCopied(): void { expect(copy).toHaveBeenCalledOnce(); });
 		const markdown = vi.mocked(copy).mock.calls[0]?.[0] ?? "";
@@ -177,8 +239,61 @@ describe("DreamPanel", function DreamPanelTests()
 		expect(markdown).toContain("Source: Republic · s1");
 		expect(markdown).toContain("#### Observation");
 		expect(markdown).toContain("First description");
-		expect(markdown).toContain("## General Observations");
-		expect(markdown).toContain("Initial Exegesis");
+		expect(markdown).toContain("## Reflections");
+		expect(markdown).toContain("Initial Reflections");
+		expect(markdown).toContain("## Clarity Check");
+		expect(markdown).not.toContain("## Synoptic View");
+	});
+
+	it("generates an editable Clarity Check and copies it to the clipboard", async function CreatesAndCopiesSynopticViewAsync()
+	{
+		let complete: ((value: string) => void) | null = null;
+		vi.spyOn(gateway, "CreateSynopticViewAsync").mockImplementation(() => new Promise<string>((resolve) => { complete = resolve; }));
+		const copy = vi.spyOn(gateway, "CopyAsync").mockResolvedValue(undefined);
+		const tabs = root.querySelectorAll<HTMLButtonElement>(".dream-tabs-host [role=tab]");
+		tabs[2]!.click();
+		const create = root.querySelector<HTMLButtonElement>("[data-create-synoptic-view]")!;
+		expect(create.title).toBe("Check clarity");
+		expect(create.textContent).toBe("");
+		create.click();
+		await vi.waitFor(function GenerationShown(): void
+		{
+			expect(create.title).toBe("Cancel");
+			expect(root.querySelector<HTMLElement>("[data-synoptic-view-progress]")?.hidden).toBe(false);
+		});
+		await Promise.resolve();
+		if (complete === null) throw new Error("Clarity Check request did not start.");
+		complete("## Shared movement\n\nA generated relationship.");
+		await vi.waitFor(function SynopticViewApplied(): void
+		{
+			expect(store.GetActiveDream()?.synopticView).toContain("Shared movement");
+			expect(root.querySelector<HTMLElement>("[data-synoptic-view-progress]")?.hidden).toBe(true);
+			expect(create.title).toBe("Check clarity");
+		});
+
+		const copyButton = root.querySelector<HTMLButtonElement>("[data-copy-synoptic-view]")!;
+		expect(copyButton.title).toBe("Copy");
+		expect(copyButton.textContent).toBe("");
+		copyButton.click();
+		await vi.waitFor(function SynopticViewCopied(): void { expect(copy).toHaveBeenCalledWith("## Shared movement\n\nA generated relationship."); });
+
+		expect(store.GetActiveDream()?.reflection).toBe("Initial Reflections");
+		expect(store.GetActiveDream()?.synopticView).toContain("Shared movement");
+		expect(root.querySelector<HTMLButtonElement>('.dream-tabs-host [role=tab][aria-selected="true"]')?.textContent).toBe("Clarity Check");
+	});
+
+	it("does not replace a populated Clarity Check without confirmation", async function ProtectsSynopticViewAsync()
+	{
+		controller.UpdateSynopticView("Existing Clarity Check");
+		await events.PublishAsync("dream.synoptic-view-state-changed", { dreamId: "dream-1" });
+		const create = vi.spyOn(gateway, "CreateSynopticViewAsync").mockResolvedValue("Replacement");
+		vi.spyOn(window, "confirm").mockReturnValue(false);
+		root.querySelectorAll<HTMLButtonElement>(".dream-tabs-host [role=tab]")[2]!.click();
+
+		root.querySelector<HTMLButtonElement>("[data-create-synoptic-view]")!.click();
+
+		expect(create).not.toHaveBeenCalled();
+		expect(store.GetActiveDream()?.synopticView).toBe("Existing Clarity Check");
 	});
 
 	it("uses the document tab as the title and retains source disclosure on structural updates", async function PreservesSource()
@@ -187,14 +302,27 @@ describe("DreamPanel", function DreamPanelTests()
 		expect(root.querySelector("[data-dream-heading]")).toBeNull();
 		expect(root.querySelector(".signal-observation-heading")).toBeNull();
 		expect(document.querySelectorAll(".popup-overlay")).toHaveLength(0);
+		const title = root.querySelector<HTMLInputElement>("[data-dream-editor-title]")!;
+		expect(title.value).toBe("A long Dream title");
+		expect(root.querySelector("[data-dream-reflections]")).not.toBeNull();
+		title.value = "A titled Dream";
+		title.dispatchEvent(new Event("input", { bubbles: true }));
+		expect(store.GetActiveDream()?.title).toBe("A titled Dream");
 		const details = root.querySelector<HTMLDetailsElement>(".dream-source-section")!;
 		const source = root.querySelector("[data-dream-source]")!;
 		expect(source.tagName).toBe("BLOCKQUOTE");
 		expect(details.open).toBe(true);
-		details.open = false;
+		expect(details.style.height).not.toBe("");
+		const divider = root.querySelector<HTMLElement>("[data-dream-source-divider]")!;
+		const editor = root.querySelector<HTMLElement>(".dream-editor.document-editor")!;
+		vi.spyOn(details, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 600, 144));
+		vi.spyOn(editor, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 700, 800));
+		divider.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+		expect(details.style.height).toBe("168px");
+		expect(window.localStorage.getItem("chora:layout-settings")).toContain('"dreamSourceHeight":168');
 		await events.PublishAsync("dream.structure-changed", { dreamId: "dream-1" });
 		expect(root.querySelector(".dream-source-section")).toBe(details);
-		expect(details.open).toBe(false);
+		expect(details.open).toBe(true);
 		expect(source.textContent).toBe("abcdef");
 	});
 
@@ -215,8 +343,9 @@ describe("DreamPanel", function DreamPanelTests()
 		{
 			const settings = new ReadingSettingsStore();
 			settings.Apply();
-			const selectors = [".dream-source", ".signal-heading", ".signal-markdown-editor .ProseMirror p", ".dream-exegesis-markdown .ProseMirror p"];
+			const selectors = [".dream-source", ".signal-markdown-editor .ProseMirror p", ".dream-reflections-markdown .ProseMirror p"];
 			const formattingToolbar = root.querySelector<HTMLElement>(".signal-markdown-editor .markdown-toolbar")!;
+			expect(getComputedStyle(root.querySelector<HTMLElement>(".signal-heading")!).fontSize).toBe("12px");
 			expect(getComputedStyle(formattingToolbar).position).toBe("sticky");
 			expect(getComputedStyle(formattingToolbar).top).toBe("0px");
 			for (const delta of [0, 2, -1])
@@ -247,33 +376,34 @@ describe("DreamPanel", function DreamPanelTests()
 	it("preserves editors and expansion when switching tabs and autosaves content", async function PreservesEditors()
 	{
 		const buttons = root.querySelectorAll<HTMLButtonElement>(".dream-tabs-host [role=tab]");
-		expect(buttons[1]?.textContent).toBe("General Observations");
+		expect(buttons[1]?.textContent).toBe("Reflections");
 		const toggle = root.querySelector<HTMLButtonElement>("[data-signal-toggle]")!;
 		toggle.click();
 		const description = root.querySelector<HTMLElement>("[data-signal-description]")!;
 		FormatBold(description);
 		buttons[1]!.click();
-		const exegesis = root.querySelector<HTMLElement>("[data-dream-exegesis]")!;
-		FormatBold(exegesis);
+		const reflections = root.querySelector<HTMLElement>("[data-dream-reflections]")!;
+		FormatBold(reflections);
 		buttons[0]!.click();
 		expect(root.querySelector("[data-signal-toggle]")).toBe(toggle);
 		expect(toggle.getAttribute("aria-expanded")).toBe("true");
 		expect(description.hidden).toBe(false);
 		expect(description.querySelector("strong")?.textContent).toBe("First description");
-		expect(root.querySelector("[data-dream-exegesis]")).toBe(exegesis);
+		expect(root.querySelector("[data-dream-reflections]")).toBe(reflections);
 		await vi.advanceTimersByTimeAsync(800);
-		expect(gateway.SaveAsync).toHaveBeenCalledWith(expect.objectContaining({ reflection: expect.stringContaining("**Initial Exegesis**") }));
+		expect(gateway.SaveAsync).toHaveBeenCalledWith(expect.objectContaining({ reflection: expect.stringContaining("**Initial Reflections**") }));
 		expect(store.GetActiveDream()?.signals[0]?.description).toContain("**First description**");
 		expect(store.GetSaveState()).toBe("idle");
 	});
 
-	it("selects one signal at a time without replacing editors", function SelectsOneSignal()
+	it("selects one signal at a time, focuses it, and does not replace editors", async function SelectsOneSignalAsync()
 	{
 		const first = root.querySelector<HTMLElement>('[data-signal-id="signal-1"]')!;
 		const second = root.querySelector<HTMLElement>('[data-signal-id="signal-2"]')!;
 		const editor = first.querySelector("[contenteditable=true]");
 		expect(first.hidden).toBe(false);
 		expect(second.hidden).toBe(true);
+		expect(second.querySelector("[contenteditable=true]")).toBeNull();
 		expect(first.querySelector(".signal-detail-heading")).toBeNull();
 		expect(first.querySelector("[data-signal-edit]")).toBeNull();
 		expect(first.querySelector(".signal-detail-title [data-signal-chat]")).toBeNull();
@@ -281,12 +411,119 @@ describe("DreamPanel", function DreamPanelTests()
 		root.querySelector<HTMLButtonElement>('[data-signal-toggle="signal-2"]')!.click();
 		expect(first.hidden).toBe(true);
 		expect(second.hidden).toBe(false);
+		await vi.waitFor(function SelectedDescriptionLoaded(): void
+		{
+			expect(second.querySelector("[contenteditable=true]")?.textContent).toBe("Second description");
+		});
+		const secondEditor = second.querySelector("[contenteditable=true]");
+		expect(document.activeElement).toBe(secondEditor);
 		root.querySelector<HTMLButtonElement>('[data-signal-toggle="signal-1"]')!.click();
+		await Promise.resolve();
 		expect(first.hidden).toBe(false);
 		expect(first.querySelector("[contenteditable=true]")).toBe(editor);
+		expect(document.activeElement).toBe(editor);
 	});
 
-	it("renames Dreams and deletes signals from their menu without replacing other editors", async function EditsSettings()
+	it("resizes the Signal list with its divider and shows complete Signal tooltips", function ResizesSignalList(): void
+	{
+		const body = root.querySelector<HTMLElement>(".signal-view-body")!;
+		const list = root.querySelector<HTMLElement>(".signal-view-body > .signal-list")!;
+		const divider = root.querySelector<HTMLElement>(".signal-view-divider")!;
+		const first = root.querySelector<HTMLButtonElement>('[data-signal-toggle="signal-1"]')!;
+		vi.spyOn(body, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 800, 500));
+		vi.spyOn(list, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 232, 500));
+		vi.spyOn(divider, "getBoundingClientRect").mockReturnValue(new DOMRect(232, 0, 5, 500));
+
+		divider.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+
+		expect(first.title).toBe("abc");
+		expect(divider.getAttribute("role")).toBe("separator");
+		expect(divider.getAttribute("aria-orientation")).toBe("vertical");
+		expect(divider.getAttribute("aria-valuenow")).toBe("256");
+		expect(body.style.getPropertyValue("--signal-navigation-width")).toBe("256px");
+		expect(window.localStorage.getItem("chora:layout-settings")).toContain('"signalNavigationWidth":256');
+	});
+
+	it("does not show Add Signal in the Dream Signal rail", function OmitsAddSignal()
+	{
+		expect(root.querySelector("[data-signal-view-add]")).toBeNull();
+		expect(root.querySelector(".dream-signals-panel .signal-view-header")).toBeNull();
+	});
+
+	it("lists connected Ideas before available Ideas in the Add to Idea menu", async function OpensConnectedIdeaAsync()
+	{
+		const ideasMenu = root.querySelector<HTMLDetailsElement>(".signal-ideas-menu")!;
+		const remove = root.querySelector<HTMLButtonElement>("[data-remove-signal-association]")!;
+		const actions = ideasMenu.closest(".signal-toolbar-actions");
+		expect(actions).not.toBeNull();
+		expect(actions?.parentElement?.classList.contains("markdown-toolbar")).toBe(true);
+		expect(actions?.nextElementSibling).toBeNull();
+		expect(Array.from(actions?.children ?? [])).toEqual([ideasMenu, remove]);
+		const summary = ideasMenu.querySelector<HTMLElement>("[data-signal-ideas-menu]")!;
+		expect(summary.textContent).toBe("");
+		expect(summary.title).toBe("Add to Idea");
+		vi.spyOn(summary, "getBoundingClientRect").mockReturnValue(new DOMRect(700, 700, 28, 28));
+		summary.click();
+		const menuList = ideasMenu.querySelector<HTMLElement>(".action-menu-items")!;
+		expect(menuList.style.left).not.toBe("");
+		expect(menuList.style.top).not.toBe("");
+		expect(menuList.style.width).not.toBe("");
+		expect(menuList.style.maxHeight).not.toBe("");
+		const ideaButtons = ideasMenu.querySelectorAll<HTMLButtonElement>("[data-open-signal-idea]");
+		expect(Array.from(ideaButtons, function GetIdeaTitle(button): string | null
+		{
+			return button.textContent;
+		})).toEqual(["Descent", "Seeing"]);
+		expect(Array.from(ideasMenu.querySelectorAll(".signal-ideas-section-label"), function GetLabel(label): string | null
+		{
+			return label.textContent;
+		})).toEqual(["Already in", "Add to"]);
+		const addButton = ideasMenu.querySelector<HTMLButtonElement>('[data-idea-id="idea-available"]')!;
+		expect(addButton.textContent).toBe("Justice");
+		expect(addButton.querySelector("svg")?.outerHTML).toBe(AddIcon);
+		expect(addButton.title).toBe("Justice");
+		let openedIdeaId: string | null = null;
+		events.Subscribe("idea.open-requested", function CaptureIdea(event): void
+		{
+			openedIdeaId = event.ideaId;
+		});
+		ideaButtons[1]?.click();
+		await vi.waitFor(function IdeaOpened(): void
+		{
+			expect(openedIdeaId).toBe("idea-related");
+		});
+		expect(ideasMenu.open).toBe(false);
+	});
+
+	it("confirms removing a Signal from the Dream", function RemovesSignalAssociation()
+	{
+		const remove = root.querySelector<HTMLButtonElement>("[data-remove-signal-association]")!;
+		expect(remove.textContent).toBe("");
+		expect(remove.title).toBe("Remove from Dream");
+
+		remove.click();
+		const prompt = document.querySelector<HTMLElement>("[data-signal-remove-confirm]")?.closest<HTMLElement>(".popup-overlay");
+		const cancel = prompt?.querySelector<HTMLButtonElement>("[data-signal-remove-cancel]");
+		expect(prompt?.hidden).toBe(false);
+		expect(prompt?.textContent).toContain("abc");
+		expect(document.activeElement).toBe(cancel);
+		cancel?.click();
+		expect(store.GetActiveDream()?.signals).toHaveLength(2);
+
+		remove.click();
+		prompt?.querySelector<HTMLButtonElement>("[data-signal-remove-confirm]")?.click();
+		expect(store.GetActiveDream()?.signals).toHaveLength(1);
+		expect(store.GetActiveDream()?.signals[0]?.id).toBe("signal-2");
+	});
+
+	it("does not infer document-level Idea relationships from shared Signals", function OmitsIdeaRelationships()
+	{
+		const tabs = root.querySelectorAll<HTMLButtonElement>(".dream-tabs-host [role=tab]");
+		expect(Array.from(tabs, function Label(tab): string | null { return tab.textContent; })).toEqual(["Signals", "Reflections", "Clarity Check"]);
+		expect(root.querySelector(".signal-relationships-panel")).toBeNull();
+	});
+
+	it("renames Dreams without exposing deletion on Signal rows", async function EditsSettings()
 	{
 		expect(root.querySelector("[data-dream-heading]")).toBeNull();
 		OpenRenameFromCatalogue();
@@ -306,24 +543,30 @@ describe("DreamPanel", function DreamPanelTests()
 		{
 			expect(store.GetActiveDream()?.title).toBe("Renamed Dream");
 		});
-		const exegesis = root.querySelector("[data-dream-exegesis]");
+		const reflections = root.querySelector("[data-dream-reflections]");
 		expect(document.querySelector("[data-settings-signals]")).toBeNull();
-		const menu = root.querySelector<HTMLDetailsElement>('.signal-item:not([hidden]) .action-menu')!;
-		const menuItems = menu.querySelectorAll<HTMLButtonElement>(".action-menu-items > button");
-		expect(menuItems).toHaveLength(2);
-		expect(Array.from(menuItems, function Label(button): string { return button.textContent?.trim() ?? ""; })).toEqual(["Add to Idea…", "Delete signal"]);
-		expect(menu.querySelector("[data-copy-signal-markdown]")).toBeNull();
-		expect(menu.querySelector("[data-discover-idea]")).toBeNull();
-		expect(menu.querySelector("[data-add-signal-to-idea]")?.textContent).toBe("Add to Idea…");
-		const deleteButton = menu.querySelector<HTMLButtonElement>("[data-delete-signal]")!;
-		expect(menu.querySelector(".action-menu-items")?.lastElementChild).toBe(deleteButton);
-		deleteButton.click();
-		await vi.advanceTimersByTimeAsync(800);
+		const activeSignal = root.querySelector<HTMLElement>(".signal-item:not([hidden])")!;
+		expect(activeSignal.querySelectorAll(".action-menu")).toHaveLength(1);
+		expect(activeSignal.querySelector(".signal-ideas-menu")).not.toBeNull();
+		const summary = activeSignal.querySelector<HTMLElement>("[data-signal-ideas-menu]")!;
+		expect(summary.title).toBe("Add to Idea");
+		summary.click();
+		const addToIdea = activeSignal.querySelector<HTMLButtonElement>("[data-add-signal-to-idea]")!;
+		expect(addToIdea.closest(".signal-toolbar-actions")?.parentElement?.classList.contains("markdown-toolbar")).toBe(true);
+		expect(addToIdea.textContent).toBe("Justice");
+		const addition = vi.fn();
+		const unsubscribeAddition = events.Subscribe("idea.add-signal-requested", addition);
+		addToIdea.click();
+		await vi.waitFor(function IdeaAdditionRequested(): void
+		{
+			expect(addition).toHaveBeenCalledWith({ dreamId: "dream-1", signalId: "signal-1", ideaId: "idea-available" });
+		});
+		unsubscribeAddition();
+		expect(root.querySelector("[data-delete-signal]")).toBeNull();
 		expect(document.querySelector("[data-dream-title]")).toBe(input);
-		expect(root.querySelector("[data-dream-exegesis]")).toBe(exegesis);
-		expect(store.GetActiveDream()?.signals).toHaveLength(1);
-		expect(root.querySelector('[data-signal-id="signal-1"]')).toBeNull();
-		expect(root.querySelector<HTMLElement>('[data-signal-id="signal-2"]')?.hidden).toBe(false);
+		expect(root.querySelector("[data-dream-reflections]")).toBe(reflections);
+		expect(store.GetActiveDream()?.signals).toHaveLength(2);
+		expect(root.querySelector('[data-signal-id="signal-1"]')).not.toBeNull();
 		expect(gateway.SaveAsync).toHaveBeenCalledWith(expect.objectContaining({ title: "Renamed Dream" }));
 		expect(store.GetSaveState()).toBe("idle");
 	});
@@ -369,9 +612,9 @@ describe("DreamPanel", function DreamPanelTests()
 
 	it("focuses the added signal description and resets tabs when opening a different Dream", async function SelectsSignals()
 	{
-		const exegesisTab = root.querySelectorAll<HTMLButtonElement>("[role=tab]")[1]!;
-		exegesisTab.click();
-		exegesisTab.focus();
+		const reflectionsTab = root.querySelectorAll<HTMLButtonElement>("[role=tab]")[1]!;
+		reflectionsTab.click();
+		reflectionsTab.focus();
 		const active = store.GetActiveDream()!;
 		const added = { ...active.signals[0]!, id: "new-signal", description: "" };
 		store.ReplaceSignals([added, ...active.signals]);
@@ -394,16 +637,16 @@ describe("DreamPanel", function DreamPanelTests()
 			expect(content).not.toBeNull();
 			expect(document.activeElement).toBe(content);
 		});
-		const oldEditor = root.querySelector("[data-dream-exegesis]");
+		const oldEditor = root.querySelector("[data-dream-reflections]");
 		const dream = CreateDream();
 		dream.id = "dream-2";
 		dream.reflection = "Another Dream";
 		store.Open(dream, false);
 		await events.PublishAsync("dream.opened", {});
-		expect(root.querySelector("[data-dream-exegesis]")).not.toBe(oldEditor);
+		expect(root.querySelector("[data-dream-reflections]")).not.toBe(oldEditor);
 		await vi.waitFor(function NewEditorReady(): void
 		{
-			expect(root.querySelector("[data-dream-exegesis] [contenteditable=true]")?.textContent).toBe("Another Dream");
+			expect(root.querySelector("[data-dream-reflections] [contenteditable=true]")?.textContent).toBe("Another Dream");
 		});
 	});
 });

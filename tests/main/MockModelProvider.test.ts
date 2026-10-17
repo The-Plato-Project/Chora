@@ -1,26 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ModelRequest } from "../../src/shared/chat/ModelTypes.js";
+import type { ModelRequest } from "../../src/shared/models/ModelTypes.js";
 import { MockModelProvider } from "../../src/main/models/MockModelProvider.js";
 
 function CreateRequest(): ModelRequest
 {
 	const request: ModelRequest = {
 		systemPrompt: "System prompt",
-		userPrompt: "What movement structures this passage?",
-		history: [],
-		context: {
-			mode: "TEXT",
-			documentId: "plato-republic",
-			sourcePassage: "κατέβην χθὲς εἰς Πειραιᾶ.",
-			contextBefore: "",
-			contextAfter: "",
-			locator: {
-				scheme: "Stephanus",
-				value: "327a"
-			},
-			start: { segmentKey: "s1", offset: 0 },
-			end: { segmentKey: "s1", offset: 8 }
-		}
+		userPrompt: "κατέβην χθὲς εἰς Πειραιᾶ.",
+		history: []
 	};
 
 	return request;

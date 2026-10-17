@@ -1,5 +1,5 @@
-import type { TextSelection } from "../../shared/library/SelectionTypes.js";
-import type { LibraryText } from "../../shared/library/LibraryTypes.js";
+import type { TextSelection } from "../../shared/text/TextSelection.js";
+import { TextDocument } from "../../shared/library/LibraryTypes.js";
 
 // Returns the nearest ancestor segment element of a selection endpoint node, or null when outside a segment.
 function GetSegmentElement(node: Node | null): HTMLElement | null
@@ -21,6 +21,32 @@ function GetSegmentTextElement(segment: HTMLElement, node: Node): HTMLElement | 
 	return result;
 }
 
+interface ResolvedBoundary
+{
+	readonly segment: HTMLElement;
+	readonly text: HTMLElement;
+	readonly container: Node;
+	readonly offset: number;
+}
+
+function ResolveBoundary(node: Node, offset: number, edge: "start" | "end"): ResolvedBoundary | null
+{
+	const segment = GetSegmentElement(node);
+	const directText = segment === null ? null : GetSegmentTextElement(segment, node);
+	if (segment !== null && directText !== null) return { segment, text: directText, container: node, offset };
+	if (!(node instanceof Element)) return null;
+	const adjacentIndex = edge === "end" ? offset - 1 : offset;
+	const adjacent = node.childNodes.item(adjacentIndex);
+	if (!(adjacent instanceof Element)) return null;
+	const text = adjacent.matches(".segment-text")
+		? adjacent as HTMLElement
+		: adjacent.querySelector<HTMLElement>(".segment-text");
+	const adjacentSegment = text?.closest<HTMLElement>("[data-segment-key]") ?? null;
+	if (text === null || adjacentSegment === null) return null;
+	const boundaryOffset = edge === "end" ? text.childNodes.length : 0;
+	return { segment: adjacentSegment, text, container: text, offset: boundaryOffset };
+}
+
 // Returns the character offset within a segment's text element up to a selection boundary.
 function GetTextOffset(element: HTMLElement, container: Node, offset: number): number
 {
@@ -33,38 +59,25 @@ function GetTextOffset(element: HTMLElement, container: Node, offset: number): n
 }
 
 // Captures the reader's current browser selection as a canonical TextSelection, or null when there is none.
-export function CaptureSelection(work: LibraryText): TextSelection | null
+export function CaptureSelection(work: TextDocument): TextSelection | null
 {
+	work = TextDocument.FromSnapshot(work);
 	const selection = window.getSelection();
 	let result: TextSelection | null = null;
 
 	if (selection && selection.rangeCount > 0 && !selection.isCollapsed)
 	{
 		const range = selection.getRangeAt(0);
-		const startSegment = GetSegmentElement(range.startContainer);
-		const endSegment = GetSegmentElement(range.endContainer);
+		const start = ResolveBoundary(range.startContainer, range.startOffset, "start");
+		const end = ResolveBoundary(range.endContainer, range.endOffset, "end");
 
-		if (startSegment && endSegment)
+		if (start !== null && end !== null)
 		{
-			const startText = GetSegmentTextElement(startSegment, range.startContainer);
-			const endText = GetSegmentTextElement(endSegment, range.endContainer);
-
-			if (startText !== null && endText !== null)
-			{
-				const startKey = startSegment.dataset.segmentKey ?? "";
-				const endKey = endSegment.dataset.segmentKey ?? "";
-				const selectedText = selection.toString();
-				const locatorStart = work.segments.find((item) => item.key === startKey)?.locator ?? null;
-				const locatorEnd = work.segments.find((item) => item.key === endKey)?.locator ?? null;
-				result = {
-					documentId: work.id,
-					start: { segmentKey: startKey, offset: GetTextOffset(startText, range.startContainer, range.startOffset) },
-					end: { segmentKey: endKey, offset: GetTextOffset(endText, range.endContainer, range.endOffset) },
-					selectedText,
-					locatorStart,
-					locatorEnd
-				};
-			}
+			const startKey = start.segment.dataset.segmentKey ?? "";
+			const endKey = end.segment.dataset.segmentKey ?? "";
+			const startPosition = { segmentKey: startKey, offset: GetTextOffset(start.text, start.container, start.offset) };
+			const endPosition = { segmentKey: endKey, offset: GetTextOffset(end.text, end.container, end.offset) };
+			result = work.CreateSelection(startPosition, endPosition);
 		}
 	}
 

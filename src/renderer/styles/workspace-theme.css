@@ -212,64 +212,10 @@ body {
 	outline: 3px solid rgba(88, 156, 231, 0.15);
 }
 
-.chat-panel,
 .idea-panel {
 	background: var(--side-panel-background);
 	color: var(--app-text);
 	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
-
-.chat-header {
-	border-bottom-color: var(--panel-border);
-}
-
-.chat-header h2 {
-	color: #2d3036;
-}
-
-.chat-catalogue-item {
-	color: var(--app-text);
-}
-
-.chat-catalogue-item {
-	border-bottom-color: #e7e7e9;
-}
-
-.chat-catalogue-item:hover,
-.chat-catalogue-item:focus-visible {
-	border-color: #c8dff8;
-	background: #e4f0ff;
-}
-
-.chat-error,
-.chat-form {
-	border-color: #e0e1e5;
-	background: #ffffff;
-}
-
-.chat-message.user {
-	border-color: #cbe0fa;
-	background: #e7f1ff;
-	color: #26466c;
-}
-
-.chat-form textarea {
-	color: #383b41;
-}
-
-.send-button {
-	--button-hover-color: #ffffff;
-	--button-active-color: #ffffff;
-	--button-hover-background: #1264bb;
-	--button-active-background: #0b57ad;
-	background: #1672d2;
-	color: #ffffff;
-}
-
-:root:not([data-theme="dark"]) .chat-composer-footer select[data-chat-provider],
-:root:not([data-theme="dark"]) .chat-composer-footer select[data-chat-provider] option {
-	background: #ffffff;
-	color: #303238;
 }
 
 .app-setting-stepper {
@@ -606,25 +552,33 @@ html {
 	left: 0;
 	display: flex;
 	align-items: center;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
 	width: 65px;
 	margin: 0;
 	font: 11px/24px var(--ui-font);
 	text-align: left;
+	white-space: nowrap;
 	color: var(--muted-text);
 }
 
-.shell .passage-dream-button {
-	margin-left: 2px;
+.shell .passage-dream-button,
+.shell .passage-idea-button {
+	width: 16px;
+	height: 16px;
+	flex: 0 0 16px;
+	margin-left: 1px;
+	padding: 1px;
 	color: var(--app-text);
 }
 
-.shell .passage-dream-button svg {
-	width: 13px;
-	height: 13px;
+.shell .passage-dream-button svg,
+.shell .passage-idea-button svg {
+	width: 11px;
+	height: 11px;
 }
 
-.shell .passage-dream-button:focus-visible {
+.shell .passage-dream-button:focus-visible,
+.shell .passage-idea-button:focus-visible {
 	color: var(--accent);
 }
 

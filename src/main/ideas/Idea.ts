@@ -12,7 +12,7 @@ export class Idea
 	// Contains the reader-authored explanation.
 	private readonly content: string;
 	// Identifies the immutable Signal from which this Idea emerged.
-	private readonly originSignal: IdeaSignalReference;
+	private readonly originSignal: IdeaSignalReference | null;
 	// Contains the normalized distinct Signals connected after the origin.
 	private readonly relatedSignals: readonly IdeaSignalReference[];
 	// Records when this Idea was created.
@@ -25,9 +25,8 @@ export class Idea
 	{
 		this.ValidateIdentifier(record.id, "Idea identifier");
 		this.ValidateIdentifier(record.workId, "Idea work identifier");
-		const originSignal = this.NormalizeReference(record.originSignal);
+		const originSignal = record.originSignal === null ? null : this.NormalizeReference(record.originSignal);
 		const relatedSignals = this.NormalizeRelatedSignals(originSignal, record.relatedSignals);
-		this.ValidateDurability(relatedSignals);
 		this.id = record.id;
 		this.workId = record.workId;
 		this.title = record.title.trim();
@@ -80,21 +79,14 @@ export class Idea
 			throw new Error("Idea cannot move between works");
 		}
 
-		const submittedOrigin = this.NormalizeReference(command.originSignal);
-		const submittedIdentity = this.CreateReferenceIdentity(submittedOrigin.dreamId, submittedOrigin.signalId);
-		const originIdentity = this.CreateReferenceIdentity(this.originSignal.dreamId, this.originSignal.signalId);
-
-		if (submittedIdentity !== originIdentity)
-		{
-			throw new Error("An Idea's originating Signal cannot be changed");
-		}
+		const submittedOrigin = command.originSignal === null ? null : this.NormalizeReference(command.originSignal);
 
 		const record: IdeaRecord = {
 			id: this.id,
 			workId: this.workId,
 			title: command.title,
 			content: command.content,
-			originSignal: this.originSignal,
+			originSignal: submittedOrigin,
 			relatedSignals: command.relatedSignals,
 			createdAt: this.createdAt,
 			updatedAt: timestamp
@@ -121,32 +113,41 @@ export class Idea
 		return record;
 	}
 
-	// Normalizes one Signal reference and validates both identifiers.
+	// Normalizes one work-owned Signal reference.
 	private NormalizeReference(reference: IdeaSignalReference): IdeaSignalReference
 	{
-		const dreamId = reference.dreamId.trim();
 		const signalId = reference.signalId.trim();
-		this.ValidateIdentifier(dreamId, "Idea Dream reference");
+		if (reference.rationale !== undefined && reference.rationale !== null && typeof reference.rationale !== "string")
+		{
+			throw new Error("Idea Signal rationale is invalid");
+		}
+		const rationaleText = reference.rationale?.trim() ?? "";
+		const rationale = rationaleText.length > 0 ? rationaleText : null;
 		this.ValidateIdentifier(signalId, "Idea Signal reference");
-		const normalized: IdeaSignalReference = { dreamId, signalId };
+		const normalized: IdeaSignalReference = rationale === null
+			? { signalId }
+			: { signalId, rationale };
 
 		return normalized;
 	}
 
 	// Normalizes related Signals and removes the origin and duplicate identities.
 	private NormalizeRelatedSignals(
-		originSignal: IdeaSignalReference,
+		originSignal: IdeaSignalReference | null,
 		relatedSignals: readonly IdeaSignalReference[]): IdeaSignalReference[]
 	{
 		const normalized: IdeaSignalReference[] = [];
 		const identities = new Set<string>();
-		const originIdentity = this.CreateReferenceIdentity(originSignal.dreamId, originSignal.signalId);
-		identities.add(originIdentity);
+		if (originSignal !== null)
+		{
+			const originIdentity = this.CreateReferenceIdentity(originSignal.signalId);
+			identities.add(originIdentity);
+		}
 
 		for (const reference of relatedSignals)
 		{
 			const normalizedReference = this.NormalizeReference(reference);
-			const identity = this.CreateReferenceIdentity(normalizedReference.dreamId, normalizedReference.signalId);
+			const identity = this.CreateReferenceIdentity(normalizedReference.signalId);
 			const isKnown = identities.has(identity);
 
 			if (!isKnown)
@@ -160,20 +161,11 @@ export class Idea
 	}
 
 	// Creates the stable identity used to compare Signal references.
-	private CreateReferenceIdentity(dreamId: string, signalId: string): string
+	private CreateReferenceIdentity(signalId: string): string
 	{
-		const identity = `signal:${dreamId}:${signalId}`;
+		const identity = `signal:${signalId}`;
 
 		return identity;
-	}
-
-	// Requires enough distinct Signals for an Idea to be durable.
-	private ValidateDurability(relatedSignals: readonly IdeaSignalReference[]): void
-	{
-		if (relatedSignals.length < 2)
-		{
-			throw new Error("A durable Idea requires its originating Signal and at least 2 distinct related Signals");
-		}
 	}
 
 	// Rejects identifiers that cannot safely participate in ownership or persistence.

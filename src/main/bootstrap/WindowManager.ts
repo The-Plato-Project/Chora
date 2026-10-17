@@ -35,6 +35,7 @@ export class ChoraWindowManager
 			minWidth: 760,
 			minHeight: 540,
 			resizable: true,
+			show: false,
 			backgroundColor: "#0f1115",
 			webPreferences: {
 				preload: path.join(app.getAppPath(), ".vite", "build", "src", "preload", "preload.js"),
@@ -43,13 +44,30 @@ export class ChoraWindowManager
 				sandbox: true
 			}
 		});
-		void window.loadFile(path.join(app.getAppPath(), ".vite", "renderer", "src", "renderer", "index.html"));
+		void window.loadFile(path.join(app.getAppPath(), ".vite", "renderer", "src", "renderer", "index.html"))
+			.then(this.HandleLoadSuccess.bind(this, window), this.HandleLoadFailure.bind(this));
 		window.on("closed", this.HandleWindowClosed.bind(this, window));
 		window.webContents.on("context-menu", this.HandleContextMenu.bind(this, window));
 		window.webContents.on("render-process-gone", this.HandleRenderProcessGone.bind(this));
 		window.on("unresponsive", this.HandleWindowUnresponsive.bind(this));
 
 		return window;
+	}
+
+	// Owns the first native show, then normalizes a minimized state inherited from the launcher.
+	private HandleLoadSuccess(window: BrowserWindow): void
+	{
+		if (!window.isDestroyed())
+		{
+			window.show();
+			if (window.isMinimized()) window.restore();
+		}
+	}
+
+	// Reports renderer-document load failures that would otherwise leave the startup window hidden.
+	private HandleLoadFailure(error: unknown): void
+	{
+		Errors.Error("ElectronWindow", "Chora window content could not be loaded.", error);
 	}
 
 	// Clears the tracked window once the given window has closed.

@@ -6,9 +6,11 @@ import { EditorView } from "@milkdown/kit/prose/view";
 import { ErrorManager } from "../../src/renderer/core/diagnostics/RendererErrorManager.js";
 import { ChoraEventBus } from "../../src/renderer/core/events/ChoraEventBus.js";
 import type { ChoraEvents } from "../../src/renderer/core/events/ChoraEvents.js";
-import { ParseDreamMarkdown, SerializeDreamMarkdown } from "../../src/main/dreams/DreamMarkdownCodec.js";
-import type { Dream } from "../../src/shared/dreams/DreamTypes.js";
+import { ParseDreamMarkdownWithLegacy, SerializeDreamMarkdown } from "../../src/main/dreams/DreamMarkdownCodec.js";
+import type { DreamView } from "../../src/renderer/dreams/DreamView.js";
 import { SignalMarkdownDocument } from "../../src/shared/dreams/SignalMarkdownDocument.js";
+import { SignalMarkdownCodec } from "../../src/main/signals/SignalMarkdownCodec.js";
+import type { SignalRecord } from "../../src/shared/signals/SignalTypes.js";
 
 // Mounted editors are disposed even when an assertion fails.
 const editors: MarkdownEditor[] = [];
@@ -52,11 +54,11 @@ describe("MarkdownEditor", function MarkdownEditorTests()
 	it("serializes a complete Signal", function SerializesSignalMarkdown()
 	{
 		const selection = { documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 7 }, selectedText: "κατέβην", locatorStart: null, locatorEnd: null };
-		const dream: Dream = {
+		const dream: DreamView = {
 			id: "dream", workId: "republic", dialogue: "Republic", title: "Descent",
 			source: { ...selection, sourceRefs: ["s1"], startSourceRef: "s1", endSourceRef: "s1" },
 			signals: [{ id: "signal", sourceRef: "s1", text: "κατέβην", selection, description: "An observation" }],
-			reflection: "A reflection", linkedDreamIds: ["another"], createdAt: "2026-01-01", updatedAt: "2026-01-01"
+			reflection: "A reflection", synopticView: "", linkedDreamIds: ["another"], createdAt: "2026-01-01", updatedAt: "2026-01-01"
 		};
 		const signal = dream.signals[0]!;
 		const markdown = SignalMarkdownDocument.Serialize(dream, signal);
@@ -92,6 +94,17 @@ describe("MarkdownEditor", function MarkdownEditorTests()
 		expect(change).not.toHaveBeenCalled();
 	});
 
+	it("does not rebuild the document or collapse selection for equivalent external content", async function PreservesSelectionAsync()
+	{
+		const editor = await CreateEditorAsync("Selected observation");
+		SelectContent(editor);
+		const selection = window.getSelection();
+		const selectedText = selection?.toString();
+		editor.SetMarkdown(editor.GetMarkdown());
+		expect(window.getSelection()).toBe(selection);
+		expect(window.getSelection()?.toString()).toBe(selectedText);
+	});
+
 	it("renders Greek and formatting without rewriting the original Markdown on initialization", async function RendersMarkdownAsync()
 	{
 		const change = vi.fn();
@@ -103,6 +116,29 @@ describe("MarkdownEditor", function MarkdownEditorTests()
 		expect(editor.GetMarkdown()).toBe(markdown);
 		expect(change).not.toHaveBeenCalled();
 		expect(editor.Root.querySelector("[role=textbox]")?.getAttribute("aria-label")).toBe("Test description");
+	});
+
+	it("focuses the editable document when its blank writing surface is clicked", async function FocusesFromBlankSurfaceAsync()
+	{
+		const editor = await CreateEditorAsync("A short observation.");
+		const surface = editor.Root.querySelector<HTMLElement>(".markdown-content")!;
+		const content = editor.Root.querySelector<HTMLElement>("[contenteditable=true]")!;
+
+		surface.click();
+
+		expect(document.activeElement).toBe(content);
+	});
+
+	it("preserves selected text when a drag ends on the blank writing surface", async function PreservesReverseDragSelectionAsync()
+	{
+		const editor = await CreateEditorAsync("A selected observation.");
+		const surface = editor.Root.querySelector<HTMLElement>(".markdown-content")!;
+		SelectContent(editor);
+		const selectedText = window.getSelection()?.toString();
+
+		surface.click();
+
+		expect(window.getSelection()?.toString()).toBe(selectedText);
 	});
 
 	it("formats a selection and publishes Markdown synchronously with undo support", async function FormatsAndUndoesAsync()
@@ -201,22 +237,30 @@ describe("MarkdownEditor", function MarkdownEditorTests()
 		expect(editor.GetMarkdown().trim()).toBe("κατέβην");
 	});
 
-	it("round-trips formatted descriptions and Exegesis through the existing Markdown file codec", async function PersistsMarkdownAsync()
+	it("round-trips formatted descriptions and Reflections through the existing Markdown file codec", async function PersistsMarkdownAsync()
 	{
 		const editor = await CreateEditorAsync("κατέβην");
 		SelectContent(editor);
 		editor.Root.querySelector<HTMLButtonElement>('[data-markdown-command="bold"]')!.click();
 		const markdown = editor.GetMarkdown();
 		const selection = { documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 7 }, selectedText: "κατέβην", locatorStart: null, locatorEnd: null };
-		const dream: Dream = {
+		const dream: DreamView = {
 			id: "formatted", workId: "republic", dialogue: "Republic", title: "Formatting",
 			source: { ...selection, sourceRefs: ["s1"], startSourceRef: "s1", endSourceRef: "s1" },
 			signals: [{ id: "one", sourceRef: "s1", selection, text: "κατέβην", description: markdown }],
-			reflection: markdown, linkedDreamIds: [], createdAt: "2026-09-06", updatedAt: "2026-09-06"
+			reflection: markdown, synopticView: "", linkedDreamIds: [], createdAt: "2026-09-06", updatedAt: "2026-09-06"
+		};
+		const signal: SignalRecord = {
+			...dream.signals[0]!,
+			workId: dream.workId,
+			createdAt: dream.createdAt,
+			updatedAt: dream.updatedAt
 		};
 		const serialized = SerializeDreamMarkdown(dream);
-		const restored = ParseDreamMarkdown(serialized)!;
-		expect(restored.signals[0]?.description).toBe(markdown);
+		const restored = ParseDreamMarkdownWithLegacy(serialized)!.snapshot;
+		const signalCodec = new SignalMarkdownCodec();
+		const restoredSignal = signalCodec.Parse(signalCodec.Serialize(signal));
+		expect(restoredSignal.description).toBe(markdown.trim());
 		expect(restored.reflection.trim()).toBe(markdown.trim());
 		const reopened = await CreateEditorAsync(restored.reflection);
 		expect(reopened.Root.querySelector("strong")?.textContent).toBe("κατέβην");

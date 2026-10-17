@@ -9,23 +9,20 @@
 	min-width: 0;
 }
 
-.chat-signal-focus {
-	flex-shrink: 0;
-	max-height: 5rem;
-	overflow: auto;
-	overflow-wrap: anywhere;
-	padding: 0.5rem 0;
-	border-bottom: 1px solid var(--panel-border);
-	font-size: 0.85rem;
-}
 .dream-panel.dream-editor {
 	container: dream-editor / inline-size;
 	min-width: 0;
 	min-height: 0;
-	padding: 0 18px 0 16px;
+	padding: 0 18px 18px 16px;
 	overflow: hidden;
 	font-family: var(--ui-font);
 	font-size: 13px;
+}
+
+.dream-editor.document-editor {
+	display: grid;
+	grid-template-rows: auto auto 7px minmax(0, 1fr) auto;
+	align-content: stretch;
 }
 
 .dream-editor .dream-toolbar-status {
@@ -64,8 +61,9 @@
 	position: relative;
 	flex-shrink: 0;
 	min-height: 0;
-	max-height: 35%;
+	max-height: 70%;
 	overflow: auto;
+	resize: none;
 	margin: 0 -18px 0 -16px;
 	padding: 16px 20px 12px;
 	border: 0;
@@ -73,6 +71,44 @@
 	border-radius: 0;
 	background: var(--reader-background);
 	color: var(--reader-foreground);
+}
+
+.dream-editor.document-editor .dream-source-section {
+	flex: 0 1 auto;
+	height: 9rem;
+	max-height: 70vh;
+	margin: 0;
+	padding: 12px;
+	border: 1px solid var(--panel-border);
+	border-radius: 5px;
+	background: var(--dream-raised);
+}
+
+.dream-source-divider {
+	position: relative;
+	min-height: 7px;
+	cursor: row-resize;
+	outline: none;
+	touch-action: none;
+}
+
+.dream-source-divider::after {
+	position: absolute;
+	top: 3px;
+	right: 0;
+	left: 0;
+	height: 1px;
+	background: var(--panel-border);
+	content: "";
+	transition: background-color 130ms ease-out;
+}
+
+.dream-source-divider:hover::after,
+.dream-source-divider:focus-visible::after,
+.dream-source-divider.is-active::after {
+	top: 2px;
+	height: 2px;
+	background: var(--accent);
 }
 
 .dream-source-section summary {
@@ -118,6 +154,10 @@
 	display: flex;
 }
 
+.dream-signals-section .dream-tabs-host {
+	min-height: 0;
+}
+
 .dream-tabs-host > .tab-control {
 	--signal-navigation-width: 29%;
 	--signal-panel-gap: 18px;
@@ -149,80 +189,100 @@
 	font-size: 13px;
 }
 
-.dream-tabs-host .dream-signals-panel {
+.dream-tabs-host .signal-view-panel {
 	grid-column: 1 / -1;
 	grid-row: 2;
 	display: grid;
-	grid-template-columns: minmax(0, var(--signal-navigation-width)) minmax(0, 1fr);
-	gap: var(--signal-panel-gap);
+	grid-template-columns: minmax(0, 1fr);
+	grid-template-rows: auto minmax(0, 1fr);
+	gap: 0;
+	height: 100%;
 	min-height: 0;
-	padding: 0;
 }
 
-.dream-editor .signal-list {
+.dream-tabs-host .signal-view-panel.signal-view-panel-without-header {
+	grid-template-rows: minmax(0, 1fr);
+}
+
+:is(.dream-editor, .idea-editor) .signal-list {
+	display: flex;
+	flex-direction: column;
 	position: relative;
 	z-index: 1;
 	align-content: start;
-	gap: 8px;
+	gap: 2px;
 	min-width: 0;
 	min-height: 0;
 	overflow: auto;
-	padding: 6px;
+	padding: 8px;
 	margin-right: 0;
 	border: 0;
-	border-radius: 4px 4px 0 0;
+	border-radius: 0;
 	background: var(--dream-raised);
 }
 
-.dream-editor .signal-header {
+:is(.dream-editor, .idea-editor) .signal-header {
 	position: relative;
 	align-items: center;
 	gap: 0;
 	margin-bottom: 0;
 	padding-right: 0;
-	border-radius: 2px;
+	min-height: 24px;
+	border: 0;
+	border-radius: 3px;
 	background: transparent;
 }
 
-.dream-editor .signal-header.selected {
+:is(.dream-editor, .idea-editor) .signal-header.selected {
 	background: var(--dream-selection);
 	color: var(--app-text);
 	box-shadow: inset 3px 0 var(--accent);
 }
 
-.dream-editor .signal-header + .signal-header::before {
-	content: "";
-	position: absolute;
-	top: -4px;
-	left: 6px;
-	right: 6px;
-	height: 1px;
-	background: color-mix(in srgb, var(--muted-text) 40%, transparent);
-	pointer-events: none;
-}
-
-.dream-editor .signal-header.selected::after {
+:is(.dream-editor, .idea-editor) .signal-header + .signal-header::before {
 	content: none;
 }
 
-.dream-editor .signal-header .signal-row {
-	min-height: 30px;
-	padding: 10px 12px;
+:is(.dream-editor, .idea-editor) .signal-header.selected::after {
+	content: none;
+}
+
+:is(.dream-editor, .idea-editor) .signal-header .signal-row {
+	gap: 7px;
+	min-height: 24px;
+	padding: 1px 8px;
 	background: transparent;
 	color: inherit;
 }
 
-.dream-editor .signal-heading {
-	top: 0;
-	font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
-	font-size: var(--reading-font-size);
-	font-weight: 400;
-	line-height: 1.7;
-	color: inherit;
+:is(.dream-editor, .idea-editor) .signal-row-icon {
+	display: inline-flex;
+	flex: 0 0 14px;
+	width: 14px;
+	height: 14px;
+	color: var(--muted-text);
 }
 
-.dream-editor .signal-detail,
-.dream-tabs-host .dream-exegesis-tab {
+:is(.dream-editor, .idea-editor) .signal-row-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+:is(.dream-editor, .idea-editor) .signal-heading {
+	top: 0;
+	overflow: hidden;
+	font-family: var(--ui-font);
+	font-size: 12px;
+	font-weight: 400;
+	line-height: 22px;
+	color: inherit;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+:is(.dream-editor, .idea-editor) .signal-detail,
+.dream-tabs-host .dream-reflections-tab,
+.dream-tabs-host .dream-synoptic-view-tab {
 	min-width: 0;
 	min-height: 0;
 	border: 0;
@@ -230,12 +290,12 @@
 	background: transparent;
 }
 
-.dream-editor .signal-detail {
+:is(.dream-editor, .idea-editor) .signal-detail {
 	margin-top: 0;
 	overflow: hidden;
 }
 
-.dream-editor .signal-item {
+:is(.dream-editor, .idea-editor) .signal-item {
 	display: flex;
 	flex-direction: column;
 	height: 100%;
@@ -243,7 +303,7 @@
 	border: 0;
 }
 
-.dream-editor .signal-detail-body {
+:is(.dream-editor, .idea-editor) .signal-detail-body {
 	flex: 1;
 	min-height: 0;
 	overflow: auto;
@@ -251,7 +311,28 @@
 	scrollbar-width: thin;
 }
 
-.dream-editor .signal-observation {
+.idea-editor .idea-signal-rationale {
+	margin: 12px 16px 0;
+	padding: 10px 12px;
+	border-left: 3px solid var(--accent);
+	background: var(--dream-raised);
+	color: var(--app-text);
+}
+
+.idea-editor .idea-signal-rationale strong {
+	display: block;
+	margin-bottom: 4px;
+	color: var(--muted-text);
+	font: 600 11px/1.4 var(--ui-font);
+	letter-spacing: 0.02em;
+}
+
+.idea-editor .idea-signal-rationale p {
+	margin: 0;
+	font: 13px/1.5 var(--ui-font);
+}
+
+:is(.dream-editor, .idea-editor) .signal-observation {
 	margin: 0;
 	border: 0;
 	border-radius: 0;
@@ -259,55 +340,237 @@
 	overflow: hidden;
 }
 
-.dream-editor .signal-markdown-editor {
+.signal-toolbar-actions {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	flex: none;
+	margin-left: 2px;
+}
+
+.signal-toolbar-actions .signal-ideas-menu > summary {
+	border-radius: 3px;
+}
+
+.signal-toolbar-actions .signal-ideas-menu > summary:hover {
+	background: var(--dream-raised);
+	color: var(--accent);
+}
+
+.signal-toolbar-actions .signal-ideas-menu .action-menu-items {
+	position: fixed;
+	right: auto;
+	box-sizing: border-box;
+	min-width: 0;
+	max-width: calc(100vw - 24px);
+	overflow-x: hidden;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+}
+
+.signal-toolbar-actions .signal-ideas-menu .action-menu-items button {
+	display: grid;
+	grid-template-columns: 18px minmax(0, 1fr);
+}
+
+.signal-toolbar-actions .signal-ideas-menu .action-menu-items button svg {
+	align-self: center;
+	justify-self: center;
+	flex: none;
+}
+
+.signal-toolbar-actions .signal-ideas-menu .action-menu-items button span {
+	display: block;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.signal-toolbar-actions .signal-ideas-empty {
+	margin: 0;
+	padding: 8px 10px;
+	color: var(--muted-text);
+	font: 12px/1.4 var(--ui-font);
+	white-space: nowrap;
+}
+
+.signal-toolbar-actions .signal-ideas-section-label {
+	margin: 0;
+	padding: 6px 10px 3px;
+	color: var(--muted-text);
+	font: 600 10px/1.3 var(--ui-font);
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+}
+
+.signal-toolbar-actions .signal-ideas-section-label.separated {
+	margin-top: 4px;
+	border-top: 1px solid var(--panel-border);
+}
+
+.markdown-toolbar .signal-toolbar-actions .signal-remove-association {
+	color: var(--danger);
+}
+
+:is(.dream-editor, .idea-editor) .signal-markdown-editor {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
 	margin: 0;
 	color: var(--app-text);
 	font-size: var(--reading-font-size);
 	line-height: 1.55;
 }
 
-.dream-editor .markdown-toolbar {
-	padding: 3px 0;
-	gap: 12px;
+.dream-editor .markdown-toolbar,
+.idea-editor .signal-markdown-editor .markdown-toolbar {
+	flex-wrap: nowrap;
+	margin: 10px 10px 0;
+	padding: 8px 10px;
+	gap: 2px;
 	background: var(--signal-toolbar-background);
-	border-top: 0;
+	border: 1px solid var(--panel-border);
+	border-radius: 4px;
 }
 
-.dream-editor .markdown-toolbar > .action-menu {
-	margin-left: auto;
-}
-
-.dream-editor .markdown-toolbar button {
+.dream-editor .markdown-toolbar button,
+.idea-editor .signal-markdown-editor .markdown-toolbar button {
 	color: var(--app-text);
 }
 
-.dream-editor .markdown-content {
-	padding: 10px 0 12px;
-	overflow: visible;
-	resize: none;
+.dream-editor .markdown-content,
+.idea-editor .signal-markdown-editor .markdown-content {
+	flex: 1 1 auto;
+	min-height: 0;
+	padding: 12px 16px;
+	overflow: auto;
 	font-size: var(--reading-font-size);
 }
 
-.dream-editor .markdown-content:focus-within {
+.dream-editor .signal-markdown-editor .markdown-content,
+.idea-editor .signal-markdown-editor .markdown-content {
+	resize: none;
+}
+
+.document-editor .signal-view-add span {
+	color: inherit;
+}
+
+.dream-editor .markdown-content:focus-within,
+.idea-editor .signal-markdown-editor .markdown-content:focus-within {
 	box-shadow: none;
 }
 
-.dream-tabs-host .dream-exegesis-tab {
+.dream-editor .signal-ideas {
+	padding: 14px 0 4px;
+	border-top: 1px solid var(--panel-border);
+}
+
+.dream-editor .signal-ideas-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin: 0 0 8px;
+}
+
+.dream-editor .signal-ideas h3 {
+	margin: 0;
+	font: 600 0.75rem/1.3 var(--ui-font);
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--muted-text);
+}
+
+.dream-editor .signal-add-idea-button {
+	width: 28px;
+	height: 28px;
+	padding: 5px;
+	color: var(--app-text);
+}
+
+.dream-editor .signal-ideas-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.dream-editor .signal-idea-link {
+	padding: 5px 9px;
+	border: 1px solid var(--panel-border);
+	border-radius: 4px;
+	background: var(--dream-raised);
+	color: var(--app-text);
+}
+
+.dream-editor .signal-idea-link:hover,
+.dream-editor .signal-idea-link:focus-visible {
+	border-color: var(--accent);
+	color: var(--accent);
+}
+
+.dream-tabs-host .dream-reflections-tab,
+.dream-tabs-host .dream-synoptic-view-tab {
 	grid-column: 1 / -1;
 	grid-row: 2;
 	padding: 8px 4px;
 	overflow: auto;
 }
 
-.dream-editor .dream-exegesis-markdown {
-	border: 0;
+.dream-editor .dream-reflections-markdown,
+.dream-editor .dream-synoptic-view-markdown {
+	display: flex;
+	flex-direction: column;
+	box-sizing: border-box;
+	height: 100%;
+	min-height: 0;
+	overflow: hidden;
+	border: 1px solid var(--panel-border);
+	border-radius: 4px;
+	background: var(--idea-input-background);
 }
 
-.dream-editor .signal-detail > .dream-empty {
+.dream-editor .dream-reflections-markdown .markdown-content,
+.dream-editor .dream-synoptic-view-markdown .markdown-content {
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.dream-synoptic-view-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 2px 0 6px;
+	border-bottom: 1px solid var(--panel-border);
+	font: 12px/1.4 var(--ui-font);
+}
+
+.dream-synoptic-view-actions button {
+	min-height: 28px;
+	padding: 4px 8px;
+	border: 1px solid var(--panel-border);
+	border-radius: 3px;
+	background: var(--dream-raised);
+	color: var(--app-text);
+}
+
+.dream-synoptic-view-actions .dream-icon-button {
+	width: 28px;
+	padding: 0;
+	border-color: transparent;
+	background: transparent;
+}
+
+.dream-synoptic-view-actions .progress-bar {
+	width: 8rem;
+	margin-left: auto;
+}
+
+:is(.dream-editor, .idea-editor) .signal-detail > .dream-empty {
 	padding: 1rem;
 }
 
-.dream-editor [hidden] {
+:is(.dream-editor, .idea-editor) [hidden] {
 	display: none;
 }
 
@@ -316,7 +579,7 @@
 		grid-template-columns: minmax(0, 1fr);
 	}
 
-	.dream-tabs-host .dream-signals-panel {
+	.dream-tabs-host .signal-view-panel {
 		grid-template-columns: minmax(0, 1fr);
 		grid-template-rows: minmax(0, auto) minmax(0, 1fr);
 	}
@@ -335,7 +598,8 @@
 		margin-top: 0;
 	}
 
-	.dream-tabs-host .dream-exegesis-tab {
+	.dream-tabs-host .dream-reflections-tab,
+	.dream-tabs-host .dream-synoptic-view-tab {
 		grid-column: 1;
 		grid-row: 2;
 	}

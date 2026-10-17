@@ -1,5 +1,5 @@
 import path from "node:path";
-import type { LibraryText, TextSegment } from "../../shared/library/LibraryTypes.js";
+import { TextDocument, type TextSegmentSnapshot } from "../../shared/text/TextDocument.js";
 
 const ExternalDocumentId = "external-text";
 
@@ -17,26 +17,24 @@ function NormalizeText(text: string): string
 	return normalizedText;
 }
 
-function BuildSegments(text: string): TextSegment[]
+function BuildSegments(text: string): TextSegmentSnapshot[]
 {
 	// Keep plain text as a single segment so the existing reader and selection flow stay intact.
-	const segments: TextSegment[] = [
+	const segments: TextSegmentSnapshot[] = [
 		{
 			key: "segment-1",
-			locator: null,
-			speaker: null,
-			text,
-			blockKind: "other"
+			citation: null,
+			text
 		}
 	];
 	return segments;
 }
 
-export function BuildExternalText(filePath: string, text: string): LibraryText
+export function BuildExternalText(filePath: string, text: string): TextDocument
 {
 	const normalizedText = NormalizeText(text);
 	const fileName = path.basename(filePath);
-	const work: LibraryText = {
+	const work = new TextDocument({
 		id: ExternalDocumentId,
 		urn: null,
 		title: fileName,
@@ -60,6 +58,6 @@ export function BuildExternalText(filePath: string, text: string): LibraryText
 			externalFilePath: filePath
 		},
 		segments: BuildSegments(normalizedText)
-	};
+	});
 	return work;
 }

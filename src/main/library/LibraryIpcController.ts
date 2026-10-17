@@ -16,7 +16,7 @@ export class LibraryIpcController
 		ipcMain.handle(IPC_CHANNELS.listLibraryTexts, () => this.service.ListAsync());
 		ipcMain.handle(IPC_CHANNELS.loadLibraryText, (_event, textId: string) => this.service.GetAsync(textId));
 		ipcMain.handle(IPC_CHANNELS.getSourceNotice, (_event, textId: string) => this.service.GetSourceNoticeAsync(textId));
-		ipcMain.handle(IPC_CHANNELS.showSelectionContextMenu, () => ShowSelectionContextMenu());
+		ipcMain.handle(IPC_CHANNELS.showSelectionContextMenu, (_event, canAddSignal: boolean) => ShowSelectionContextMenu(canAddSignal));
 		ipcMain.handle(IPC_CHANNELS.showDreamSourceContextMenu, () => ShowDreamSourceContextMenu());
 		ipcMain.handle(IPC_CHANNELS.copySelectedText, (_event, text: string) => clipboard.writeText(text));
 	}

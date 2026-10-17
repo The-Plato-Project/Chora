@@ -1,5 +1,5 @@
 import { Menu, type BrowserWindow, type ContextMenuParams, type MenuItemConstructorOptions } from "electron";
-import type { SelectionAction } from "../../shared/library/SelectionTypes.js";
+import type { SelectionAction } from "../../shared/text/TextSelection.js";
 import type { FormattingAction } from "../../shared/contracts/ChoraApi.js";
 
 export async function ShowFormattingContextMenu(window: BrowserWindow, params: ContextMenuParams): Promise<FormattingAction>
@@ -69,7 +69,7 @@ export function ShowEditContextMenu(window: BrowserWindow, params: ContextMenuPa
 	menu.popup({ window });
 }
 
-export async function ShowSelectionContextMenu(): Promise<SelectionAction>
+export async function ShowSelectionContextMenu(canAddSignal: boolean): Promise<SelectionAction>
 {
 	const result = await new Promise<SelectionAction>((resolve) =>
 	{
@@ -90,9 +90,10 @@ export async function ShowSelectionContextMenu(): Promise<SelectionAction>
 			},
 			{
 				label: "Add Signal",
+				enabled: canAddSignal,
 				click: () =>
 				{
-					resolve("add-dream-signal");
+					resolve("add-signal");
 				}
 			},
 			{ type: "separator" },

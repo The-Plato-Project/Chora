@@ -1,35 +1,23 @@
-import type { TextSelection } from "../library/SelectionTypes.js";
-import type { TextDivision } from "../library/LibraryTypes.js";
+import type { TextSelection } from "../text/TextSelection.js";
 
-export interface DreamSignal
+// Serialized Dream state at IPC, session, and persistence boundaries.
+export interface DreamSnapshot
 {
-	id: string;
-	sourceRef: string;
-	selection: TextSelection;
-	text: string;
-	description: string;
+	readonly id: string;
+	readonly workId: string;
+	readonly dialogue: string | null;
+	readonly title: string;
+	readonly source: TextSelection;
+	readonly signalIds: readonly string[];
+	readonly reflection: string;
+	readonly synopticView: string;
+	readonly linkedDreamIds: readonly string[];
+	readonly createdAt: string;
+	readonly updatedAt: string;
 }
 
-export interface SourceSelection extends TextSelection
+export interface DreamSynopticViewRequest
 {
-	sourceRefs: string[];
-	startSourceRef: string;
-	endSourceRef: string;
-	division?: TextDivision | null;
-	contextBefore?: string;
-	contextAfter?: string;
-}
-
-export interface Dream
-{
-	id: string;
-	workId: string;
-	dialogue: string | null;
-	title: string;
-	source: SourceSelection;
-	signals: DreamSignal[];
-	reflection: string;
-	linkedDreamIds: string[];
-	createdAt: string;
-	updatedAt: string;
+	dreamId: string;
+	readingDocument: string;
 }

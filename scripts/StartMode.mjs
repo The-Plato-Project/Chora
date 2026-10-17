@@ -1,30 +1,34 @@
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const providerId = process.argv[2];
-const npmCommand = process.env.npm_execpath;
+const rootPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const providerId = process.argv[2] ?? "copilot-relay";
 const relayPort = 4319;
 const environment = {
 	...process.env,
 	MODEL_PROVIDER: providerId
 };
+const electronEnvironment = {
+	...environment
+};
+delete electronEnvironment.ELECTRON_RUN_AS_NODE;
 let child;
-
-if (npmCommand === undefined)
-{
-	throw new Error("The npm executable path is unavailable.");
-}
 
 if (providerId === "copilot-relay")
 {
 	await StartCopilotRelayAsync();
 }
 
-child = spawn(process.execPath, [npmCommand, "run", "start:app"], {
+await import("./BuildDebug.mjs");
+
+const electronExecutable = path.join(rootPath, "node_modules", "electron", "dist", process.platform === "win32" ? "electron.exe" : "electron");
+child = spawn(electronExecutable, ["."], {
+	cwd: rootPath,
 	stdio: "inherit",
-	env: environment
+	env: electronEnvironment
 });
 
 child.once("exit", function SetExitCode(exitCode)
@@ -40,6 +44,14 @@ child.once("error", function ReportError(error)
 	process.exitCode = 1;
 });
 
+for (const signal of ["SIGINT", "SIGTERM"])
+{
+	process.once(signal, function StopChora()
+	{
+		if (child.exitCode === null) child.kill(signal);
+	});
+}
+
 async function StartCopilotRelayAsync()
 {
 	const secret = await ReadEnvironmentValueAsync("COPILOT_RELAY_SHARED_SECRET");
@@ -54,10 +66,12 @@ async function StartCopilotRelayAsync()
 		return;
 	}
 
+	BuildCopilotRelay();
 	const executable = GetVSCodeExecutable();
-	const extensionPath = path.join(process.cwd(), "tools", "copilot-relay");
-	const host = spawn(executable, [`--extensionDevelopmentPath=${extensionPath}`], {
+	const extensionPath = path.join(rootPath, "tools", "copilot-relay");
+	const host = spawn(executable, ["--new-window", `--extensionDevelopmentPath=${extensionPath}`, rootPath], {
 		detached: true,
+		env: electronEnvironment,
 		stdio: "ignore"
 	});
 	host.unref();
@@ -68,6 +82,13 @@ async function StartCopilotRelayAsync()
 	{
 		throw new Error("Chora Copilot Relay did not become ready. Check the Extension Development Host and choraCopilotRelay.sharedSecret.");
 	}
+}
+
+function BuildCopilotRelay()
+{
+	const typescriptExecutable = path.join(rootPath, "node_modules", "typescript", "bin", "tsc");
+	const projectPath = path.join(rootPath, "tools", "copilot-relay", "tsconfig.json");
+	execFileSync(process.execPath, [typescriptExecutable, "-p", projectPath], { cwd: rootPath, stdio: "inherit" });
 }
 
 function GetVSCodeExecutable()
@@ -92,7 +113,7 @@ function GetVSCodeExecutable()
 
 async function ReadEnvironmentValueAsync(key)
 {
-	const filePath = path.join(process.cwd(), ".env.local");
+	const filePath = path.join(rootPath, ".env.local");
 	const content = await readFile(filePath, "utf8");
 	const lines = content.split(/\r?\n/u);
 	const prefix = `${key}=`;

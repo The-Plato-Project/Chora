@@ -14,8 +14,8 @@ const applicationMocks = vi.hoisted(function CreateApplicationMocks()
 		ideasStop: vi.fn(),
 		dreamsStart: vi.fn(),
 		dreamsStop: vi.fn(),
-		chatStart: vi.fn(),
-		chatStop: vi.fn(),
+		signalsStart: vi.fn(),
+		signalsStop: vi.fn(),
 		lookupRegister: vi.fn(),
 		lookupUnregister: vi.fn(),
 		windowOpen: vi.fn()
@@ -66,6 +66,20 @@ vi.mock("../../src/main/ideas/IdeaModule.js", function MockIdeaModule()
 	};
 });
 
+vi.mock("../../src/main/signals/SignalModule.js", function MockSignalModule()
+{
+	return {
+		SignalModule: vi.fn(function SignalModule()
+		{
+			return {
+				GetLibrary: function GetLibrary(): object { return {}; },
+				Start: applicationMocks.signalsStart,
+				Stop: applicationMocks.signalsStop
+			};
+		})
+	};
+});
+
 vi.mock("../../src/main/dreams/DreamModule.js", function MockDreamModule()
 {
 	return {
@@ -86,16 +100,6 @@ vi.mock("../../src/main/dreams/DreamModule.js", function MockDreamModule()
 			};
 
 			return module;
-		})
-	};
-});
-
-vi.mock("../../src/main/chat/ChatModule.js", function MockChatModule()
-{
-	return {
-		ChatModule: vi.fn(function ChatModule()
-		{
-			return { Start: applicationMocks.chatStart, Stop: applicationMocks.chatStop };
 		})
 	};
 });
@@ -209,9 +213,7 @@ describe("Application menu", function ApplicationMenuTests(): void
 		expect(applicationMocks.lookupRegister).toHaveBeenCalledTimes(1);
 		expect(applicationMocks.ideasStart).toHaveBeenCalledTimes(1);
 		expect(applicationMocks.dreamsStart).toHaveBeenCalledTimes(1);
-		expect(applicationMocks.chatStart).toHaveBeenCalledTimes(1);
 		expect(applicationMocks.lookupUnregister).toHaveBeenCalledTimes(1);
-		expect(applicationMocks.chatStop).toHaveBeenCalledTimes(1);
 		expect(applicationMocks.dreamsStop).toHaveBeenCalledTimes(1);
 		expect(applicationMocks.ideasStop).toHaveBeenCalledTimes(1);
 		expect(applicationMocks.libraryStop).toHaveBeenCalledTimes(1);
@@ -221,12 +223,10 @@ describe("Application menu", function ApplicationMenuTests(): void
 		expect(applicationMocks.lookupRegister).toHaveBeenCalledTimes(2);
 		expect(applicationMocks.ideasStart).toHaveBeenCalledTimes(2);
 		expect(applicationMocks.dreamsStart).toHaveBeenCalledTimes(2);
-		expect(applicationMocks.chatStart).toHaveBeenCalledTimes(2);
 
 		application.Stop();
 		application.Stop();
 		expect(applicationMocks.lookupUnregister).toHaveBeenCalledTimes(2);
-		expect(applicationMocks.chatStop).toHaveBeenCalledTimes(2);
 		expect(applicationMocks.dreamsStop).toHaveBeenCalledTimes(2);
 		expect(applicationMocks.ideasStop).toHaveBeenCalledTimes(2);
 		expect(applicationMocks.libraryStop).toHaveBeenCalledTimes(2);

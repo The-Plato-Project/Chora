@@ -112,7 +112,10 @@
 .workspace-add-work {
 	gap: 6px;
 	padding-left: 40px;
-	color: var(--muted-text);
+	border: 0;
+	background: transparent;
+	color: color-mix(in srgb, var(--app-text) 78%, var(--muted-text));
+	font: 12px/1.35 var(--ui-font);
 }
 
 .workspace-add-work svg {
@@ -247,23 +250,7 @@
 	font: 11px/1.4 var(--ui-font);
 }
 
-.left-tab-panel .chat-header {
-	min-height: 2.1rem;
-	margin: 0 0 0.75rem;
-	padding: 0 0 0.55rem;
-	border-bottom: 1px solid var(--panel-border);
-}
-
-.left-tab-panel .chat-header h2 {
-	color: #27292e;
-	font-size: var(--left-tab-title-size);
-	font-weight: 650;
-	letter-spacing: 0;
-	text-transform: none;
-}
-
-.left-tab-panel .catalogue-header-button,
-.left-tab-panel .chat-header-button {
+.left-tab-panel .catalogue-header-button {
 	width: 1.9rem;
 	height: 1.9rem;
 	border: 1px solid #dfe1e5;
@@ -271,41 +258,6 @@
 	background: #ffffff;
 	color: #68717d;
 	font-size: 1.15rem;
-}
-
-.left-tab-panel .chat-delete-button {
-	width: 24px;
-	height: 24px;
-	border: 0;
-	border-radius: 3px;
-	background: transparent;
-	color: var(--muted-text);
-	opacity: 0.55;
-}
-
-.left-tab-panel .chat-delete-button svg {
-	width: 13px;
-	height: 13px;
-}
-
-.left-tab-panel .chat-delete-button:not(:disabled):hover,
-.left-tab-panel .chat-delete-button:focus-visible {
-	background: var(--accent-soft);
-	color: var(--app-text);
-	opacity: 1;
-}
-
-.left-tab-panel .chat-delete-button:focus-visible {
-	outline: 1px solid var(--accent);
-	outline-offset: 2px;
-}
-
-.left-tab-panel .chat-catalogue-row {
-	grid-template-columns: minmax(0, 1fr) 24px;
-}
-
-.left-tab-panel .chat-catalogue-item span {
-	font-size: var(--left-tab-meta-size);
 }
 
 /* Dreams catalogue: compact Explorer tree. */
@@ -563,38 +515,39 @@
 .popup-dialog {
 	display: flex;
 	flex-direction: column;
-	width: min(28rem, 90vw);
+	width: min(420px, calc(100vw - 32px));
 	max-height: 80vh;
 	border: 1px solid var(--panel-border);
-	border-radius: 0.7rem;
+	border-radius: 8px;
 	background: var(--panel-background);
 	color: var(--app-text);
-	box-shadow: 0 0.6rem 1.8rem rgba(0, 0, 0, 0.3);
+	box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3);
+	font: 13px/1.45 var(--ui-font);
 }
 
 .popup-header {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	padding: 1rem 1.25rem;
+	padding: 12px 16px;
 	border-bottom: 1px solid var(--panel-border);
 }
 
 .popup-header h4 {
 	margin: 0;
-	font-size: 1rem;
+	font: 600 14px/1.35 var(--ui-font);
 }
 
 .popup-close {
 	display: grid;
-	width: 1.8rem;
-	height: 1.8rem;
+	width: 24px;
+	height: 24px;
 	place-items: center;
 	border: 0;
-	border-radius: 0.4rem;
+	border-radius: 3px;
 	background: transparent;
 	color: var(--muted-text);
-	font-size: 1.1rem;
+	font: 18px/1 var(--ui-font);
 	line-height: 1;
 	cursor: pointer;
 }
@@ -606,7 +559,192 @@
 
 .popup-body {
 	overflow: auto;
-	padding: 0.3rem 0;
+	padding: 4px 0;
+	color: var(--app-text);
+	font: 13px/1.45 var(--ui-font);
+}
+
+.popup-body > p {
+	margin: 0;
+	padding: 10px 16px 0;
+	color: var(--app-text);
+	font: inherit;
+}
+
+.popup-actions {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
+	padding: 14px 16px 12px;
+}
+
+.popup-actions button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	min-height: 30px;
+	padding: 5px 10px;
+	border: 1px solid var(--panel-border);
+	border-radius: 4px;
+	background: var(--dream-raised);
+	color: var(--app-text);
+	font: 12px/1.35 var(--ui-font);
+	cursor: pointer;
+}
+
+.popup-actions button:hover,
+.popup-actions button:focus-visible {
+	border-color: var(--accent);
+	background: var(--dream-selection);
+	outline: 0;
+}
+
+.popup-actions :is(
+	[data-signal-remove-confirm],
+	[data-dream-delete-confirm],
+	[data-idea-delete-confirm],
+	[data-unsaved-idea-discard]) {
+	border-color: color-mix(in srgb, var(--danger) 55%, var(--panel-border));
+	color: var(--danger);
+}
+
+.idea-picker-actions {
+	display: flex;
+	align-items: center;
+	padding: 4px 10px;
+	border-bottom: 1px solid var(--panel-border);
+}
+
+.idea-picker-new {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 2px;
+	border: 0;
+	background: transparent;
+	color: var(--accent);
+	font: 12px/1.35 var(--ui-font);
+	cursor: pointer;
+}
+
+.idea-picker-new svg,
+.idea-picker-item svg {
+	flex: 0 0 14px;
+	width: 14px;
+	height: 14px;
+}
+
+.idea-picker-list {
+	display: flex;
+	flex-direction: column;
+	max-height: min(50vh, 320px);
+	overflow: auto;
+	padding: 4px 8px 8px;
+}
+
+.idea-picker-item {
+	display: flex;
+	align-items: center;
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 28px;
+	gap: 7px;
+	padding: 3px 8px;
+	border: 0;
+	border-radius: 3px;
+	background: transparent;
+	color: var(--app-text);
+	font: 12px/1.35 var(--ui-font);
+	text-align: left;
+	cursor: pointer;
+}
+
+.idea-picker-item span {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.idea-picker-item:hover,
+.idea-picker-item:focus-visible {
+	background: var(--dream-selection);
+	outline: 1px solid var(--accent);
+	outline-offset: -1px;
+}
+
+.idea-picker-item:disabled {
+	opacity: 0.48;
+	cursor: not-allowed;
+}
+
+.idea-picker-empty {
+	margin: 0;
+	padding: 8px;
+	color: var(--muted-text);
+	font: 12px/1.4 var(--ui-font);
+}
+
+.signal-destination-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	max-height: min(50vh, 360px);
+	overflow: auto;
+}
+
+.signal-destination-choice,
+.signal-destination-actions button {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	padding: 8px 10px;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--app-text);
+	font: 12px/1.35 var(--ui-font);
+	text-align: left;
+}
+
+.signal-destination-choice:hover,
+.signal-destination-choice:focus-visible,
+.signal-destination-actions button:hover,
+.signal-destination-actions button:focus-visible {
+	border-color: var(--accent);
+	background: var(--dream-selection);
+	outline: 0;
+}
+
+.signal-destination-choice > span:last-child {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.signal-destination-choice strong {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.signal-destination-choice small {
+	color: var(--muted-text);
+}
+
+.signal-destination-choice svg,
+.signal-destination-actions svg {
+	flex: 0 0 16px;
+	width: 16px;
+	height: 16px;
+}
+
+.signal-destination-actions {
+	display: flex;
+	gap: 8px;
 }
 
 .work-picker-search {

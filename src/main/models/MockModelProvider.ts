@@ -1,4 +1,4 @@
-import type { ModelDeltaHandler, ModelProvider, ModelRequest, ModelResponse } from "../../shared/chat/ModelTypes.js";
+import type { ModelDeltaHandler, ModelProvider, ModelRequest, ModelResponse } from "../../shared/models/ModelTypes.js";
 import { CreateProviderError } from "./ModelProviderError.js";
 
 const MockLatencyMilliseconds = 650;
@@ -9,10 +9,13 @@ function CreateChatResponse(request: ModelRequest): string
 	const isIdeaDiscovery = request.systemPrompt.includes("IDEA_SIGNAL_DISCOVERY");
 	let response = "{\"matches\":[]}";
 
-	if (!isIdeaDiscovery)
+	if (request.systemPrompt.includes("philosophical reading companion participating"))
 	{
-		const selectedText = request.context.mode === "FREE" ? request.userPrompt : request.context.sourcePassage;
-		const trimmedText = selectedText.trim();
+		response = "## Emerging Relationships\n\nThe current Signals and Reflections gather around a shared movement in the passage while leaving its tensions open.";
+	}
+	else if (!isIdeaDiscovery)
+	{
+		const trimmedText = request.userPrompt.trim();
 		const normalizedText = trimmedText.replace(/\s+/gu, " ");
 		const excerpt = normalizedText.slice(0, 240);
 		response = `Working from this selected text-state: "${excerpt}". The first useful question is how the passage's movement, delay, or reversal bears on your question.`;
@@ -30,11 +33,22 @@ function IsFailureEnabled(): boolean
 	return isEnabled;
 }
 
-function WaitForLatency(): Promise<void>
+function WaitForLatency(signal?: AbortSignal): Promise<void>
 {
-	const delay = new Promise<void>(function ResolveDelay(resolve)
+	const delay = new Promise<void>(function ResolveDelay(resolve, reject)
 	{
-		setTimeout(resolve, MockLatencyMilliseconds);
+		const timeout = setTimeout(function Complete(): void
+		{
+			signal?.removeEventListener("abort", Abort);
+			resolve();
+		}, MockLatencyMilliseconds);
+		function Abort(): void
+		{
+			clearTimeout(timeout);
+			reject(new DOMException("The model request was cancelled.", "AbortError"));
+		}
+		if (signal?.aborted === true) Abort();
+		else signal?.addEventListener("abort", Abort, { once: true });
 	});
 
 	return delay;
@@ -44,9 +58,9 @@ export class MockModelProvider implements ModelProvider
 {
 	public readonly id = "mock" as const;
 
-	public async CompleteAsync(request: ModelRequest, onDelta?: ModelDeltaHandler): Promise<ModelResponse>
+	public async CompleteAsync(request: ModelRequest, onDelta?: ModelDeltaHandler, signal?: AbortSignal): Promise<ModelResponse>
 	{
-		await WaitForLatency();
+		await WaitForLatency(signal);
 
 		if (IsFailureEnabled())
 		{

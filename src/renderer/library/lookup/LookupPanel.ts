@@ -1,5 +1,6 @@
 import { createElement, ArrowLeft, ArrowRight, RotateCw, ExternalLink, X } from "lucide";
 import { ChoraEventBus, type Unsubscribe } from "../../core/events/ChoraEventBus.js";
+import { LayoutSettings } from "../../core/settings/LayoutSettingsStore.js";
 import type { ChoraEvents } from "../../core/events/ChoraEvents.js";
 import type { LookupCommand } from "../../../shared/library/LookupTypes.js";
 import { LookupController } from "./LookupController.js";
@@ -26,7 +27,7 @@ export class LookupPanel
 	private readonly scheduleHandler = this.ScheduleBounds.bind(this);
 	private frame: number | null = null;
 	private drag: { pointerId: number; y: number; height: number } | null = null;
-	private desiredHeight = 320;
+	private desiredHeight = LayoutSettings.GetDimension("lookupHeight", 320);
 
 	public constructor(private readonly root: HTMLElement, events: ChoraEventBus<ChoraEvents>, private readonly store: LookupStore, private readonly controller: LookupController)
 	{
@@ -165,6 +166,7 @@ export class LookupPanel
 		const total = this.root.parentElement?.getBoundingClientRect().height ?? 600;
 		const maximum = Math.max(140, total - 180);
 		this.desiredHeight = Math.min(maximum, Math.max(140, height));
+		LayoutSettings.SetDimension("lookupHeight", this.desiredHeight);
 		const value = `${this.desiredHeight}px`;
 		if (this.root.style.height !== value) this.root.style.height = value;
 		this.divider.setAttribute("aria-valuemin", "140");

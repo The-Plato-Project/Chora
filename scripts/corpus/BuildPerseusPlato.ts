@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { LibraryManifest, LibraryText, LibraryTextSummary, TextSegment } from "../../src/shared/library/LibraryTypes.js";
+import type { LibraryManifest, LibraryTextSummary } from "../../src/shared/library/LibraryTypes.js";
+import { TextDocument, type TextDocumentSnapshot, type TextSegmentSnapshot } from "../../src/shared/text/TextDocument";
 import { ParseTeiWork } from "./TeiParser";
 
 interface PerseusLock
@@ -42,7 +43,7 @@ const LockPath = path.join("corpus", "perseus-lock.json");
 const WorksConfigPath = path.join("corpus", "plato-works.json");
 const ManifestPath = path.join("corpus", "generated", "manifest.json");
 const WorksDirectory = path.join("corpus", "generated", "works");
-const ReportPath = path.join("corpus", "generated", "reports", "corpus-build-report.json");
+const ReportPath = path.join("corpus", "reports", "corpus-build-report.json");
 const ChecksumPath = path.join("corpus", "checksums.json");
 
 function CreateSourceFileName(config: WorksConfig, work: WorkEntry): string
@@ -59,23 +60,23 @@ function CreateSourcePath(config: WorksConfig, work: WorkEntry): string
 }
 
 // Gives book-less dialogues a single synthetic chapter so every work has a consistent division.
-function ApplyChapterFallback(segments: TextSegment[]): TextSegment[]
+function ApplyChapterFallback(segments: TextSegmentSnapshot[]): TextSegmentSnapshot[]
 {
-	const hasBook = segments.some((segment) => segment.division?.kind === "book");
+	const hasBook = segments.some((segment) => segment.division?.type === "book");
 	let result = segments;
 
 	if (!hasBook)
 	{
-		result = segments.map((segment) => ({ ...segment, division: { kind: "chapter", value: "1" } }));
+		result = segments.map((segment) => ({ ...segment, division: { type: "chapter", label: "1" } }));
 	}
 
 	return result;
 }
 
-function CreateWork(entry: WorkEntry, config: WorksConfig, parsedWork: ReturnType<typeof ParseTeiWork>, lock: PerseusLock): LibraryText
+function CreateWork(entry: WorkEntry, config: WorksConfig, parsedWork: ReturnType<typeof ParseTeiWork>, lock: PerseusLock): TextDocument
 {
 	const segments = ApplyChapterFallback(parsedWork.segments);
-	const work: LibraryText = {
+	const snapshot: TextDocumentSnapshot = {
 		id: entry.id,
 		urn: `urn:cts:greekLit:${config.textGroup}.${entry.tlg}.${entry.edition}`,
 		title: entry.title,
@@ -99,10 +100,11 @@ function CreateWork(entry: WorkEntry, config: WorksConfig, parsedWork: ReturnTyp
 		},
 		segments
 	};
+	const work = new TextDocument(snapshot);
 	return work;
 }
 
-function CreateSummary(work: LibraryText): LibraryTextSummary
+function CreateSummary(work: TextDocument): LibraryTextSummary
 {
 	const summary: LibraryTextSummary = {
 		id: work.id,

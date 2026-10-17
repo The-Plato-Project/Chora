@@ -6,8 +6,7 @@
 	"main": ".vite/build/src/main/main.js",
 	"scripts": {
 		"postinstall": "node scripts/FixMilkdownDeclarations.mjs",
-		"start": "npm run dev:mock",
-		"start:app": "npm run build && electron .",
+		"start": "node scripts/StartMode.mjs copilot-relay",
 		"dev:mock": "node scripts/StartMode.mjs mock",
 		"dev:kimi": "node scripts/StartMode.mjs kimi",
 		"dev:relay": "node scripts/StartMode.mjs copilot-relay",

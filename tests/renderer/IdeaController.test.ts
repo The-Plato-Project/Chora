@@ -133,7 +133,7 @@ describe("IdeaController", function IdeaControllerTests()
 		]);
 	});
 
-	it("saves only after three distinct Signals are connected", async function SavesCompleteIdeaAsync()
+	it("saves after one Signal is connected", async function SavesSingleSignalIdeaAsync()
 	{
 		ConfigureApi();
 		const store = new IdeaStore();
@@ -142,21 +142,52 @@ describe("IdeaController", function IdeaControllerTests()
 		await controller.CreateAsync();
 		controller.Update("Descent", "Descending imagery recurs.");
 		controller.AddSignal(CreateReference("signal-1"));
-		controller.AddSignal(CreateReference("signal-2"));
 
-		await controller.SaveAsync();
-		expect(window.chora.SaveIdea).not.toHaveBeenCalled();
-
-		controller.AddSignal(CreateReference("signal-3"));
 		await controller.SaveAsync();
 
 		expect(window.chora.SaveIdea).toHaveBeenCalledWith(expect.objectContaining({
 			ideaId: null,
 			originSignal: CreateReference("signal-1"),
-			relatedSignals: [
-				CreateReference("signal-2"),
-				CreateReference("signal-3")
-			]
+			relatedSignals: []
+		}));
+	});
+
+	it("removes any connected Signal and promotes the next association", async function RemovesSignals()
+	{
+		ConfigureApi();
+		const store = new IdeaStore();
+		const controller = CreateController(store);
+		await controller.LoadAsync("republic");
+		await controller.CreateAsync();
+		controller.AddSignal(CreateReference("signal-1"));
+		controller.AddSignal(CreateReference("signal-2"));
+
+		controller.RemoveSignal(CreateReference("signal-1"));
+
+		expect(store.GetDraft()?.originSignal).toEqual(CreateReference("signal-2"));
+		expect(store.GetDraft()?.relatedSignals).toEqual([]);
+
+		controller.RemoveSignal(CreateReference("signal-2"));
+
+		expect(store.GetDraft()?.originSignal).toBeNull();
+		expect(store.GetDraft()?.relatedSignals).toEqual([]);
+	});
+
+	it("saves a Signal-free Idea placeholder", async function SavesPlaceholderIdeaAsync()
+	{
+		ConfigureApi();
+		const store = new IdeaStore();
+		const controller = CreateController(store);
+		await controller.LoadAsync("republic");
+		await controller.CreateAsync();
+		controller.Update("Questions of justice", "");
+
+		await controller.SaveAsync();
+
+		expect(window.chora.SaveIdea).toHaveBeenCalledWith(expect.objectContaining({
+			title: "Questions of justice",
+			originSignal: null,
+			relatedSignals: []
 		}));
 	});
 
@@ -182,7 +213,7 @@ describe("IdeaController", function IdeaControllerTests()
 		}]);
 	});
 
-	it("creates a new draft with the pending Signal already connected", async function CreatesPendingIdeaAsync()
+	it("creates and saves a new Idea with the pending Signal already connected", async function CreatesPendingIdeaAsync()
 	{
 		ConfigureApi();
 		const store = new IdeaStore();
@@ -191,10 +222,17 @@ describe("IdeaController", function IdeaControllerTests()
 		const reference = CreateReference("signal-4");
 		controller.BeginAddToIdea(reference);
 
-		await controller.CreateIdeaFromPendingSignalAsync();
+		const saved = await controller.CreateIdeaFromPendingSignalAsync();
 
+		expect(saved).toBe(true);
 		expect(store.GetPendingAddReference()).toBeNull();
+		expect(store.GetDraft()?.ideaId).toBe("idea-created-by-main");
 		expect(store.GetDraft()?.originSignal).toEqual(reference);
+		expect(store.GetIdeas().map(function SelectId(idea): string { return idea.id; })).toContain("idea-created-by-main");
+		expect(window.chora.SaveIdea).toHaveBeenCalledWith(expect.objectContaining({
+			ideaId: null,
+			originSignal: reference
+		}));
 	});
 
 	it("adds a pending Signal to a selected saved Idea", async function AddsPendingSignalAsync()
@@ -216,6 +254,25 @@ describe("IdeaController", function IdeaControllerTests()
 		expect(store.GetDraft()?.ideaId).toBe("idea-1");
 	});
 
+	it("adds an explicit Signal directly to a selected saved Idea", async function AddsExplicitSignalAsync()
+	{
+		const idea = CreateIdea();
+		const reference = CreateReference("signal-4");
+		ConfigureApi([idea]);
+		const store = new IdeaStore();
+		const controller = CreateController(store);
+		await controller.LoadAsync("republic");
+
+		await controller.AddSignalToIdeaAsync("idea-1", reference);
+
+		expect(window.chora.SaveIdea).toHaveBeenCalledWith(expect.objectContaining({
+			ideaId: "idea-1",
+			relatedSignals: [...idea.relatedSignals, reference]
+		}));
+		expect(store.GetPendingAddReference()).toBeNull();
+		expect(store.GetDraft()?.ideaId).toBe("idea-1");
+	});
+
 	it("cancels Add to Idea without destroying the active draft", async function CancelsPendingSignalAsync()
 	{
 		ConfigureApi();
@@ -231,19 +288,6 @@ describe("IdeaController", function IdeaControllerTests()
 		expect(store.GetPendingAddReference()).toBeNull();
 		expect(store.GetDraft()?.title).toBe("Unfinished");
 		expect(store.GetDraft()?.content).toBe("Preserve this draft.");
-	});
-
-	it("cancels the active editor draft", async function CancelsEditorAsync()
-	{
-		ConfigureApi();
-		const store = new IdeaStore();
-		const controller = CreateController(store);
-		await controller.LoadAsync("republic");
-		await controller.CreateAsync();
-
-		controller.CancelEdit();
-
-		expect(store.GetDraft()).toBeNull();
 	});
 
 	it("opens referenced Signals through the established Signal panel event", async function OpensSignalAsync()

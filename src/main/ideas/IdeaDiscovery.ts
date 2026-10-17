@@ -1,12 +1,12 @@
-import type { Dream, DreamSignal } from "../../shared/dreams/DreamTypes.js";
 import type { IdeaDiscoveryRequest, IdeaDiscoverySuggestion, IdeaSignalReference } from "../../shared/ideas/IdeaTypes.js";
-import type { ModelProvider } from "../../shared/chat/ModelTypes.js";
+import type { ModelProvider } from "../../shared/models/ModelTypes.js";
+import type { SignalRecord } from "../../shared/signals/SignalTypes.js";
 
-// Provides the Dream snapshots searched by Idea discovery.
-export interface IdeaDreamAccess
+// Provides work-owned Signals searched by Idea discovery.
+export interface IdeaSignalAccess
 {
-	// Lists all reader-owned Dreams.
-	ListAsync(): Promise<Dream[]>;
+	// Lists reader-owned Signals for one work.
+	ListAsync(workId: string): Promise<SignalRecord[]>;
 }
 
 // Provides prompt text without coupling discovery to filesystem access.
@@ -65,9 +65,9 @@ export class IdeaDiscovery
 	// Lowest accepted relevance on the five-point scale.
 	private static readonly MinimumRelevance = 4;
 
-	// Creates discovery from explicit Dream, prompt, and model boundaries.
+	// Creates discovery from explicit Signal, prompt, and model boundaries.
 	public constructor(
-		private readonly dreams: IdeaDreamAccess,
+		private readonly signals: IdeaSignalAccess,
 		private readonly prompts: IdeaPromptAccess,
 		private readonly model: ModelProvider)
 	{
@@ -76,8 +76,8 @@ export class IdeaDiscovery
 	// Searches every eligible existing Signal and returns the strongest validated matches.
 	public async DiscoverAsync(request: IdeaDiscoveryRequest): Promise<IdeaDiscoverySuggestion[]>
 	{
-		const dreams = await this.dreams.ListAsync();
-		const candidates = this.CreateCandidates(request, dreams);
+		const signals = await this.signals.ListAsync(request.workId);
+		const candidates = this.CreateCandidates(request, signals);
 		const prompt = await this.prompts.LoadAsync("idea-signal-discovery");
 		const ranked: RankedSuggestion[] = [];
 		let batchStart = 0;
@@ -89,8 +89,7 @@ export class IdeaDiscovery
 			const response = await this.model.CompleteAsync({
 				systemPrompt: prompt,
 				userPrompt,
-				history: [],
-				context: { mode: "FREE" }
+				history: []
 			});
 			const matches = this.ParseMatches(response.rawText);
 
@@ -103,7 +102,6 @@ export class IdeaDiscovery
 					ranked.push({
 						suggestion: {
 							reference: {
-								dreamId: candidate.dreamId,
 								signalId: candidate.signalId
 							},
 							rationale: match.rationale
@@ -131,35 +129,29 @@ export class IdeaDiscovery
 	}
 
 	// Creates eligible candidates while excluding unobserved and already-connected Signals.
-	private CreateCandidates(request: IdeaDiscoveryRequest, dreams: readonly Dream[]): DiscoveryCandidate[]
+	private CreateCandidates(request: IdeaDiscoveryRequest, signals: readonly SignalRecord[]): DiscoveryCandidate[]
 	{
 		const selected = this.CreateSelectedIdentities(request);
 		const candidates: DiscoveryCandidate[] = [];
 
-		for (const dream of dreams)
+		for (const signal of signals)
 		{
-			if (dream.workId === request.workId)
-			{
-				for (const signal of dream.signals)
-				{
-					const reference = { dreamId: dream.id, signalId: signal.id };
-					const identity = this.CreateReferenceIdentity(reference);
-					const observation = signal.description.trim();
+			const reference = { signalId: signal.id };
+			const identity = this.CreateReferenceIdentity(reference);
+			const observation = signal.description.trim();
 
-					if (observation.length > 0 && !selected.has(identity))
-					{
-						const candidate: DiscoveryCandidate = {
-							candidateId: `candidate-${candidates.length}`,
-							dreamId: dream.id,
-							signalId: signal.id,
-							dreamTitle: dream.title,
-							text: signal.text,
-							observation,
-							locator: this.CreateSignalLocator(signal)
-						};
-						candidates.push(candidate);
-					}
-				}
+			if (observation.length > 0 && !selected.has(identity))
+			{
+				const candidate: DiscoveryCandidate = {
+					candidateId: `candidate-${candidates.length}`,
+					dreamId: "",
+					signalId: signal.id,
+					dreamTitle: "Work Signal",
+					text: signal.text,
+					observation,
+					locator: this.CreateSignalLocator(signal)
+				};
+				candidates.push(candidate);
 			}
 		}
 
@@ -308,10 +300,10 @@ export class IdeaDiscovery
 	}
 
 	// Returns the most precise displayed source location for one Signal.
-	private CreateSignalLocator(signal: DreamSignal): string
+	private CreateSignalLocator(signal: SignalRecord): string
 	{
-		const start = signal.selection.locatorStart?.value ?? null;
-		const end = signal.selection.locatorEnd?.value ?? null;
+		const start = signal.sourceRef.trim() || null;
+		const end = start;
 		let locator = "Source";
 
 		if (start !== null && end !== null && start !== end)
@@ -333,7 +325,7 @@ export class IdeaDiscovery
 	// Creates the stable identity used to compare Signal references.
 	private CreateReferenceIdentity(reference: IdeaSignalReference): string
 	{
-		const identity = `signal:${reference.dreamId}:${reference.signalId}`;
+		const identity = `signal:${reference.signalId}`;
 
 		return identity;
 	}

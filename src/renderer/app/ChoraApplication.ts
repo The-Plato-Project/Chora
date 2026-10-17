@@ -2,11 +2,7 @@ import "../styles.css";
 import { ErrorManager } from "../core/diagnostics/RendererErrorManager.js";
 import { ChoraEventBus } from "../core/events/ChoraEventBus.js";
 import type { ChoraEvents, ErrorRecord } from "../core/events/ChoraEvents.js";
-import type { LibraryText } from "../../shared/library/LibraryTypes.js";
-import { ChatController } from "../chat/ChatController.js";
-import { ChatGateway } from "../chat/ChatGateway.js";
-import { ChatStore } from "../chat/ChatStore.js";
-import { ReadingContextBuilder } from "../core/context/ReadingContextBuilder.js";
+import type { TextDocument } from "../../shared/library/LibraryTypes.js";
 import { LibraryController } from "../library/LibraryController.js";
 import { LibraryGateway } from "../library/LibraryGateway.js";
 import { LibraryStore } from "../library/LibraryStore.js";
@@ -21,13 +17,22 @@ import { IdeaController } from "../ideas/IdeaController.js";
 import { IdeaGateway } from "../ideas/IdeaGateway.js";
 import { IdeaPanel } from "../ideas/IdeaPanel.js";
 import { IdeaStore } from "../ideas/IdeaStore.js";
+import { SignalController } from "../signals/SignalController.js";
+import { SignalGateway } from "../signals/SignalGateway.js";
+import { SignalStore } from "../signals/SignalStore.js";
+import { SignalPlacementController } from "../signals/SignalPlacementController.js";
+import { SignalPlacementPanel } from "../signals/SignalPlacementPanel.js";
 import { ReadingSettingsStore, type ReadingFont } from "../core/settings/ReadingSettingsStore.js";
+import { LayoutSettings } from "../core/settings/LayoutSettingsStore.js";
 import { LookupStore } from "../library/lookup/LookupStore.js";
 import { LookupGateway } from "../library/lookup/LookupGateway.js";
 import { LookupController } from "../library/lookup/LookupController.js";
 import { LookupPanel } from "../library/lookup/LookupPanel.js";
 import { CloseActionMenusOutside as CloseOpenActionMenus } from "../ui/ActionMenus.js";
 import { WorkspacePanel } from "../workspace/WorkspacePanel.js";
+import { DocumentIcon, IdeaIcon } from "../ui/Icons.js";
+import { EscapeHtml } from "../ui/Html.js";
+import { PopupPanel } from "../ui/PopupPanel.js";
 
 type ResizablePane = "left" | "dream";
 
@@ -63,31 +68,38 @@ export class ChoraApplication
 	private readonly events = new ChoraEventBus<ChoraEvents>();
 	// Reports and logs application errors.
 	private readonly errors = new ErrorManager(this.events);
-	// Owns persisted session storage shared by Dream and Chat state.
+	// Owns persisted session storage shared by Dream and Idea state.
 	private readonly sessions = new SessionStore();
 	// Library: catalogue/active-text state, IPC client, and workflow coordinator.
 	private readonly libraryStore = new LibraryStore();
 	private readonly libraryGateway = new LibraryGateway();
 	private readonly library = new LibraryController(this.events, this.errors, this.libraryStore, this.libraryGateway);
+	private readonly signalStore = new SignalStore();
+	private readonly signalGateway = new SignalGateway();
+	private readonly signals = new SignalController(this.errors, this.signalStore, this.signalGateway, this.events);
 	// Dreams: catalogue/active-Dream state, IPC client, and workflow coordinator.
 	private readonly dreamStore = new DreamStore(this.sessions);
 	private readonly dreamGateway = new DreamGateway();
-	private readonly dreams = new DreamController(this.events, this.errors, this.libraryStore, this.dreamStore, this.dreamGateway);
-	// Builds the reading context passed to the language model.
-	private readonly contexts = new ReadingContextBuilder(this.libraryStore, this.dreamStore);
-	// Chat: conversation state, IPC client, and workflow coordinator.
-	private readonly chatStore = new ChatStore(this.sessions);
-	private readonly chatGateway = new ChatGateway();
-	private readonly chat = new ChatController(this.events, this.errors, this.contexts, this.chatStore, this.chatGateway);
+	private readonly dreams = new DreamController(this.events, this.errors, this.libraryStore, this.dreamStore, this.dreamGateway, this.signalStore);
 	// Owns renderer-side Idea state.
 	private readonly ideaStore = new IdeaStore(this.sessions);
 	// Provides the stateless Idea IPC client.
 	private readonly ideaGateway = new IdeaGateway();
 	// Coordinates Signal-first Idea workflows.
 	private readonly ideas = new IdeaController(this.events, this.errors, this.ideaStore, this.ideaGateway);
+	private readonly signalPlacement = new SignalPlacementController(
+		this.events,
+		this.libraryStore,
+		this.dreamStore,
+		this.dreams,
+		this.ideaStore,
+		this.ideas,
+		this.signalStore,
+		this.signals);
 	// Dream editor instance receiving contextual navigation state from Ideas.
 	private dreamEditorPanel: DreamPanel | null = null;
 	private workspacePanel: WorkspacePanel | null = null;
+	private errorPopup: PopupPanel | null = null;
 	// Whether the active Dream is a temporary Signal preview opened from an Idea.
 	private isIdeaSignalPreview = false;
 
@@ -113,7 +125,8 @@ export class ChoraApplication
 		{
 			this.isStarted = true;
 			this.settings.Apply();
-			this.root.innerHTML = `<main class="shell dream-open"><aside class="left-panel"><div class="left-view workspace-explorer-host" data-workspace-explorer></div></aside><section class="center-panel" data-document-panel></section><aside class="right-panel" data-editor-panel><div data-workspace-tabs></div><section class="editor-empty-state workspace-welcome" data-editor-empty aria-labelledby="editor-empty-heading"><h1 id="editor-empty-heading">Workspace</h1><p>Select an Idea or Dream from the Explorer.</p></section><div data-dream-panel hidden></div><div data-idea-editor-panel hidden></div></aside><div class="panel-resize-handle" data-resize-pane="left" role="separator" tabindex="0" aria-label="Resize Explorer" aria-orientation="vertical"></div><div class="panel-resize-handle" data-resize-pane="dream" role="separator" tabindex="0" aria-label="Resize editor" aria-orientation="vertical"></div></main><div class="application-error" data-error-output hidden></div>`;
+			this.root.innerHTML = `<main class="shell dream-open"><aside class="left-panel"><nav class="collapsed-explorer-rail" aria-label="Explorer sections"><button class="collapsed-explorer-button button-control" data-expand-explorer="idea" type="button" title="Expand Ideas" aria-label="Expand Ideas">${IdeaIcon}</button><button class="collapsed-explorer-button button-control" data-expand-explorer="dream" type="button" title="Expand Dreams" aria-label="Expand Dreams">${DocumentIcon}</button></nav><div class="left-view workspace-explorer-host" data-workspace-explorer></div></aside><section class="center-panel" data-document-panel></section><aside class="right-panel" data-editor-panel><div data-workspace-tabs></div><section class="editor-empty-state workspace-welcome" data-editor-empty aria-labelledby="editor-empty-heading"><h1 id="editor-empty-heading">Workspace</h1><p>Select an Idea or Dream from the Explorer.</p></section><div data-dream-panel hidden></div><div data-idea-editor-panel hidden></div></aside><div class="panel-resize-handle" data-resize-pane="left" role="separator" tabindex="0" aria-label="Resize Explorer" aria-orientation="vertical"></div><div class="panel-resize-handle" data-resize-pane="dream" role="separator" tabindex="0" aria-label="Resize editor" aria-orientation="vertical"></div></main>`;
+			this.ApplyPersistedLayout();
 			const explorerRoot = this.RequireElement("[data-workspace-explorer]");
 			const tabsRoot = this.RequireElement("[data-workspace-tabs]");
 			const readerColumn = this.RequireElement("[data-document-panel]");
@@ -124,12 +137,13 @@ export class ChoraApplication
 			const ideaEditorRoot = this.RequireElement("[data-idea-editor-panel]");
 			const lookupRoot = this.RequireElement("[data-lookup-panel]");
 			this.disposables.push(new LookupPanel(lookupRoot, this.events, this.lookupStore, this.lookup));
-			const ideaEditor = new IdeaPanel(ideaEditorRoot, this.events, this.ideaStore, this.ideas, this.dreamStore, "editor");
+			const ideaEditor = new IdeaPanel(ideaEditorRoot, this.events, this.ideaStore, this.ideas, this.dreamStore, "editor", this.signalStore, this.signals);
 			this.disposables.push(ideaEditor);
+			this.disposables.push(new SignalPlacementPanel(this.events, this.signalPlacement));
 			this.disposables.push(new DocumentPanel(documentRoot, this.events, this.libraryStore, this.library, this.settings));
-			const passagePanel = new DreamPassagePanel(documentRoot, this.events, this.libraryStore, this.dreams);
+			const passagePanel = new DreamPassagePanel(documentRoot, this.events, this.libraryStore, this.dreams, this.ideaStore, this.signalStore);
 			this.disposables.push(passagePanel);
-			this.dreamEditorPanel = new DreamPanel(dreamRoot, this.events, this.dreamStore, this.dreams, this.libraryStore, "editor");
+			this.dreamEditorPanel = new DreamPanel(dreamRoot, this.events, this.dreamStore, this.dreams, this.libraryStore, "editor", this.ideaStore, this.signalStore, this.signals);
 			this.disposables.push(this.dreamEditorPanel);
 			this.workspacePanel = new WorkspacePanel(explorerRoot, tabsRoot, this.events, this.dreamStore, this.dreams, this.ideaStore, this.ideas, this.libraryStore);
 			this.disposables.push(this.workspacePanel);
@@ -141,7 +155,6 @@ export class ChoraApplication
 			this.RegisterApplicationEvents();
 			await this.lookup.StartAsync();
 			await this.dreams.StartAsync();
-			await this.chat.StartAsync();
 			await this.library.StartAsync();
 			this.errors.Info("ChoraApplication", "Application started.");
 		}
@@ -156,8 +169,8 @@ export class ChoraApplication
 			for (const disposable of this.disposables) disposable.Dispose();
 			for (const unsubscribe of this.externalSubscriptions) unsubscribe();
 			this.lookup.Dispose();
-			this.chat.Dispose();
 			this.dreamStore.Dispose();
+			this.CloseErrorPopup();
 			this.root.removeEventListener("click", this.leftViewClickHandler);
 			this.root.removeEventListener("change", this.settingsChangeHandler);
 			this.root.removeEventListener("pointerdown", this.panelResizePointerDownHandler);
@@ -255,45 +268,86 @@ export class ChoraApplication
 		}
 	}
 
-	// Surfaces a reported error in the application error banner.
+	// Surfaces a reported error in a dismissible application popup.
 	private HandleErrorReported(error: ErrorRecord): void
 	{
 		this.ShowError(error.userMessage ?? error.message);
 	}
 
-	// Loads durable Ideas after a Library text establishes their work identity.
-	private async HandleTextOpened(): Promise<void>
+	// Starts work-specific Signal and Idea loading without blocking the initial workspace render.
+	private HandleTextOpened(): void
 	{
 		const text = this.libraryStore.GetText();
 		if (text !== null)
 		{
-			await this.ideas.LoadAsync(text.id);
+			void this.LoadWorkDataAsync(text.id);
+		}
+	}
+
+	// Loads work-specific records after the Library event has released the initial workspace.
+	private async LoadWorkDataAsync(workId: string): Promise<void>
+	{
+		await this.signals.LoadAsync(workId);
+
+		if (this.libraryStore.GetText()?.id === workId)
+		{
+			await this.dreams.RefreshAsync();
+			await this.ideas.LoadAsync(workId);
 		}
 	}
 
 	// Opens the unified select-or-create Ideas collection for one existing Signal.
-	private HandleIdeaAddSignalRequested(event: ChoraEvents["idea.add-signal-requested"]): void
+	private async HandleIdeaAddSignalRequested(event: ChoraEvents["idea.add-signal-requested"]): Promise<void>
 	{
 		const reference = {
-			dreamId: event.dreamId,
 			signalId: event.signalId
 		};
-		this.ideas.BeginAddToIdea(reference);
+
+		if (event.ideaId === undefined)
+		{
+			this.ideas.BeginAddToIdea(reference);
+		}
+		else
+		{
+			await this.ideas.AddSignalToIdeaAsync(event.ideaId, reference);
+		}
 	}
 
 	// Opens an Idea-referenced Signal in the real Dream editor while preserving Ideas and the reader.
 	private async HandleIdeaSignalViewRequestedAsync(event: ChoraEvents["idea.signal-view-requested"]): Promise<void>
 	{
-		this.isIdeaSignalPreview = true;
-		this.workspacePanel?.SetIdeaReturnAvailable(true);
-		try
+		let signal = this.signalStore.GetSignal(event.signalId);
+
+		if (signal === null)
 		{
-			await this.dreams.OpenSignalAsync(event.dreamId, event.signalId);
+			for (const dream of this.dreamStore.GetCatalogue())
+			{
+				for (const candidate of dream.signals)
+				{
+					if (candidate.id === event.signalId)
+					{
+						signal = {
+							...candidate,
+							workId: dream.workId,
+							createdAt: dream.createdAt,
+							updatedAt: dream.updatedAt
+						};
+					}
+				}
+			}
 		}
-		catch (error)
+
+		if (signal !== null)
 		{
-			this.ClearIdeaSignalPreview();
-			throw error;
+			if (this.libraryStore.GetText()?.id !== signal.selection.documentId)
+			{
+				await this.library.OpenAsync(signal.selection.documentId);
+			}
+			await this.events.PublishAsync("library.jump-requested", { selection: signal.selection });
+		}
+		else
+		{
+			this.errors.Report("ChoraApplication", new Error(`Signal does not exist: ${event.signalId}`), "Unable to open this Signal in the text.");
 		}
 	}
 
@@ -327,7 +381,7 @@ export class ChoraApplication
 	}
 
 	// Opens a text the main process loaded outside the Library catalogue lookup.
-	private HandleExternalTextLoaded(text: LibraryText): void
+	private HandleExternalTextLoaded(text: TextDocument): void
 	{
 		this.library.OpenExternal(text);
 	}
@@ -351,15 +405,25 @@ export class ChoraApplication
 		CloseOpenActionMenus(this.root, target);
 	}
 
-	// Displays a message in the application-wide error banner.
+	// Displays a message in one dismissible application-wide error popup.
 	private ShowError(message: string): void
 	{
-		const output = this.root.querySelector<HTMLElement>("[data-error-output]");
+		this.CloseErrorPopup();
+		this.errorPopup = new PopupPanel("Something went wrong");
+		this.errorPopup.SetBodyHtml(`<p role="alert">${EscapeHtml(message)}</p>`);
+		this.errorPopup.OnClose(this.CloseErrorPopup.bind(this));
+		this.errorPopup.Open();
+	}
 
-		if (output !== null)
+	private CloseErrorPopup(): void
+	{
+		const popup = this.errorPopup;
+		this.errorPopup = null;
+
+		if (popup !== null)
 		{
-			output.textContent = message;
-			output.hidden = false;
+			popup.Close();
+			popup.Dispose();
 		}
 	}
 
@@ -414,7 +478,16 @@ export class ChoraApplication
 
 			if (this.activeResizablePane === "left")
 			{
-				if (width < 140)
+				const isCollapsed = shell.classList.contains("left-collapsed");
+
+				if (isCollapsed && delta > 0)
+				{
+					shell.classList.remove("left-collapsed");
+					shell.style.setProperty("--left-pane-width", `${minimumLeftWidth}px`);
+					this.resizeStartX = event.clientX;
+					this.resizeStartWidth = minimumLeftWidth;
+				}
+				else if (width < 140)
 				{
 					this.CollapseLeftPane(shell);
 				}
@@ -458,11 +531,46 @@ export class ChoraApplication
 		}
 	}
 
+	// Restores durable workspace widths and Explorer collapse state before feature panels mount.
+	private ApplyPersistedLayout(): void
+	{
+		const shell = this.root.querySelector<HTMLElement>(".shell");
+		const leftPanel = this.root.querySelector<HTMLElement>(".left-panel");
+		const editorPanel = this.root.querySelector<HTMLElement>(".right-panel");
+
+		if (shell !== null && leftPanel !== null && editorPanel !== null)
+		{
+			const leftWidth = LayoutSettings.GetDimension("leftPaneWidth", leftPanel.getBoundingClientRect().width);
+			const editorWidth = LayoutSettings.GetDimension("editorPaneWidth", editorPanel.getBoundingClientRect().width);
+			shell.style.setProperty("--left-pane-width", `${leftWidth}px`);
+			shell.style.setProperty("--dream-pane-width", `${editorWidth}px`);
+			if (LayoutSettings.GetExplorerCollapsed()) this.CollapseLeftPane(shell);
+		}
+	}
+
 	// Leaves workspace navigation accessible when the left pane is collapsed.
 	private CollapseLeftPane(shell: HTMLElement): void
 	{
 		shell.style.setProperty("--left-collapsed-width", "90px");
 		shell.classList.add("left-collapsed");
+		LayoutSettings.SetExplorerCollapsed(true);
+	}
+
+	// Restores the Explorer and focuses the requested workspace folder.
+	private ExpandLeftPane(kind: "dream" | "idea"): void
+	{
+		const shell = this.root.querySelector<HTMLElement>(".shell");
+
+		if (shell !== null)
+		{
+			shell.classList.remove("left-collapsed");
+			const currentWidth = Number.parseFloat(shell.style.getPropertyValue("--left-pane-width"));
+			if (!Number.isFinite(currentWidth) || currentWidth < 220) shell.style.setProperty("--left-pane-width", "220px");
+			const restoredWidth = Number.parseFloat(shell.style.getPropertyValue("--left-pane-width"));
+			LayoutSettings.SetExplorerCollapsed(false);
+			LayoutSettings.SetDimension("leftPaneWidth", restoredWidth);
+			this.workspacePanel?.FocusExplorerSection(kind);
+		}
 	}
 
 	// Ends a pane-resize drag and releases its pointer listeners.
@@ -475,14 +583,24 @@ export class ChoraApplication
 		shell?.classList.remove("is-resizing");
 		const handles = this.root.querySelectorAll<HTMLElement>(".panel-resize-handle.is-active");
 		for (const handle of Array.from(handles)) handle.classList.remove("is-active");
+		const leftWidth = this.root.querySelector<HTMLElement>(".left-panel")?.getBoundingClientRect().width;
+		const editorWidth = this.root.querySelector<HTMLElement>(".right-panel")?.getBoundingClientRect().width;
+		if (leftWidth !== undefined && !shell?.classList.contains("left-collapsed")) LayoutSettings.SetDimension("leftPaneWidth", leftWidth);
+		if (editorWidth !== undefined) LayoutSettings.SetDimension("editorPaneWidth", editorWidth);
 	}
 
 	// Routes application-level reading-setting controls to their workflows.
 	private HandleLeftViewClick(event: Event): void
 	{
 		const target = event.target as HTMLElement | null;
+		const explorerKind = target?.closest<HTMLElement>("[data-expand-explorer]")?.dataset.expandExplorer;
 		const appearanceButton = target?.closest<HTMLElement>("[data-toggle-appearance]");
 		const fontStep = target?.closest<HTMLElement>("[data-font-size]")?.dataset.fontSize;
+
+		if (explorerKind === "dream" || explorerKind === "idea")
+		{
+			this.ExpandLeftPane(explorerKind);
+		}
 
 		if (appearanceButton != null)
 		{

@@ -8,7 +8,7 @@ import { DocumentPanel } from "../../src/renderer/library/DocumentPanel.js";
 import { LibraryController } from "../../src/renderer/library/LibraryController.js";
 import { LibraryGateway } from "../../src/renderer/library/LibraryGateway.js";
 import { LibraryStore } from "../../src/renderer/library/LibraryStore.js";
-import type { LibraryText, LibraryTextSummary, SourceNotice } from "../../src/shared/library/LibraryTypes.js";
+import type { TextDocument, LibraryTextSummary, SourceNotice } from "../../src/shared/library/LibraryTypes.js";
 
 // Library summary available from the empty startup workspace.
 const summary: LibraryTextSummary = {
@@ -23,11 +23,15 @@ const summary: LibraryTextSummary = {
 };
 
 // Full text opened when Dream creation begins.
-const libraryText: LibraryText = {
+const libraryText: TextDocument = {
 	...summary,
 	edition: { editor: null, title: null, volume: null, publisher: null, publicationPlace: null, publicationDate: null },
 	provenance: { repository: "PerseusDL", commit: "test", sourceFile: "republic.xml", license: "CC" },
-	segments: [{ key: "s1", locator: { scheme: "Stephanus", value: "327a" }, speaker: null, text: "κατέβην", blockKind: "narration" }]
+	segments: [
+		{ key: "s1", citation: { system: "stephanus", value: "327a" }, text: "κατέβην" },
+		{ key: "s2", citation: { system: "stephanus", value: "327b" }, text: "πρὸς τὸν Πειραιᾶ" },
+		{ key: "s3", citation: { system: "stephanus", value: "327c" }, text: "μετὰ Γλαύκωνος" }
+	]
 };
 
 // Source attribution returned with the startup text.
@@ -57,7 +61,7 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 			...window,
 			chora: {
 				ListLibraryTexts: vi.fn(async function ListLibraryTexts(): Promise<LibraryTextSummary[]> { return [summary]; }),
-				LoadLibraryText: vi.fn(async function LoadLibraryText(): Promise<LibraryText> { return libraryText; }),
+				LoadLibraryText: vi.fn(async function LoadLibraryText(): Promise<TextDocument> { return libraryText; }),
 				GetSourceNotice: vi.fn(async function GetSourceNotice(): Promise<SourceNotice> { return sourceNotice; })
 			}
 		});
@@ -77,5 +81,115 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 	{
 		expect(root.querySelector("#readingPane")).not.toBeNull();
 		expect(root.textContent).toContain("κατέβην");
+	});
+
+	it("loads a Signal source by its canonical exact range", async function LoadsSignalSourceAsync()
+	{
+		const segment = root.querySelector<HTMLElement>("[data-segment-key='s1']");
+		const scroll = vi.fn();
+
+		if (segment !== null)
+		{
+			segment.scrollIntoView = scroll;
+		}
+
+		await events.PublishAsync("library.jump-requested", {
+			selection: {
+				documentId: "republic",
+				start: { segmentKey: "s1", offset: 0 },
+				end: { segmentKey: "s1", offset: 7 }
+			}
+		});
+
+		expect(segment?.querySelector(".signal-source-target")?.textContent).toBe("κατέβην");
+		expect(scroll).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
+	});
+
+	it("highlights every segment covered by a Dream source passage", async function HighlightsCompletePassageAsync()
+	{
+		const first = root.querySelector<HTMLElement>("[data-segment-key='s1']");
+		const scroll = vi.fn();
+		if (first !== null) first.scrollIntoView = scroll;
+
+		await events.PublishAsync("library.jump-requested", {
+			selection: {
+				documentId: "republic",
+				start: { segmentKey: "s1", offset: 0 },
+				end: { segmentKey: "s3", offset: libraryText.segments[2]?.text.length ?? 0 },
+				selectedText: "κατέβην\nπρὸς τὸν Πειραιᾶ\nμετὰ Γλαύκωνος",
+				locatorStart: { scheme: "Stephanus", value: "327a" },
+				locatorEnd: { scheme: "Stephanus", value: "327c" }
+			}
+		});
+
+		const highlighted = Array.from(root.querySelectorAll<HTMLElement>(".signal-source-target"));
+		expect(highlighted.map(function GetText(target): string | null { return target.textContent; })).toEqual([
+			"κατέβην",
+			"πρὸς τὸν Πειραιᾶ",
+			"μετὰ Γλαύκωνος"
+		]);
+		expect(scroll).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
+	});
+
+	it("highlights only the exact partial text at both Dream source boundaries", async function HighlightsExactBoundariesAsync()
+	{
+		const first = root.querySelector<HTMLElement>("[data-segment-key='s1']");
+		const scroll = vi.fn();
+		if (first !== null) first.scrollIntoView = scroll;
+
+		await events.PublishAsync("library.jump-requested", {
+			selection: {
+				documentId: "republic",
+				start: { segmentKey: "s1", offset: 2 },
+				end: { segmentKey: "s3", offset: 4 },
+				selectedText: "τέβην\nπρὸς τὸν Πειραιᾶ\nμετὰ",
+				locatorStart: { scheme: "Stephanus", value: "327a" },
+				locatorEnd: { scheme: "Stephanus", value: "327c" }
+			}
+		});
+
+		const highlighted = Array.from(root.querySelectorAll<HTMLElement>(".signal-source-target"));
+		expect(highlighted.map(function GetText(target): string | null { return target.textContent; })).toEqual([
+			"τέβην",
+			"πρὸς τὸν Πειραιᾶ",
+			"μετὰ"
+		]);
+		expect(root.querySelector("[data-segment-key='s1'] .segment-text")?.textContent).toBe("κατέβην");
+		expect(root.querySelector("[data-segment-key='s3'] .segment-text")?.textContent).toBe("μετὰ Γλαύκωνος");
+		expect(scroll).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
+	});
+
+	it("retains the Dream source highlight when focusing one of its Signals", async function RetainsDreamHighlightAsync()
+	{
+		await events.PublishAsync("library.jump-requested", {
+			selection: {
+				documentId: "republic",
+				start: { segmentKey: "s1", offset: 0 },
+				end: { segmentKey: "s3", offset: libraryText.segments[2]?.text.length ?? 0 },
+				selectedText: "κατέβην\nπρὸς τὸν Πειραιᾶ\nμετὰ Γλαύκωνος",
+				locatorStart: { scheme: "Stephanus", value: "327a" },
+				locatorEnd: { scheme: "Stephanus", value: "327c" }
+			}
+		});
+
+		await events.PublishAsync("library.jump-requested", {
+			target: "signal",
+			selection: {
+				documentId: "republic",
+				start: { segmentKey: "s2", offset: 5 },
+				end: { segmentKey: "s2", offset: 8 },
+				selectedText: "τὸν",
+				locatorStart: { scheme: "Stephanus", value: "327b" },
+				locatorEnd: { scheme: "Stephanus", value: "327b" }
+			}
+		});
+
+		const sourceHighlights = Array.from(root.querySelectorAll<HTMLElement>(".signal-source-target"));
+		expect(sourceHighlights.map(function GetText(target): string | null { return target.textContent; })).toEqual([
+			"κατέβην",
+			"πρὸς τὸν Πειραιᾶ",
+			"μετὰ Γλαύκωνος"
+		]);
+		expect(root.querySelector<HTMLElement>(".signal-focus-target")?.textContent).toBe("τὸν");
 	});
 });

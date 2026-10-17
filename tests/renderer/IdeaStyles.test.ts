@@ -1,71 +1,36 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-
-// Identifies one parsed CSS rule.
-interface CssRule
-{
-	// Contains the rule selector text.
-	readonly selectors: string;
-	// Contains declarations belonging to the rule.
-	readonly declarations: string;
-}
-
-// Parses flat CSS rules needed to enforce Ideas surface geometry.
-function ParseRules(css: string): readonly CssRule[]
-{
-	const rules: CssRule[] = [];
-	const pattern = /([^{}]+)\{([^{}]*)\}/g;
-	let match = pattern.exec(css);
-
-	while (match !== null)
-	{
-		const selectors = match[1]?.trim() ?? "";
-		const declarations = match[2]?.trim() ?? "";
-
-		if (selectors.length > 0)
-		{
-			rules.push({ selectors, declarations });
-		}
-
-		match = pattern.exec(css);
-	}
-
-	return rules;
-}
 
 describe("Idea styles", function IdeaStyleTests()
 {
-	it("keeps every Ideas surface square-cornered", function KeepsIdeaCornersSquare()
+	it("keeps the Idea editor bounded to its viewport", function KeepsIdeaEditorBounded()
 	{
-		const stylesDirectory = resolve(process.cwd(), "src", "renderer", "styles");
-		const stylesheetNames = readdirSync(stylesDirectory).filter(function IsStylesheet(name)
-		{
-			const isStylesheet = name.endsWith(".css");
+		const stylesheetPath = resolve(process.cwd(), "src", "renderer", "styles", "base.css");
+		const dreamStylesheetPath = resolve(process.cwd(), "src", "renderer", "styles", "dream-editor.css");
+		const css = readFileSync(stylesheetPath, "utf8");
+		const dreamCss = readFileSync(dreamStylesheetPath, "utf8");
 
-			return isStylesheet;
-		});
-		const roundedIdeaRules: string[] = [];
-
-		for (const stylesheetName of stylesheetNames)
-		{
-			const stylesheetPath = join(stylesDirectory, stylesheetName);
-			const css = readFileSync(stylesheetPath, "utf8");
-			const rules = ParseRules(css);
-
-			for (const rule of rules)
-			{
-				const ownsIdeaSurface = rule.selectors.includes(".idea-");
-				const radiusMatch = /border-radius\s*:\s*([^;]+)/.exec(rule.declarations);
-				const radius = radiusMatch?.[1].trim() ?? null;
-
-				if (ownsIdeaSurface && radius !== null && radius !== "0")
-				{
-					roundedIdeaRules.push(`${stylesheetName} · ${rule.selectors}: ${radius}`);
-				}
-			}
-		}
-
-		expect(roundedIdeaRules).toEqual([]);
+		expect(css).toMatch(/\.idea-panel\s*\{[^}]*height:\s*100%;[^}]*min-height:\s*0;[^}]*overflow:\s*hidden;/s);
+		expect(css).toMatch(/\.document-editor\s*\{[^}]*display:\s*flex;[^}]*height:\s*100%;[^}]*min-height:\s*0;/s);
+		expect(css).toMatch(/\.document-signals-section\s*\{[^}]*flex:\s*1 1 auto;[^}]*min-height:\s*0;/s);
+		expect(css).toMatch(/\.signal-view-body\s*\{[^}]*min-height:\s*0;[^}]*overflow:\s*hidden;/s);
+		expect(css).toMatch(/\.signal-view-body > \.signal-list\s*\{[^}]*overflow:\s*auto;/s);
+		expect(css).not.toMatch(/\.document-interpretation textarea/);
+		expect(css).toMatch(/\.idea-tabs-host > \.tab-control\s*\{[^}]*grid-template-rows:\s*40px minmax\(0, 1fr\);[^}]*min-height:\s*0;/s);
+		expect(css).toMatch(/\.idea-seeing-markdown\s*\{[^}]*height:\s*100%;[^}]*overflow:\s*hidden;[^}]*border:\s*1px solid var\(--panel-border\);/s);
+		expect(css).toMatch(/\.document-editor-actions\s*\{[^}]*display:\s*flex;[^}]*flex:\s*0 0 auto;[^}]*justify-content:\s*flex-end;[^}]*min-height:\s*58px;[^}]*border:\s*1px solid var\(--panel-border\);/s);
+		expect(css).toMatch(/\.progress-bar\s*\{[^}]*width:\s*100%;[^}]*height:\s*3px;[^}]*overflow:\s*hidden;/s);
+		expect(css).toMatch(/\.idea-signal-search-controls \.application-find\s*\{[^}]*width:\s*100%;[^}]*height:\s*38px;/s);
+		expect(css).toMatch(/\.signal-view-add\s*\{[^}]*align-self:\s*flex-start;[^}]*width:\s*auto;[^}]*min-height:\s*24px;[^}]*margin:\s*0 4px 0 0;[^}]*padding:\s*2px 8px;[^}]*border:\s*0;[^}]*background:\s*transparent;/s);
+		expect(css).toMatch(/\.signal-view-empty-icon\s*\{[^}]*display:\s*grid;[^}]*place-items:\s*center;[^}]*margin-inline:\s*auto;/s);
+		expect(css).toMatch(/\.signal-view-empty-state\s*\{[^}]*flex:\s*1 1 auto;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;[^}]*width:\s*100%;/s);
+		expect(dreamCss).toMatch(/\.dream-editor\.document-editor\s*\{[^}]*display:\s*grid;[^}]*grid-template-rows:\s*auto auto 7px minmax\(0, 1fr\) auto;/s);
+		expect(dreamCss).toMatch(/\.dream-tabs-host \.signal-view-panel\.signal-view-panel-without-header\s*\{[^}]*grid-template-rows:\s*minmax\(0, 1fr\);/s);
+		expect(dreamCss).toMatch(/\.signal-header \.signal-row\s*\{[^}]*min-height:\s*24px;[^}]*padding:\s*1px 8px;/s);
+		expect(dreamCss).toMatch(/\.signal-heading\s*\{[^}]*font-size:\s*12px;[^}]*text-overflow:\s*ellipsis;[^}]*white-space:\s*nowrap;/s);
+		expect(dreamCss).toMatch(/\.dream-editor \.signal-markdown-editor \.markdown-content,[^{]*\{[^}]*resize:\s*none;/s);
+		expect(dreamCss).toMatch(/:is\(\.dream-editor, \.idea-editor\) \[hidden\]\s*\{[^}]*display:\s*none;/s);
+		expect(dreamCss).toMatch(/\.dream-editor \.dream-reflections-markdown,[^{]*\{[^}]*height:\s*100%;[^}]*overflow:\s*hidden;[^}]*border:\s*1px solid var\(--panel-border\);/s);
 	});
 });

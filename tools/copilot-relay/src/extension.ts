@@ -156,12 +156,15 @@ class ChoraCopilotRelay
 	// Selects exactly the requested Copilot family without silently switching models.
 	private async SelectModelAsync(modelFamily: string): Promise<vscode.LanguageModelChat>
 	{
-		const models = await vscode.lm.selectChatModels({ vendor: "copilot", family: modelFamily });
+		const requestedFamily = modelFamily.trim();
+		const selector = requestedFamily.length > 0 ? { vendor: "copilot", family: requestedFamily } : { vendor: "copilot" };
+		const models = await vscode.lm.selectChatModels(selector);
 		const model = models[0];
 
 		if (model === undefined)
 		{
-			throw new Error(`Copilot model family is unavailable: ${modelFamily}`);
+			const message = requestedFamily.length > 0 ? `Copilot model family is unavailable: ${requestedFamily}` : "No Copilot model is available.";
+			throw new Error(message);
 		}
 
 		return model;

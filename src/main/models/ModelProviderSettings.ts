@@ -3,7 +3,6 @@ import { CreateProviderError } from "./ModelProviderError.js";
 export const DefaultKimiBaseUrl = "https://api.moonshot.ai/v1";
 export const DefaultKimiModel = "kimi-k2.6";
 export const DefaultKimiMaxCompletionTokens = 3000;
-export const DefaultCopilotRelayModelFamily = "claude-sonnet-4.5";
 export const DefaultCopilotRelayPort = 4319;
 
 export function GetRequiredValue(keys: string[], displayName: string): string

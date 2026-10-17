@@ -1,6 +1,7 @@
-import type { ModelDeltaHandler, ModelProvider, ModelRequest, ModelResponse } from "../../shared/chat/ModelTypes.js";
+import type { ModelDeltaHandler, ModelProvider, ModelRequest, ModelResponse } from "../../shared/models/ModelTypes.js";
 import { CreateProviderError, CreateResponseError, TranslateProviderError } from "./ModelProviderError.js";
-import { DefaultCopilotRelayModelFamily, DefaultCopilotRelayPort, GetOptionalPositiveIntegerValue, GetOptionalValue, GetRequiredValue } from "./ModelProviderSettings.js";
+import { DefaultCopilotRelayPort, GetOptionalPositiveIntegerValue, GetOptionalValue, GetRequiredValue } from "./ModelProviderSettings.js";
+import { LinkModelRequestAbort } from "./ModelRequestAbort.js";
 
 // Maximum duration for one request to the locally hosted VS Code Relay.
 const RequestTimeoutMilliseconds = 120000;
@@ -54,7 +55,6 @@ function ReleaseCopilotRelayRequestLock(): void
 // Builds one explicit user prompt because the Relay invokes VS Code with one user message.
 function BuildRelayPrompt(request: ModelRequest): string
 {
-	const context = JSON.stringify(request.context, null, 2);
 	const historyLines: string[] = [];
 
 	for (const message of request.history)
@@ -64,8 +64,11 @@ function BuildRelayPrompt(request: ModelRequest): string
 		historyLines.push(historyLine);
 	}
 
+	const blocks = [`[Instructions]\n${request.systemPrompt}`];
 	const history = historyLines.length > 0 ? historyLines.join("\n\n") : "No earlier conversation.";
-	const prompt = `[Instructions]\n${request.systemPrompt}\n\n[Context]\n${context}\n\n[Conversation]\n${history}\n\n[Current Question]\n${request.userPrompt}`;
+	blocks.push(`[Conversation]\n${history}`);
+	blocks.push(`[Current Question]\n${request.userPrompt}`);
+	const prompt = blocks.join("\n\n");
 
 	return prompt;
 }
@@ -118,14 +121,14 @@ export class CopilotRelayModelProvider implements ModelProvider
 		return modelFamilies;
 	}
 
-	public async CompleteAsync(request: ModelRequest, onDelta?: ModelDeltaHandler): Promise<ModelResponse>
+	public async CompleteAsync(request: ModelRequest, onDelta?: ModelDeltaHandler, signal?: AbortSignal): Promise<ModelResponse>
 	{
 		AcquireCopilotRelayRequestLock();
 		let result: ModelResponse;
 
 		try
 		{
-			result = await this.SendAsync(request, onDelta);
+			result = await this.SendAsync(request, onDelta, signal);
 		}
 		catch (error)
 		{
@@ -142,10 +145,10 @@ export class CopilotRelayModelProvider implements ModelProvider
 	}
 
 	// Performs one authenticated request against the fixed loopback Relay endpoint.
-	private async SendAsync(request: ModelRequest, onDelta?: ModelDeltaHandler): Promise<ModelResponse>
+	private async SendAsync(request: ModelRequest, onDelta?: ModelDeltaHandler, signal?: AbortSignal): Promise<ModelResponse>
 	{
 		const sharedSecret = GetRequiredValue(["COPILOT_RELAY_SHARED_SECRET"], "COPILOT_RELAY_SHARED_SECRET");
-		const configuredModelFamily = GetOptionalValue("COPILOT_RELAY_MODEL_FAMILY", DefaultCopilotRelayModelFamily);
+		const configuredModelFamily = GetOptionalValue("COPILOT_RELAY_MODEL_FAMILY", "");
 		const hasSelectedModelFamily = this.modelFamily.trim().length > 0;
 		const modelFamily = hasSelectedModelFamily ? this.modelFamily : configuredModelFamily;
 		const port = GetOptionalPositiveIntegerValue("COPILOT_RELAY_PORT", DefaultCopilotRelayPort);
@@ -157,6 +160,7 @@ export class CopilotRelayModelProvider implements ModelProvider
 		};
 		const serializedBody = JSON.stringify(body);
 		const controller = new AbortController();
+		const unlinkAbort = LinkModelRequestAbort(controller, signal);
 		const timeout = setTimeout(function AbortRelayRequest(): void
 		{
 			controller.abort();
@@ -209,6 +213,7 @@ export class CopilotRelayModelProvider implements ModelProvider
 		finally
 		{
 			clearTimeout(timeout);
+			unlinkAbort();
 		}
 	}
 

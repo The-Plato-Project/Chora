@@ -1,5 +1,5 @@
-import type { LibraryText, LibraryTextSummary, SourceNotice } from "../../shared/library/LibraryTypes.js";
-import type { TextSelection } from "../../shared/library/SelectionTypes.js";
+import { TextDocument, type LibraryTextSummary, type SourceNotice } from "../../shared/library/LibraryTypes.js";
+import type { TextSelection } from "../../shared/text/TextSelection.js";
 
 // Immutable snapshot of the full Library state, for callers that need every field at once.
 export interface LibrarySnapshot
@@ -7,7 +7,7 @@ export interface LibrarySnapshot
 	// All texts available in the Library catalogue.
 	texts: readonly LibraryTextSummary[];
 	// The text currently open for reading, or null when none is open.
-	text: LibraryText | null;
+	text: TextDocument | null;
 	// Source attribution for the open text, or null when none applies.
 	sourceNotice: SourceNotice | null;
 	// The reader's current explicit passage selection, or null when none is active.
@@ -22,7 +22,7 @@ export class LibraryStore
 	// All texts available in the Library catalogue.
 	private texts: LibraryTextSummary[] = [];
 	// The text currently open for reading, or null when none is open.
-	private text: LibraryText | null = null;
+	private text: TextDocument | null = null;
 	// Source attribution for the open text, or null when none applies.
 	private sourceNotice: SourceNotice | null = null;
 	// The reader's current explicit passage selection, or null when none is active.
@@ -33,7 +33,15 @@ export class LibraryStore
 	// Returns an immutable snapshot of the full Library state.
 	public GetSnapshot(): LibrarySnapshot
 	{
-		return structuredClone({ texts: this.texts, text: this.text, sourceNotice: this.sourceNotice, selection: this.selection, focus: this.focus });
+		const snapshot: LibrarySnapshot = {
+			texts: structuredClone(this.texts),
+			text: this.text,
+			sourceNotice: structuredClone(this.sourceNotice),
+			selection: structuredClone(this.selection),
+			focus: structuredClone(this.focus)
+		};
+
+		return snapshot;
 	}
 
 	// Replaces the Library catalogue with a freshly loaded summary list.
@@ -43,9 +51,9 @@ export class LibraryStore
 	}
 
 	// Opens a text for reading and clears any selection or reading focus from the previous text.
-	public Open(text: LibraryText, sourceNotice: SourceNotice | null): void
+	public Open(text: TextDocument, sourceNotice: SourceNotice | null): void
 	{
-		this.text = structuredClone(text);
+		this.text = TextDocument.FromSnapshot(text);
 		this.sourceNotice = structuredClone(sourceNotice);
 		this.selection = null;
 		this.focus = null;
@@ -64,9 +72,9 @@ export class LibraryStore
 	}
 
 	// Returns the text currently open for reading, or null when none is open.
-	public GetText(): LibraryText | null
+	public GetText(): TextDocument | null
 	{
-		return structuredClone(this.text);
+		return this.text;
 	}
 
 	// Returns the source attribution for the open text, or null when none applies.

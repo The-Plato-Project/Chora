@@ -1,10 +1,10 @@
 // Identifies one reader-authored Signal that supports an Idea.
 export interface IdeaSignalReference
 {
-	// Identifies the Dream that owns the Signal.
-	readonly dreamId: string;
-	// Identifies the Signal within its owning Dream.
+	// Identifies one work-owned Signal.
 	readonly signalId: string;
+	// Explains why this Signal bears on its owning Idea, without changing the shared Signal.
+	readonly rationale?: string | null;
 }
 
 // Represents one durable work-owned Idea returned by the main process.
@@ -19,7 +19,7 @@ export interface IdeaRecord
 	// Contains the reader-authored Idea explanation.
 	readonly content: string;
 	// Identifies the Signal from which the Idea first emerged.
-	readonly originSignal: IdeaSignalReference;
+	readonly originSignal: IdeaSignalReference | null;
 	// Identifies later Signals connected to the Idea.
 	readonly relatedSignals: readonly IdeaSignalReference[];
 	// Records when the main process created the Idea.
@@ -40,7 +40,7 @@ export interface SaveIdeaCommand
 	// Contains the reader-authored Idea explanation.
 	readonly content: string;
 	// Identifies the Signal from which a new Idea first emerged.
-	readonly originSignal: IdeaSignalReference;
+	readonly originSignal: IdeaSignalReference | null;
 	// Identifies later Signals connected to the Idea.
 	readonly relatedSignals: readonly IdeaSignalReference[];
 }

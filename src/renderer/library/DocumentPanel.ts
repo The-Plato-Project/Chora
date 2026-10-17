@@ -1,5 +1,5 @@
-import type { LibraryText, SourceNotice } from "../../shared/library/LibraryTypes.js";
-import type { TextSelection } from "../../shared/library/SelectionTypes.js";
+import type { TextDocument, SourceNotice } from "../../shared/library/LibraryTypes.js";
+import type { TextSelection } from "../../shared/text/TextSelection.js";
 import type { ChoraEvents } from "../core/events/ChoraEvents.js";
 import { ChoraEventBus, type Unsubscribe } from "../core/events/ChoraEventBus.js";
 import { LibraryController } from "../library/LibraryController.js";
@@ -68,11 +68,11 @@ export class DocumentPanel
 	// Routes a jump-requested application event to the scroll workflow.
 	private HandleJumpRequested(event: ChoraEvents["library.jump-requested"]): void
 	{
-		this.JumpToSelection(event.selection);
+		this.JumpToSelection(event.selection, event.target ?? "source");
 	}
 
 	// Renders the full reading pane for a newly opened text.
-	private Update(document: LibraryText, sourceNotice: SourceNotice | null): void
+	private Update(document: TextDocument, sourceNotice: SourceNotice | null): void
 	{
 		this.findHits = [];
 		this.findIndex = 0;
@@ -85,34 +85,34 @@ export class DocumentPanel
 	}
 
 	// Renders every document segment, inserting book headings and Stephanus locators where they begin.
-	private RenderSegments(document: LibraryText): string
+	private RenderSegments(document: TextDocument): string
 	{
 		let previousDivision = "";
 		let previousLocator = "";
 		const segments = document.segments.map((segment) =>
 		{
-			const divisionValue = segment.division?.kind === "book" ? segment.division.value : "";
+			const divisionValue = segment.division?.type === "book" ? segment.division.label : "";
 			const startsDivision = divisionValue.length > 0 && divisionValue !== previousDivision;
 			const heading = startsDivision ? `<h2 class="book-heading" data-book-heading="${EscapeHtml(divisionValue)}">Book ${EscapeHtml(this.FormatBookNumber(divisionValue))}</h2>` : "";
 			previousDivision = divisionValue;
 			const bookTarget = startsDivision ? ` data-book-start="${EscapeHtml(divisionValue)}"` : "";
-			const locatorValue = segment.locator?.value ?? "";
+			const locatorValue = segment.citation?.value ?? "";
 			const startsLocator = locatorValue.length > 0 && locatorValue !== previousLocator;
 			const locatorMarkup = startsLocator ? `<span class="source-locator">${EscapeHtml(locatorValue)}</span>` : "";
 			const locatorClass = startsLocator ? "has-locator" : "";
 			const locatorTarget = startsLocator ? ` data-locator="${EscapeHtml(locatorValue)}"` : "";
 			previousLocator = locatorValue;
-			const segmentMarkup = `<p class="text-segment ${locatorClass}" data-segment-key="${EscapeHtml(segment.key)}"${bookTarget}${locatorTarget}>${locatorMarkup}${segment.speaker === null ? "" : `<span class="speaker-label">${EscapeHtml(segment.speaker)}</span>`}<span class="segment-text">${EscapeHtml(segment.text)}</span></p>`;
+			const segmentMarkup = `<p class="text-segment ${locatorClass}" data-segment-key="${EscapeHtml(segment.key)}"${bookTarget}${locatorTarget}>${locatorMarkup}<span class="segment-text">${EscapeHtml(segment.text)}</span></p>`;
 			return `${heading}${segmentMarkup}`;
 		}).join("");
 		return segments;
 	}
 
 	// Renders the compact text, passage, search, and reading-settings toolbar.
-	private RenderReaderToolbar(document: LibraryText): string
+	private RenderReaderToolbar(document: TextDocument): string
 	{
-		const books = document.segments.map((segment) => segment.division).filter((division, index, divisions) => division?.kind === "book" && divisions.findIndex((candidate) => candidate?.kind === "book" && candidate.value === division.value) === index);
-		const bookControl = books.length === 0 ? "" : `<label class="reader-control reader-book-control"><select data-book-navigation aria-label="Go to book">${books.map((book) => `<option value="${EscapeHtml(book?.value ?? "")}">Book ${EscapeHtml(this.FormatBookNumber(book?.value ?? ""))}</option>`).join("")}</select></label>`;
+		const books = document.segments.map((segment) => segment.division).filter((division, index, divisions) => division?.type === "book" && divisions.findIndex((candidate) => candidate?.type === "book" && candidate.label === division.label) === index);
+		const bookControl = books.length === 0 ? "" : `<label class="reader-control reader-book-control"><select data-book-navigation aria-label="Go to book">${books.map((book) => `<option value="${EscapeHtml(book?.label ?? "")}">Book ${EscapeHtml(this.FormatBookNumber(book?.label ?? ""))}</option>`).join("")}</select></label>`;
 		const locators = this.CollectLocators(document);
 		const locatorOptions = locators.map((locator) => `<option value="${EscapeHtml(locator)}">${EscapeHtml(locator)}</option>`).join("");
 		const locatorControl = locators.length === 0 ? "" : `<label class="reader-control reader-locator-select"><select data-locator-navigation aria-label="Choose Stephanus passage">${locatorOptions}</select></label>`;
@@ -127,7 +127,7 @@ export class DocumentPanel
 	}
 
 	// Renders source and license metadata after the text instead of consuming toolbar space.
-	private RenderSourceAttribution(document: LibraryText, sourceNotice: SourceNotice | null): string
+	private RenderSourceAttribution(document: TextDocument, sourceNotice: SourceNotice | null): string
 	{
 		const source = sourceNotice?.source ?? document.provenance.repository;
 		const license = sourceNotice?.license ?? document.provenance.license;
@@ -136,14 +136,14 @@ export class DocumentPanel
 	}
 
 	// Returns each distinct Stephanus locator value in document order.
-	private CollectLocators(document: LibraryText): string[]
+	private CollectLocators(document: TextDocument): string[]
 	{
 		const locators: string[] = [];
 		const seen = new Set<string>();
 
 		for (const segment of document.segments)
 		{
-			const value = segment.locator?.value ?? "";
+			const value = segment.citation?.value ?? "";
 			if (value.length > 0 && !seen.has(value))
 			{
 				seen.add(value);
@@ -173,11 +173,11 @@ export class DocumentPanel
 		if (text !== null && text.id === event.textId)
 		{
 			const segment = text.segments.find(function MatchesSegment(candidate): boolean { return candidate.key === event.segmentKey; });
-			const locator = segment?.locator?.value ?? "";
+			const locator = segment?.citation?.value ?? "";
 			const chooser = this.root.querySelector<HTMLSelectElement>("[data-locator-navigation]");
 			const book = this.root.querySelector<HTMLSelectElement>("[data-book-navigation]");
 			if (chooser !== null) chooser.value = locator;
-			if (book !== null && segment?.division?.kind === "book") book.value = segment.division.value;
+			if (book !== null && segment?.division?.type === "book") book.value = segment.division.label;
 		}
 	}
 
@@ -462,13 +462,136 @@ export class DocumentPanel
 	}
 
 	// Scrolls a requested selection into view and clears the browser's native selection.
-	private JumpToSelection(selection: TextSelection): void
+	private JumpToSelection(selection: TextSelection, navigationTarget: "source" | "signal"): void
 	{
 		const segmentKey = selection.start.segmentKey;
-		const segment = this.root.querySelector<HTMLElement>(`[data-segment-key="${CSS.escape(segmentKey)}"]`);
+		const document = this.library.GetText();
+		const renderedSegments = Array.from(this.root.querySelectorAll<HTMLElement>("[data-segment-key]"));
+		let startIndex = renderedSegments.findIndex(function FindStart(candidate): boolean
+		{
+			return candidate.dataset.segmentKey === selection.start.segmentKey;
+		});
+		let endIndex = renderedSegments.findIndex(function FindEnd(candidate): boolean
+		{
+			return candidate.dataset.segmentKey === selection.end.segmentKey;
+		});
+		let targets: HTMLElement[] = [];
+		let segment: HTMLElement | null = null;
+
+		this.ClearFindHighlights();
+		this.ClearSignalHighlights();
+		if (navigationTarget === "source") this.ClearSourceHighlights();
+
+		if (document !== null && startIndex >= 0 && endIndex >= startIndex)
+		{
+			targets = renderedSegments.slice(startIndex, endIndex + 1);
+			segment = targets[0] ?? null;
+			for (const [targetIndex, target] of targets.entries())
+			{
+				const sourceSegmentIndex = startIndex + targetIndex;
+				const sourceSegment = document.segments[sourceSegmentIndex];
+				if (sourceSegment === undefined) continue;
+				const from = sourceSegmentIndex === startIndex ? selection.start.offset : 0;
+				const to = sourceSegmentIndex === endIndex ? selection.end.offset : sourceSegment.text.length;
+				if (navigationTarget === "source") this.HighlightSourceText(target, sourceSegment.text, from, to);
+				else this.HighlightSignalText(target, from, to);
+			}
+		}
+
 		segment?.scrollIntoView({ behavior: "smooth", block: "center" });
-		if (segment !== null) this.controller.SetFocusSegment(segmentKey);
+		if (segment !== null) this.controller.SetFocusSegment(segment.dataset.segmentKey ?? segmentKey);
 		ClearBrowserSelection();
+	}
+
+	// Removes prior exact source decorations without changing the surrounding segment structure.
+	private ClearSourceHighlights(): void
+	{
+		const highlights = Array.from(this.root.querySelectorAll<HTMLElement>(".signal-source-target"));
+
+		for (const highlight of highlights)
+		{
+			const parent = highlight.parentNode;
+			highlight.replaceWith(document.createTextNode(highlight.textContent ?? ""));
+			parent?.normalize();
+		}
+	}
+
+	// Removes the focused Signal decoration while retaining the surrounding Dream source highlight.
+	private ClearSignalHighlights(): void
+	{
+		const highlights = Array.from(this.root.querySelectorAll<HTMLElement>(".signal-focus-target"));
+
+		for (const highlight of highlights)
+		{
+			const parent = highlight.parentNode;
+			highlight.replaceWith(document.createTextNode(highlight.textContent ?? ""));
+			parent?.normalize();
+		}
+	}
+
+	// Wraps only the canonical character range belonging to one selected source segment.
+	private HighlightSourceText(segment: HTMLElement, canonicalText: string, from: number, to: number): void
+	{
+		const textElement = segment.querySelector<HTMLElement>(".segment-text");
+		const start = Math.max(0, Math.min(canonicalText.length, from));
+		const end = Math.max(start, Math.min(canonicalText.length, to));
+
+		if (textElement !== null && start < end)
+		{
+			const prefix = EscapeHtml(canonicalText.slice(0, start));
+			const selected = EscapeHtml(canonicalText.slice(start, end));
+			const suffix = EscapeHtml(canonicalText.slice(end));
+			textElement.innerHTML = `${prefix}<span class="signal-source-target">${selected}</span>${suffix}`;
+		}
+	}
+
+	// Adds a focused Signal layer without replacing an existing Dream source decoration.
+	private HighlightSignalText(segment: HTMLElement, from: number, to: number): void
+	{
+		const textElement = segment.querySelector<HTMLElement>(".segment-text");
+		const textLength = textElement?.textContent?.length ?? 0;
+		const start = Math.max(0, Math.min(textLength, from));
+		const end = Math.max(start, Math.min(textLength, to));
+
+		if (textElement !== null && start < end)
+		{
+			const walker = document.createTreeWalker(textElement, NodeFilter.SHOW_TEXT);
+			const ranges: Array<{ node: Text; start: number; end: number }> = [];
+			let node = walker.nextNode();
+			let offset = 0;
+
+			while (node !== null)
+			{
+				const textNode = node as Text;
+				const nodeEnd = offset + textNode.data.length;
+				const rangeStart = Math.max(start, offset);
+				const rangeEnd = Math.min(end, nodeEnd);
+
+				if (rangeStart < rangeEnd)
+				{
+					ranges.push({
+						node: textNode,
+						start: rangeStart - offset,
+						end: rangeEnd - offset
+					});
+				}
+
+				offset = nodeEnd;
+				node = walker.nextNode();
+			}
+
+			for (let index = ranges.length - 1; index >= 0; index -= 1)
+			{
+				const item = ranges[index];
+				if (item === undefined) continue;
+				const range = document.createRange();
+				range.setStart(item.node, item.start);
+				range.setEnd(item.node, item.end);
+				const highlight = document.createElement("span");
+				highlight.className = "signal-focus-target";
+				range.surroundContents(highlight);
+			}
+		}
 	}
 
 	// Schedules a debounced capture of the segment at the top reading edge.

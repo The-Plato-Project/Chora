@@ -1,4 +1,5 @@
-import type { LibraryText, LibraryTextSummary, SourceNotice } from "../../shared/library/LibraryTypes.js";
+import type { LibraryTextSummary, SourceNotice } from "../../shared/library/LibraryTypes.js";
+import type { TextDocument } from "../../shared/text/TextDocument.js";
 import { LibraryRepository } from "./LibraryRepository.js";
 
 export class LibraryService
@@ -12,7 +13,7 @@ export class LibraryService
 		return this.repository.ListAsync();
 	}
 
-	public GetAsync(textId: string): Promise<LibraryText>
+	public GetAsync(textId: string): Promise<TextDocument>
 	{
 		return this.repository.GetAsync(textId);
 	}

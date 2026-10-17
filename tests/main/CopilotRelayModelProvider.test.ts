@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CopilotRelayModelProvider } from "../../src/main/models/CopilotRelayModelProvider.js";
-import type { ModelRequest } from "../../src/shared/chat/ModelTypes.js";
+import type { ModelRequest } from "../../src/shared/models/ModelTypes.js";
 
 // Creates a representative request with context and history for Relay prompt serialization.
 function CreateRequest(): ModelRequest
@@ -77,6 +77,25 @@ describe("Copilot Relay provider", function CopilotRelayProviderTests()
 			code: "authentication",
 			message: "VS Code Relay rejected COPILOT_RELAY_SHARED_SECRET. Configure it to match choraCopilotRelay.sharedSecret. Unauthorized"
 		});
+	});
+
+	it("lets the Relay select an available model when no family is configured", async function UsesRelayDefaultModelAsync(): Promise<void>
+	{
+		let requestInit: RequestInit | undefined;
+		vi.stubEnv("COPILOT_RELAY_SHARED_SECRET", "shared-secret");
+		vi.stubEnv("COPILOT_RELAY_MODEL_FAMILY", "");
+		vi.stubGlobal("fetch", async function CaptureRequest(_input: RequestInfo | URL, init?: RequestInit): Promise<Response>
+		{
+			requestInit = init;
+			return new Response(JSON.stringify({ text: "A careful response.", modelFamily: "gpt-5.6-sol" }), { status: 200 });
+		});
+
+		const provider = new CopilotRelayModelProvider();
+		const result = await provider.CompleteAsync(CreateRequest());
+		const body = JSON.parse(requestInit?.body as string) as { modelFamily: string };
+
+		expect(body.modelFamily).toBe("");
+		expect(result.model).toBe("gpt-5.6-sol");
 	});
 
 	it("lists every model family offered by the authenticated Relay", async function ListsModelFamilies(): Promise<void>

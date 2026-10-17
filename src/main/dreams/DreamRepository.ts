@@ -1,17 +1,21 @@
 import type { Dirent } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { Dream as DreamRecord } from "../../shared/dreams/DreamTypes.js";
+import type { DreamSnapshot } from "../../shared/dreams/DreamTypes.js";
+import type { SignalRecord } from "../../shared/signals/SignalTypes.js";
 import { Errors } from "../diagnostics/MainErrorManager.js";
-import { ParseDreamMarkdown, SerializeDreamMarkdown } from "./DreamMarkdownCodec.js";
+import { ParseDreamMarkdownWithLegacy, SerializeDreamMarkdown } from "./DreamMarkdownCodec.js";
 
 // A parsed Dream record together with its persistence path.
 export interface DreamPersistenceRecord
 {
 	// Serialized Dream data owned by the Dream aggregate.
-	readonly dream: DreamRecord;
+	readonly dream: DreamSnapshot;
 	// Absolute path to the persisted Markdown record.
 	readonly filePath: string;
+	// Legacy embedded Signals imported by DreamLibrary before the canonical snapshot is retained.
+	readonly legacySignals: readonly SignalRecord[];
 }
 
 // Loads and saves serialized Dream records without applying domain decisions.
@@ -19,11 +23,14 @@ export class DreamRepository
 {
 	// Identifies the filesystem root read by this repository.
 	private readonly libraryPath: string;
+	// Receives deleted Dream records outside the visible library.
+	private readonly trashPath: string;
 
 	// Creates persistence access scoped to one Dream library root.
-	public constructor(libraryPath: string)
+	public constructor(libraryPath: string, trashPath: string = path.join(path.dirname(libraryPath), "Trash", "Dreams"))
 	{
 		this.libraryPath = libraryPath;
+		this.trashPath = trashPath;
 	}
 
 	// Loads persisted records for the Dream library.
@@ -67,10 +74,20 @@ export class DreamRepository
 		}
 	}
 
-	// Removes the specified primary persistence record.
+	// Moves the specified primary persistence record into Chora's recoverable trash.
 	public async DeleteAsync(record: DreamPersistenceRecord): Promise<void>
 	{
-		await unlink(record.filePath);
+		const relativePath = path.relative(this.libraryPath, record.filePath);
+		const relativeDirectory = path.dirname(relativePath);
+		const extension = path.extname(relativePath);
+		const fileName = path.basename(relativePath, extension);
+		const trashPath = path.join(
+			this.trashPath,
+			relativeDirectory,
+			`${fileName}--deleted-${randomUUID()}${extension}`);
+
+		await mkdir(path.dirname(trashPath), { recursive: true });
+		await rename(record.filePath, trashPath);
 	}
 
 	// Reads and parses one Markdown file into a persistence record.
@@ -79,14 +96,18 @@ export class DreamRepository
 		try
 		{
 			const content = await readFile(filePath, "utf8");
-			const dream = ParseDreamMarkdown(content);
-			const hasDream = dream !== null;
-			const isNew = hasDream && !records.has(dream.id);
+			const parsed = ParseDreamMarkdownWithLegacy(content);
+			const hasDream = parsed !== null;
+			const isNew = hasDream && parsed !== null && !records.has(parsed.snapshot.id);
 
-			if (isNew && dream !== null)
+			if (isNew && parsed !== null)
 			{
-				const record: DreamPersistenceRecord = { dream, filePath };
-				records.set(dream.id, record);
+				const record: DreamPersistenceRecord = {
+					dream: parsed.snapshot,
+					filePath,
+					legacySignals: parsed.legacySignals
+				};
+				records.set(parsed.snapshot.id, record);
 			}
 		}
 		catch (error)

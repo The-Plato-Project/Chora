@@ -12,10 +12,10 @@ describe("Republic corpus import", () =>
 		const sourceText = fs.readFileSync(SourcePath, "utf8");
 		const work = ParseTeiWork(sourceText, "tlg0059.tlg030.perseus-grc2.xml");
 		const text = work.segments.map((segment) => segment.text).join(" ");
-		const firstLocator = work.segments[0]?.locator?.value;
-		const hasSectionB = work.segments.some((segment) => segment.locator?.value === "327b");
-		const hasParagraphBoundary = work.segments.filter((segment) => segment.locator?.value === "327c").length > 1;
-		const bookNumbers = [...new Set(work.segments.map((segment) => segment.division?.kind === "book" ? segment.division.value : null).filter((value) => value !== null))];
+		const firstLocator = work.segments[0]?.citation?.value;
+		const hasSectionB = work.segments.some((segment) => segment.citation?.value === "327b");
+		const hasParagraphBoundary = work.segments.filter((segment) => segment.citation?.value === "327c").length > 1;
+		const bookNumbers = [...new Set(work.segments.map((segment) => segment.division?.type === "book" ? segment.division.label : null).filter((value) => value !== null))];
 
 		expect(work.segments.length).toBeGreaterThan(1000);
 		expect(text.length).toBeGreaterThan(500000);

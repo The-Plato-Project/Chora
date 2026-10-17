@@ -61,16 +61,16 @@ export class IdeaMarkdownCodec
 
 	// Parses current origin-first evidence or migrates the previous ordered reference list.
 	private ParseEvidence(data: Record<string, unknown>): {
-		originSignal: IdeaSignalReference;
+		originSignal: IdeaSignalReference | null;
 		relatedSignals: IdeaSignalReference[];
 	}
 	{
-		let originSignal: IdeaSignalReference;
+		let originSignal: IdeaSignalReference | null;
 		let relatedSignals: IdeaSignalReference[];
 
 		if (data.originSignal !== undefined)
 		{
-			originSignal = this.ParseReference(data.originSignal);
+			originSignal = data.originSignal === null ? null : this.ParseReference(data.originSignal);
 			relatedSignals = this.ParseReferences(data.relatedSignals);
 		}
 		else
@@ -78,12 +78,7 @@ export class IdeaMarkdownCodec
 			const references = this.ParseReferences(data.references);
 			const firstReference = references[0];
 
-			if (firstReference === undefined)
-			{
-				throw new Error("Idea Markdown is missing an originating Signal");
-			}
-
-			originSignal = firstReference;
+			originSignal = firstReference ?? null;
 			relatedSignals = references.slice(1);
 		}
 
@@ -136,15 +131,15 @@ export class IdeaMarkdownCodec
 		{
 			const candidate = value as Record<string, unknown>;
 			const isSignal = candidate.kind === undefined || candidate.kind === "signal";
-			const hasDreamId = typeof candidate.dreamId === "string";
 			const hasSignalId = typeof candidate.signalId === "string";
 
-			if (isSignal && hasDreamId && hasSignalId)
+			if (isSignal && hasSignalId)
 			{
-				reference = {
-					dreamId: candidate.dreamId as string,
-					signalId: candidate.signalId as string
-				};
+				const rationale = this.ParseRationale(candidate.rationale);
+				const signalId = candidate.signalId as string;
+				reference = rationale === null
+					? { signalId }
+					: { signalId, rationale };
 			}
 		}
 
@@ -154,6 +149,24 @@ export class IdeaMarkdownCodec
 		}
 
 		return reference;
+	}
+
+	// Parses optional Idea-owned relationship context while preserving older rationale-free files.
+	private ParseRationale(value: unknown): string | null
+	{
+		let rationale: string | null = null;
+
+		if (typeof value === "string")
+		{
+			const trimmed = value.trim();
+			rationale = trimmed.length > 0 ? trimmed : null;
+		}
+		else if (value !== undefined && value !== null)
+		{
+			throw new Error("Idea Markdown contains an invalid Signal rationale");
+		}
+
+		return rationale;
 	}
 
 	// Requires a string front-matter field and reports malformed persistence explicitly.

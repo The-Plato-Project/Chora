@@ -325,15 +325,6 @@ export class IdeaStore
 		}
 	}
 
-	// Reveals model-assisted suggestions while preserving the active draft.
-	public ShowSuggestions(): void
-	{
-		if (this.draft !== null)
-		{
-			this.view = "suggestions";
-		}
-	}
-
 	// Replaces the work-wide Signal search query.
 	public SetSignalSearch(search: string): void
 	{
@@ -424,28 +415,35 @@ export class IdeaStore
 		}
 	}
 
-	// Removes one later connected Signal by its displayed position.
-	public RemoveRelatedSignal(index: number): void
+	// Removes one connected Signal and promotes the next association when necessary.
+	public RemoveSignal(reference: IdeaSignalReference): void
 	{
 		if (this.draft !== null)
 		{
-			const relatedSignals: IdeaSignalReference[] = [];
-			let candidateIndex = 0;
+			const identity = this.CreateReferenceIdentity(reference);
+			const remaining: IdeaSignalReference[] = [];
 
-			for (const reference of this.draft.relatedSignals)
+			if (this.draft.originSignal !== null
+				&& this.CreateReferenceIdentity(this.draft.originSignal) !== identity)
 			{
-				if (candidateIndex !== index)
-				{
-					relatedSignals.push(reference);
-				}
+				remaining.push(structuredClone(this.draft.originSignal));
+			}
 
-				candidateIndex += 1;
+			for (const candidate of this.draft.relatedSignals)
+			{
+				if (this.CreateReferenceIdentity(candidate) !== identity)
+				{
+					remaining.push(structuredClone(candidate));
+				}
 			}
 
 			this.draft = {
 				...this.draft,
-				relatedSignals
+				originSignal: remaining[0] ?? null,
+				relatedSignals: remaining.slice(1)
 			};
+			this.CaptureActiveTab();
+			this.PersistTabs();
 		}
 	}
 
@@ -538,7 +536,7 @@ export class IdeaStore
 	// Creates the stable identity used to compare Signal references.
 	private CreateReferenceIdentity(reference: IdeaSignalReference): string
 	{
-		const identity = `signal:${reference.dreamId}:${reference.signalId}`;
+		const identity = `signal:${reference.signalId}`;
 
 		return identity;
 	}

@@ -4,14 +4,13 @@ import os from "node:os";
 import path from "node:path";
 import { Dream } from "../../src/main/dreams/Dream.js";
 import { DreamLibrary } from "../../src/main/dreams/DreamLibrary.js";
-import { ParseDreamMarkdown, SerializeDreamMarkdown } from "../../src/main/dreams/DreamMarkdownCodec.js";
+import { ParseDreamMarkdownWithLegacy, SerializeDreamMarkdown } from "../../src/main/dreams/DreamMarkdownCodec.js";
 import { DreamRepository, type DreamPersistenceRecord } from "../../src/main/dreams/DreamRepository.js";
-import type { Dream as DreamRecord } from "../../src/shared/dreams/DreamTypes.js";
+import type { DreamSnapshot } from "../../src/shared/dreams/DreamTypes.js";
 
-const GreekPassage = "Κατέβην χθὲς εἰς Πειραιᾶ";
 const directories: string[] = [];
 
-function CreateDream(id: string, title: string): DreamRecord
+function CreateDream(id: string, title: string): DreamSnapshot
 {
 	return {
 		id,
@@ -21,16 +20,11 @@ function CreateDream(id: string, title: string): DreamRecord
 		source: {
 			documentId: "republic",
 			start: { segmentKey: "s1", offset: 0 },
-			end: { segmentKey: "s2", offset: 9 },
-			selectedText: GreekPassage,
-			locatorStart: { scheme: "Stephanus", value: "327a" },
-			locatorEnd: { scheme: "Stephanus", value: "327b" },
-			sourceRefs: ["s1", "s2"],
-			startSourceRef: "s1",
-			endSourceRef: "s2"
+			end: { segmentKey: "s2", offset: 9 }
 		},
-		signals: [],
+		signalIds: [],
 		reflection: "",
+		synopticView: "",
 		linkedDreamIds: [],
 		createdAt: "2026-01-01T00:00:00.000Z",
 		updatedAt: "2026-01-01T00:00:00.000Z"
@@ -41,8 +35,15 @@ async function CreateLibraryAsync(): Promise<DreamLibrary>
 {
 	const directory = await mkdtemp(path.join(os.tmpdir(), "chora-dream-"));
 	directories.push(directory);
-	const repository = new DreamRepository(directory);
-	const library = new DreamLibrary(directory, repository);
+	const repository = new DreamRepository(directory, path.join(directory, "Trash", "Dreams"));
+	const signals = {
+		ImportAsync: async function ImportSignalsAsync(): Promise<void> { await Promise.resolve(); },
+		DeleteIfOrphanedAsync: async function DeleteSignalAsync(): Promise<void>
+		{
+			await Promise.resolve();
+		}
+	};
+	const library = new DreamLibrary(directory, repository, signals as never);
 
 	return library;
 }
@@ -54,7 +55,7 @@ describe("Dream library", function DreamLibraryTests()
 		for (const directory of directories.splice(0)) await rm(directory, { recursive: true, force: true });
 	});
 
-	it("saves a titleless Dream containing only exegesis", async () =>
+	it("saves a titleless Dream containing only reflections", async () =>
 	{
 		const library = await CreateLibraryAsync();
 		const dream = CreateDream("one", "   ");
@@ -67,18 +68,35 @@ describe("Dream library", function DreamLibraryTests()
 
 		expect(files[0]).toBe("dream--one.md");
 		expect(records[0]?.title).toBe("");
-		expect(records[0]?.signals).toEqual([]);
+		expect(records[0]?.signalIds).toEqual([]);
 		expect(records[0]?.reflection).toBe(dream.reflection);
-		expect(records[0]?.source.selectedText).toBe(GreekPassage);
+		expect(records[0]?.source).toEqual(dream.source);
 	});
 
 	it("round trips Greek polytonic text without changing code points", () =>
 	{
 		const dream = CreateDream("greek", "Πρόσοψις");
-		dream.signals.push({ id: "signal", sourceRef: "s1", selection: dream.source, text: "χθὲς", description: "ἅμα — a simultaneous movement." });
-		const parsed = ParseDreamMarkdown(SerializeDreamMarkdown(dream));
+		const associated = { ...dream, signalIds: ["signal"] };
+		const parsed = ParseDreamMarkdownWithLegacy(SerializeDreamMarkdown(associated))?.snapshot;
 
-		expect(parsed).toEqual(dream);
+		expect(parsed).toEqual({
+			...associated
+		});
+	});
+
+	it("loads legacy Exegesis and exploration fields without data loss", () =>
+	{
+		const dream = CreateDream("legacy", "Legacy");
+		dream.reflection = "An inherited reflection.";
+		dream.synopticView = "An inherited view.";
+		const legacy = SerializeDreamMarkdown(dream)
+			.replace(/^synopticView:/mu, "exploration:")
+			.replace("## Reflections", "## Exegesis");
+
+		const parsed = ParseDreamMarkdownWithLegacy(legacy)?.snapshot;
+
+		expect(parsed?.reflection).toBe("An inherited reflection.");
+		expect(parsed?.synopticView).toBe("An inherited view.");
 	});
 
 	it("rejects identifiers that could escape the primary Dream library", async () =>
@@ -102,7 +120,8 @@ describe("Dream library", function DreamLibraryTests()
 
 		expect(content).toContain("workId: republic");
 		expect(content).toContain("# Descent");
-		expect(content).toContain(GreekPassage);
+		expect(content).toContain("segmentKey: s1");
+		expect(content).toContain("segmentKey: s2");
 	});
 
 	it("renames the persisted file whenever the normalized title slug changes", async function RenamesPersistedFileAsync()
@@ -167,6 +186,13 @@ describe("Dream library", function DreamLibraryTests()
 
 		const remaining = await library.ListAsync();
 		expect(remaining.map((dream) => dream.id)).toEqual(["two"]);
+		const directory = directories[0];
+		if (directory === undefined) throw new Error("Test directory was not created.");
+		const deletedFiles = await readdir(path.join(directory, "Trash", "Dreams", "republic"));
+		expect(deletedFiles).toHaveLength(1);
+		expect(deletedFiles[0]).toMatch(/^first--one--deleted-[0-9a-f-]+\.md$/u);
+		const deletedContent = await readFile(path.join(directory, "Trash", "Dreams", "republic", deletedFiles[0] ?? ""), "utf8");
+		expect(deletedContent).toContain("# First");
 	});
 
 	it("reloads persisted records on repeated loads", async function ReloadsRepositoryRecords()
@@ -189,24 +215,18 @@ describe("Dream library", function DreamLibraryTests()
 		expect(reloaded[0]?.dream.title).toBe("Replacement");
 	});
 
-	it("normalizes owned links and deduplicates hydrated signals", () =>
+	it("normalizes linked and Signal identities", () =>
 	{
-		const record = CreateDream("one", "  Descent  ");
-		record.linkedDreamIds = ["one", "two", "two", "  three  "];
-		const signal = {
-			id: "signal",
-			sourceRef: "s1",
-			selection: record.source,
-			text: "χθὲς",
-			description: "",
+		const record = {
+			...CreateDream("one", "  Descent  "),
+			linkedDreamIds: ["one", "two", "two", "  three  "],
+			signalIds: ["signal", "signal"]
 		};
-
-		record.signals = [signal, signal];
 		const dream = new Dream(record);
-		const normalized = dream.ToRecord();
+		const normalized = dream.ToSnapshot();
 
 		expect(normalized.title).toBe("Descent");
 		expect(normalized.linkedDreamIds).toEqual(["two", "three"]);
-		expect(normalized.signals).toHaveLength(1);
+		expect(normalized.signalIds).toEqual(["signal"]);
 	});
 });

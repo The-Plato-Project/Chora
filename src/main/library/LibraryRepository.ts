@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
-import type { LibraryManifest, LibraryText, LibraryTextSummary } from "../../shared/library/LibraryTypes.js";
+import type { LibraryManifest, LibraryTextSummary } from "../../shared/library/LibraryTypes.js";
+import { TextDocument, type TextDocumentSnapshot } from "../../shared/text/TextDocument.js";
 import { ResolveCorpusPath } from "../bootstrap/ResourcePaths.js";
 
 export class LibraryRepository
@@ -13,7 +14,7 @@ export class LibraryRepository
 		return manifest.works;
 	}
 
-	public async GetAsync(textId: string): Promise<LibraryText>
+	public async GetAsync(textId: string): Promise<TextDocument>
 	{
 		const manifest = await this.LoadManifestAsync();
 		let isKnownText = false;
@@ -33,7 +34,8 @@ export class LibraryRepository
 
 		const textPath = ResolveCorpusPath(LibraryRepository.TextsDirectory, `${textId}.json`);
 		const content = await fs.readFile(textPath, "utf8");
-		const text = JSON.parse(content) as LibraryText;
+		const snapshot = JSON.parse(content) as TextDocumentSnapshot;
+		const text = TextDocument.FromSnapshot(snapshot);
 		return text;
 	}
 

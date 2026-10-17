@@ -1,5 +1,6 @@
-import type { TextSelection } from "../../../shared/library/SelectionTypes.js";
+import type { TextSelection } from "../../../shared/text/TextSelection.js";
 import type { ErrorRecord } from "../../../shared/diagnostics/DiagnosticManager.js";
+import type { SignalRecord } from "../../../shared/signals/SignalTypes.js";
 
 // Every application event name and its payload shape, published on the shared ChoraEventBus.
 export interface ChoraEvents
@@ -9,14 +10,21 @@ export interface ChoraEvents
 	"library.text-open-requested": { textId: string };
 	"library.focus-changed": { textId: string; segmentKey: string };
 	"library.selection-changed": Record<string, never>;
-	"library.jump-requested": { selection: TextSelection };
+	"library.jump-requested": { selection: TextSelection; target?: "source" | "signal" };
+	"signal.add-requested": { selection: TextSelection };
+	// Announces an authoritative change to one work-owned Signal.
+	"signal.changed": { signal: SignalRecord };
 	// Requests focus on the Dreams Explorer without opening a Dream.
 	"workspace.dreams-focus-requested": Record<string, never>;
 	"workspace.document-selected": { kind: "dream" | "idea" | null };
 	// Requests selection of a durable Idea for one existing Signal.
-	"idea.add-signal-requested": { dreamId: string; signalId: string };
+	"idea.add-signal-requested": { dreamId: string; signalId: string; ideaId?: string };
+	// Requests that an existing Idea open in the shared workspace editor.
+	"idea.open-requested": { ideaId: string };
+	// Requests that one Signal be selected and revealed in the active Idea.
+	"idea.signal-focus-requested": { ideaId: string | null; signalId: string };
 	// Requests that an Idea-referenced Signal open in the established Dream editor.
-	"idea.signal-view-requested": { dreamId: string; signalId: string };
+	"idea.signal-view-requested": { signalId: string };
 	// Requests a return from an Idea-referenced Signal preview to the active Idea.
 	"idea.return-requested": Record<string, never>;
 	// Announces a change to renderer-owned Idea state.
@@ -40,13 +48,7 @@ export interface ChoraEvents
 	"dream.structure-changed": { dreamId: string };
 	"dream.saved": Record<string, never>;
 	"dream.save-state-changed": Record<string, never>;
-	"chat.changed": Record<string, never>;
-	// Requests a conversation focused on one reader-selected signal.
-	"chat.signal-requested": { dreamId: string; signalId: string };
-	// Requests a conversation about the whole Dream, independent of any specific signal.
-	"chat.dream-requested": { dreamId: string };
-	// Announces that a conversation is ready for the reader's message.
-	"chat.conversation-opened": Record<string, never>;
+	"dream.synoptic-view-state-changed": { dreamId: string };
 	"error.reported": ErrorRecord;
 }
 

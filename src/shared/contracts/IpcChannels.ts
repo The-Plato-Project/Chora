@@ -12,16 +12,9 @@ export const IPC_CHANNELS = {
 	getLookupState: "chora:get-lookup-state",
 	setLookupBounds: "chora:set-lookup-bounds",
 	lookupCommand: "chora:lookup-command",
-	startChat: "chora:start-chat",
-	continueChat: "chora:continue-chat",
-	listChatConversations: "chora:list-chat-conversations",
-	loadChatConversation: "chora:load-chat-conversation",
-	deleteChatConversation: "chora:delete-chat-conversation",
-	getChatTools: "chora:get-chat-tools",
-	chatDelta: "chora:chat-delta",
-	getConfiguredProvider: "chora:get-configured-provider",
-	getProviderOptions: "chora:get-provider-options",
 	getSourceNotice: "chora:get-source-notice",
+	listSignals: "chora:list-signals",
+	saveSignal: "chora:save-signal",
 	// Lists work-owned Ideas.
 	listIdeas: "chora:list-ideas",
 	// Discovers related existing Signals.
@@ -33,5 +26,7 @@ export const IPC_CHANNELS = {
 	saveDream: "chora:save-dream",
 	deleteDream: "chora:delete-dream",
 	listDreams: "chora:list-dreams",
-	allocateDreamId: "chora:allocate-dream-id"
+	allocateDreamId: "chora:allocate-dream-id",
+	createDreamSynopticView: "chora:create-dream-synoptic-view",
+	cancelDreamSynopticView: "chora:cancel-dream-synoptic-view"
 } as const;

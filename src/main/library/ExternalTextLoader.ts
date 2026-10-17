@@ -1,11 +1,11 @@
 import fs from "node:fs/promises";
 import { dialog, type BrowserWindow, type OpenDialogOptions } from "electron";
-import type { LibraryText } from "../../shared/library/LibraryTypes.js";
+import type { TextDocument } from "../../shared/library/LibraryTypes.js";
 import { BuildExternalText } from "./ExternalTextModel.js";
 
 export class ExternalTextLoader
 {
-	public async OpenAsync(window: BrowserWindow | null): Promise<LibraryText | null>
+	public async OpenAsync(window: BrowserWindow | null): Promise<TextDocument | null>
 	{
 		const dialogOptions = {
 		title: "Open Text",
@@ -17,7 +17,7 @@ export class ExternalTextLoader
 			}
 		]
 		} satisfies OpenDialogOptions;
-		let result: LibraryText | null = null;
+		let result: TextDocument | null = null;
 		const dialogResult = window
 			? await dialog.showOpenDialog(window, dialogOptions)
 			: await dialog.showOpenDialog(dialogOptions);

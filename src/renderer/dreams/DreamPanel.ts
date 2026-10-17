@@ -1,4 +1,4 @@
-import type { Dream } from "../../shared/dreams/DreamTypes.js";
+import type { DreamView } from "./DreamView.js";
 import type { ChoraEvents } from "../core/events/ChoraEvents.js";
 import { ChoraEventBus, type Unsubscribe } from "../core/events/ChoraEventBus.js";
 import { DreamController, type DreamCatalogueGroup } from "./DreamController.js";
@@ -9,14 +9,21 @@ import { PopupPanel } from "../ui/PopupPanel.js";
 import { CloseIcon, EditIcon, AddIcon, SearchIcon, OpenIcon } from "../ui/Icons.js";
 import { TabControl } from "../ui/TabControl.js";
 import { DreamSignalsPanel } from "./DreamSignalsPanel.js";
-import { DreamExegesisPanel } from "./DreamExegesisPanel.js";
+import { DreamReflectionsPanel } from "./DreamReflectionsPanel.js";
+import { DreamSynopticViewPanel } from "./DreamSynopticViewPanel.js";
 import { ErrorManager } from "../core/diagnostics/RendererErrorManager.js";
+import type { IdeaStore } from "../ideas/IdeaStore.js";
+import type { SignalRecord } from "../../shared/signals/SignalTypes.js";
+import { SignalDocumentPanel } from "../signals/SignalDocumentPanel.js";
+import type { SignalController } from "../signals/SignalController.js";
+import type { SignalStore } from "../signals/SignalStore.js";
+import { LayoutSettings } from "../core/settings/LayoutSettingsStore.js";
 
-// Which view of the Dream feature this panel instance renders.
+// Which view of the DreamView feature this panel instance renders.
 type DreamPanelMode = "catalogue" | "editor";
 
-// Renders the Dream catalogue and editor views and translates browser events into controller calls.
-export class DreamPanel
+// Renders the DreamView catalogue and editor views and translates browser events into controller calls.
+export class DreamPanel extends SignalDocumentPanel
 {
 	// Event-bus subscriptions released when the panel is disposed.
 	private readonly subscriptions: Unsubscribe[] = [];
@@ -26,19 +33,28 @@ export class DreamPanel
 	private readonly collapsedBooks = new Set<string>();
 	// Whether the selected-text root is collapsed in the Explorer tree.
 	private isTextRootCollapsed = false;
-	// Persistent tab control for the open Dream.
+	// Persistent tab control for the open DreamView.
 	private tabs: TabControl | null = null;
 	// Signals content owned by the tab control.
 	private signalsPanel: DreamSignalsPanel | null = null;
-	private exegesisPanel: DreamExegesisPanel | null = null;
-	// Identity of the Dream currently mounted in the editor.
+	private reflectionsPanel: DreamReflectionsPanel | null = null;
+	private synopticViewPanel: DreamSynopticViewPanel | null = null;
+	// Identity of the DreamView currently mounted in the editor.
 	private mountedDreamId: string | null = null;
-	// Popup containing the explicit Dream rename workflow.
+	// Popup containing the explicit DreamView rename workflow.
 	private readonly manageSignalsPopup: PopupPanel | null;
 	// Handles rename form submission for the popup lifetime.
 	private readonly renameSubmitHandler: (event: Event) => void;
 	// Handles rename input keyboard events for the popup lifetime.
 	private readonly renameKeyDownHandler: (event: KeyboardEvent) => void;
+	// Begins reader-driven source-passage resizing.
+	private readonly sourceResizeDownHandler = this.HandleSourceResizePointerDown.bind(this);
+	// Applies active source-passage resizing.
+	private readonly sourceResizeMoveHandler = this.HandleSourceResizePointerMove.bind(this);
+	// Completes active source-passage resizing.
+	private readonly sourceResizeUpHandler = this.HandleSourceResizePointerUp.bind(this);
+	// Active source-passage resize gesture.
+	private sourceResizeDrag: { y: number; height: number } | null = null;
 
 	// Wires up DOM and application-event listeners, then renders the initial view.
 	public constructor(
@@ -47,13 +63,18 @@ export class DreamPanel
 		private readonly store: DreamStore,
 		private readonly controller: DreamController,
 		private readonly library: LibraryStore,
-		private readonly mode: DreamPanelMode)
+		private readonly mode: DreamPanelMode,
+		private readonly ideas: IdeaStore | null = null,
+		signals: SignalStore | null = null,
+		signalController: SignalController | null = null)
 	{
+		super(root, events, signals, signalController);
 		this.errors = new ErrorManager(events);
 		this.root.addEventListener("click", this.HandleClick.bind(this));
 		this.root.addEventListener("input", this.HandleInput.bind(this));
 		this.root.addEventListener("keydown", this.HandleKeyDown.bind(this));
 		this.root.addEventListener("contextmenu", this.HandleContextMenuAsync.bind(this));
+		this.root.addEventListener("pointerdown", this.sourceResizeDownHandler);
 		this.renameSubmitHandler = this.HandleRenameSubmitAsync.bind(this);
 		this.renameKeyDownHandler = this.HandleRenameKeyDown.bind(this);
 		this.manageSignalsPopup = mode === "catalogue" ? new PopupPanel("Rename Dream") : null;
@@ -77,6 +98,7 @@ export class DreamPanel
 		this.subscriptions.push(signalAddedSubscription);
 		this.subscriptions.push(this.events.Subscribe("dream.changed", this.HandleDreamStatusChanged.bind(this)));
 		this.subscriptions.push(this.events.Subscribe("dream.save-state-changed", this.HandleDreamStatusChanged.bind(this)));
+		this.subscriptions.push(this.events.Subscribe("dream.synoptic-view-state-changed", this.HandleSynopticViewStateChanged.bind(this)));
 		this.subscriptions.push(this.events.Subscribe("library.text-opened", this.HandleTextOpened.bind(this)));
 		this.Update();
 	}
@@ -84,10 +106,26 @@ export class DreamPanel
 	// Releases every event-bus subscription owned by this panel.
 	public Dispose(): void
 	{
+		this.DisposeSignalDocumentPanel();
 		for (const unsubscribe of this.subscriptions) unsubscribe();
 		this.subscriptions.length = 0;
 		this.manageSignalsPopup?.Dispose();
 		this.tabs?.Dispose();
+		this.root.removeEventListener("pointerdown", this.sourceResizeDownHandler);
+		window.removeEventListener("pointermove", this.sourceResizeMoveHandler);
+		window.removeEventListener("pointerup", this.sourceResizeUpHandler);
+	}
+
+	// Returns whether this instance represents the active DreamView editor.
+	protected CanAssociateSignal(): boolean
+	{
+		return this.mode === "editor" && this.store.GetActiveDream() !== null;
+	}
+
+	// Connects one work-owned Signal to the active DreamView.
+	protected async AssociateSignalAsync(signal: SignalRecord): Promise<void>
+	{
+		await this.controller.AssociateSignalAsync(signal);
 	}
 
 	// Re-renders the active view (catalogue or editor) and its status line.
@@ -100,7 +138,8 @@ export class DreamPanel
 			this.tabs?.Dispose();
 			this.tabs = null;
 			this.signalsPanel = null;
-			this.exegesisPanel = null;
+			this.reflectionsPanel = null;
+			this.synopticViewPanel = null;
 			this.mountedDreamId = null;
 			this.root.replaceChildren();
 		}
@@ -115,19 +154,30 @@ export class DreamPanel
 				}
 				this.tabs?.Dispose();
 				this.root.innerHTML = this.RenderEditor(dream);
-				this.signalsPanel = new DreamSignalsPanel(this.controller, this.errors);
-				this.exegesisPanel = new DreamExegesisPanel(this.controller, dream.reflection, this.errors);
-				const selectedTab = this.controller.GetEditorTab(dream.id);
-				this.tabs = new TabControl([this.signalsPanel, this.exegesisPanel], "Dream content", this.HandleEditorTabSelected.bind(this));
+				this.signalsPanel = new DreamSignalsPanel(
+					this.controller,
+					this.events,
+					this.ideas,
+					this.errors);
+				this.reflectionsPanel = new DreamReflectionsPanel(this.controller, dream.reflection, this.errors);
+				this.synopticViewPanel = new DreamSynopticViewPanel(this.controller, dream, this.errors);
+				const rememberedTab = this.controller.GetEditorTab(dream.id);
+				const selectedTab = rememberedTab === "description" ? "reflections" : rememberedTab;
+				this.tabs = new TabControl(
+					[this.signalsPanel, this.reflectionsPanel, this.synopticViewPanel],
+					"Dream content",
+					this.HandleEditorTabSelected.bind(this));
 				this.tabs.Select(selectedTab);
 				const host = this.root.querySelector("[data-dream-tabs]");
 				host?.append(this.tabs.Root);
 				this.mountedDreamId = dream.id;
 			}
 			this.signalsPanel?.Update(dream);
-			this.exegesisPanel?.Update(dream.reflection);
+			this.reflectionsPanel?.Update(dream.reflection);
+			this.synopticViewPanel?.Update(dream);
 			const source = this.root.querySelector<HTMLElement>("[data-dream-source]");
-			if (source !== null && source.textContent !== dream.source.selectedText) source.textContent = dream.source.selectedText;
+			const sourceText = this.controller.ResolveSelectionText(dream.source);
+			if (source !== null && source.textContent !== sourceText) source.textContent = sourceText;
 			const meta = this.root.querySelector<HTMLElement>("[data-dream-source-meta]");
 			if (meta !== null) meta.textContent = `${dream.dialogue ?? dream.workId} · ${this.FormatSourceRange(dream)}`;
 		}
@@ -135,7 +185,7 @@ export class DreamPanel
 		this.RefreshManageSignalsPopup();
 	}
 
-	// Renders the catalogue header, search field, and grouped Dream list.
+	// Renders the catalogue header, search field, and grouped DreamView list.
 	private RenderCatalogue(): string
 	{
 		const groups = this.controller.GetCatalogueGroups(this.store.GetSearchText());
@@ -206,7 +256,7 @@ export class DreamPanel
 	}
 
 	// Renders a flat, ungrouped list of catalogue items.
-	private RenderCatalogueItems(dreams: readonly Dream[]): string
+	private RenderCatalogueItems(dreams: readonly DreamView[]): string
 	{
 		let content = "";
 
@@ -216,7 +266,7 @@ export class DreamPanel
 	}
 
 	// Renders one division group, collapsed unless it is a book the reader has expanded or a search is active.
-	private RenderCatalogueGroup(label: string, book: string | null, dreams: readonly Dream[]): string
+	private RenderCatalogueGroup(label: string, book: string | null, dreams: readonly DreamView[]): string
 	{
 		const isSearching = this.store.GetSearchText().trim().length > 0;
 		const hasPassageFilter = this.store.GetPassageFilter() !== null;
@@ -228,8 +278,8 @@ export class DreamPanel
 		return group;
 	}
 
-	// Renders one catalogue row for a single Dream.
-	private RenderCatalogueItem(dream: Dream): string
+	// Renders one catalogue row for a single DreamView.
+	private RenderCatalogueItem(dream: DreamView): string
 	{
 		const isActive = dream.id === this.store.GetActiveDream()?.id;
 		const range = this.FormatSourceRange(dream);
@@ -241,49 +291,98 @@ export class DreamPanel
 		return item;
 	}
 
-	// Creates the persistent editor shell for a newly opened Dream.
-	private RenderEditor(dream: Dream): string
+	// Creates the persistent editor shell for a newly opened DreamView.
+	private RenderEditor(dream: DreamView): string
 	{
 		const source = this.RenderDreamSource(dream);
-		const editor = `<div class="dream-editor-stack"><section class="dream-panel dream-editor">${source}<div class="dream-tabs-host" data-dream-tabs></div></section></div>`;
+		const title = EscapeHtml(dream.title);
+		const editor = `<div class="dream-editor-stack"><section class="dream-panel dream-editor document-editor"><section class="dream-interpretation document-interpretation"><label><span>Title</span><input data-dream-editor-title value="${title}" placeholder="Name this Dream"></label></section>${source}<div class="dream-source-divider" data-dream-source-divider role="separator" tabindex="0" aria-label="Resize Source Passage" aria-orientation="horizontal"></div><section class="dream-signals-section document-signals-section" aria-label="Dream content"><div class="dream-tabs-host document-signal-view-host" data-dream-tabs></div></section><footer class="dream-editor-actions document-editor-actions"><div class="document-save-actions"><button class="document-save-button button-control idea-save-button" data-save-dream type="button" aria-label="Save Dream">Save</button></div></footer></section></div>`;
 
 		return editor;
 	}
 
-	// Persists inner editor-tab selection for the active Dream session.
+	// Persists inner editor-tab selection for the active DreamView session.
 	private HandleEditorTabSelected(tabId: string): void
 	{
 		const dreamId = this.store.GetActiveDream()?.id;
 		if (dreamId !== undefined) this.controller.RememberEditorTab(dreamId, tabId);
 	}
 
-	// Renders the Dream's source-passage section.
-	private RenderDreamSource(dream: Dream): string
+	// Renders the DreamView's source-passage section.
+	private RenderDreamSource(dream: DreamView): string
 	{
 		const range = this.FormatSourceRange(dream);
 		const meta = `${EscapeHtml(dream.dialogue ?? dream.workId)} &middot; ${EscapeHtml(range)}`;
-		const source = `<details class="dream-section dream-source-section" open><summary>Source Passage <span class="dream-source-meta" data-dream-source-meta>${meta}</span></summary><blockquote class="dream-source" data-dream-source>${EscapeHtml(dream.source.selectedText)}</blockquote><button class="dream-action-link button-control" data-jump-source type="button">Jump to source ${OpenIcon}</button></details>`;
+		const height = LayoutSettings.GetDimension("dreamSourceHeight", 144);
+		const sourceText = this.controller.ResolveSelectionText(dream.source);
+		const source = `<details class="dream-section dream-source-section" style="height: ${height}px" open><summary>Source Passage <span class="dream-source-meta" data-dream-source-meta>${meta}</span></summary><blockquote class="dream-source" data-dream-source>${EscapeHtml(sourceText)}</blockquote><button class="dream-action-link button-control" data-jump-source type="button">Jump to source ${OpenIcon}</button></details>`;
 
 		return source;
 	}
 
+	// Begins resizing the Source Passage from its dedicated horizontal divider.
+	private HandleSourceResizePointerDown(event: PointerEvent): void
+	{
+		const divider = (event.target as HTMLElement | null)?.closest<HTMLElement>("[data-dream-source-divider]");
+		const source = this.root.querySelector<HTMLDetailsElement>(".dream-source-section");
+
+		if (divider !== null && divider !== undefined && source !== null && event.button === 0)
+		{
+			event.preventDefault();
+			this.sourceResizeDrag = { y: event.clientY, height: source.getBoundingClientRect().height };
+			divider.classList.add("is-active");
+			window.addEventListener("pointermove", this.sourceResizeMoveHandler);
+			window.addEventListener("pointerup", this.sourceResizeUpHandler, { once: true });
+		}
+	}
+
+	// Applies pointer movement to the Source Passage height.
+	private HandleSourceResizePointerMove(event: PointerEvent): void
+	{
+		if (this.sourceResizeDrag !== null)
+		{
+			const height = this.sourceResizeDrag.height + event.clientY - this.sourceResizeDrag.y;
+			this.SetSourceHeight(height);
+		}
+	}
+
+	// Ends Source Passage resizing and clears its active presentation.
+	private HandleSourceResizePointerUp(): void
+	{
+		this.sourceResizeDrag = null;
+		window.removeEventListener("pointermove", this.sourceResizeMoveHandler);
+		window.removeEventListener("pointerup", this.sourceResizeUpHandler);
+		this.root.querySelector<HTMLElement>("[data-dream-source-divider]")?.classList.remove("is-active");
+	}
+
+	// Clamps, applies, and persists one Source Passage height.
+	private SetSourceHeight(height: number): void
+	{
+		const editor = this.root.querySelector<HTMLElement>(".dream-editor.document-editor");
+		const source = this.root.querySelector<HTMLDetailsElement>(".dream-source-section");
+
+		if (editor !== null && source !== null)
+		{
+			const maximum = Math.max(96, editor.getBoundingClientRect().height - 300);
+			const bounded = Math.max(72, Math.min(maximum, height));
+			source.style.height = `${bounded}px`;
+			LayoutSettings.SetDimension("dreamSourceHeight", bounded);
+			const divider = this.root.querySelector<HTMLElement>("[data-dream-source-divider]");
+			divider?.setAttribute("aria-valuemin", "72");
+			divider?.setAttribute("aria-valuemax", `${maximum}`);
+			divider?.setAttribute("aria-valuenow", `${bounded}`);
+		}
+	}
 
 	// Displays distinct source endpoints without repeating a single passage label.
-	private FormatSourceRange(dream: Dream): string
+	private FormatSourceRange(dream: DreamView): string
 	{
-		const start = dream.source.locatorStart?.value;
-		const end = dream.source.locatorEnd?.value;
-		let range = start ?? end ?? "source";
-
-		if (start !== undefined && end !== undefined && start !== end)
-		{
-			range = `${start}–${end}`;
-		}
+		const range = this.controller.FormatSelectionRange(dream.source);
 
 		return range;
 	}
 
-	// Opens the rename popup for the active Dream.
+	// Opens the rename popup for the active DreamView.
 	private OpenManageSignalsPopup(): void
 	{
 		const dream = this.store.GetActiveDream();
@@ -300,7 +399,7 @@ export class DreamPanel
 		}
 	}
 
-	// Closes the rename popup when its Dream is no longer open.
+	// Closes the rename popup when its DreamView is no longer open.
 	private RefreshManageSignalsPopup(): void
 	{
 		const dream = this.store.GetActiveDream();
@@ -310,7 +409,7 @@ export class DreamPanel
 		}
 	}
 
-	// Commits the entered name through the existing Dream save workflow.
+	// Commits the entered name through the existing DreamView save workflow.
 	private async HandleRenameSubmitAsync(event: Event): Promise<void>
 	{
 		const form = event.target instanceof HTMLFormElement && event.target.matches("[data-dream-rename-form]") ? event.target : null;
@@ -406,7 +505,6 @@ export class DreamPanel
 		}
 		if (target?.closest("[data-save-dream]") !== null) void this.controller.SaveAsync();
 		if (target?.closest("[data-close-dream]") !== null) void this.controller.CloseAsync();
-		if (target?.closest("[data-delete-dream]") !== null) this.ConfirmDelete();
 		if (target?.closest("[data-copy-dream-markdown]") !== null) void this.CopyDreamAsMarkdownAsync();
 		if (target?.closest("[data-new-dream]") !== null) this.CreateDreamFromSelection();
 		if (target?.closest("[data-jump-source]") !== null)
@@ -417,7 +515,7 @@ export class DreamPanel
 
 	}
 
-	// Copies the active Dream's complete Markdown export and reports clipboard failures.
+	// Copies the active DreamView's complete Markdown export and reports clipboard failures.
 	private async CopyDreamAsMarkdownAsync(): Promise<void>
 	{
 		try
@@ -430,16 +528,6 @@ export class DreamPanel
 		}
 	}
 
-	// Confirms with the reader, then deletes the active Dream.
-	private ConfirmDelete(): void
-	{
-		const dream = this.store.GetActiveDream();
-		const name = dream?.title.trim() || "this Dream";
-		const confirmed = dream !== null && window.confirm(`Delete ${name}? This cannot be undone.`);
-
-		if (confirmed) void this.controller.DeleteAsync();
-	}
-
 	// Routes an input event on a tracked field to the matching controller or store call.
 	private HandleInput(event: Event): void
 	{
@@ -449,6 +537,10 @@ export class DreamPanel
 		{
 			this.store.SetSearchText(target.value);
 			this.RefreshCatalogueList();
+		}
+		else if (target?.matches("[data-dream-editor-title]") === true)
+		{
+			this.controller.UpdateTitle(target.value);
 		}
 	}
 
@@ -464,15 +556,26 @@ export class DreamPanel
 		}
 	}
 
-	// Starts a new Dream from the reader's current passage selection.
+	// Starts a new DreamView from the reader's current passage selection.
 	private CreateDreamFromSelection(): void
 	{
 		void this.controller.CreateFromCurrentSelection();
 	}
 
-	// Saves the active Dream on Ctrl/Cmd+Enter.
+	// Saves the active DreamView on Ctrl/Cmd+Enter.
 	private HandleKeyDown(event: KeyboardEvent): void
 	{
+		const sourceDivider = (event.target as HTMLElement | null)?.closest("[data-dream-source-divider]") !== null;
+		if (sourceDivider && (event.key === "ArrowUp" || event.key === "ArrowDown" || event.key === "Home" || event.key === "End"))
+		{
+			event.preventDefault();
+			const source = this.root.querySelector<HTMLDetailsElement>(".dream-source-section");
+			const currentHeight = source?.getBoundingClientRect().height ?? 144;
+			let height = currentHeight + (event.key === "ArrowDown" ? 24 : -24);
+			if (event.key === "Home") height = 72;
+			if (event.key === "End") height = Number.MAX_SAFE_INTEGER;
+			this.SetSourceHeight(height);
+		}
 		if (event.key === "Escape")
 		{
 			const menu = (event.target as HTMLElement | null)?.closest<HTMLDetailsElement>(".action-menu");
@@ -511,8 +614,8 @@ export class DreamPanel
 
 			if (dream !== null && document !== null)
 			{
-				const selection = this.controller.CreateSourceSelection(document, dream.source, startOffset, endOffset);
-				if (selection !== null) await this.controller.HandleSourceSelectionAsync(selection);
+				const selection = this.controller.CreateTextSelection(document, dream.source, startOffset, endOffset);
+				if (selection !== null) await this.controller.HandleTextSelectionAsync(selection);
 			}
 		}
 	}
@@ -557,7 +660,7 @@ export class DreamPanel
 		return text;
 	}
 
-	// Re-renders the view when a Dream is opened.
+	// Re-renders the view when a DreamView is opened.
 	private HandleDreamOpened(): void
 	{
 		this.manageSignalsPopup?.Close();
@@ -570,14 +673,14 @@ export class DreamPanel
 		this.Update();
 	}
 
-	// Re-renders the view when the active Dream is closed.
+	// Re-renders the view when the active DreamView is closed.
 	private HandleDreamClosed(): void
 	{
 		this.manageSignalsPopup?.Close();
 		this.Update();
 	}
 
-	// Refreshes the status line after a Dream is saved.
+	// Refreshes the status line after a DreamView is saved.
 	private HandleDreamSaved(): void
 	{
 		if (this.mode === "catalogue")
@@ -590,7 +693,7 @@ export class DreamPanel
 		}
 	}
 
-	// Re-renders the view when the active Dream's structure changes.
+	// Re-renders the view when the active DreamView's structure changes.
 	private HandleStructureChanged(): void
 	{
 		this.Update();
@@ -602,7 +705,7 @@ export class DreamPanel
 		await this.UpdateAndScrollToSignalAsync(event.signalId);
 	}
 
-	// Reveals a specific signal within the active Dream, when the request targets it.
+	// Reveals a specific signal within the active DreamView, when the request targets it.
 	private async HandleSignalFocusRequestedAsync(event: ChoraEvents["dream.signal-focus-requested"]): Promise<void>
 	{
 		const dream = this.store.GetActiveDream();
@@ -613,10 +716,15 @@ export class DreamPanel
 		}
 	}
 
-	// Refreshes the status line after the active Dream's dirty or save state changes.
+	// Refreshes the status line after the active DreamView's dirty or save state changes.
 	private HandleDreamStatusChanged(): void
 	{
 		this.UpdateStatus();
+	}
+
+	private HandleSynopticViewStateChanged(event: ChoraEvents["dream.synoptic-view-state-changed"]): void
+	{
+		if (this.store.GetActiveDream()?.id === event.dreamId) this.Update();
 	}
 
 	// Re-renders the view when the open library text changes.

@@ -1,23 +1,19 @@
-import type { Dream as DreamRecord, DreamSignal as DreamSignalRecord, SourceSelection } from "../../shared/dreams/DreamTypes.js";
-import { DreamSignal } from "./DreamSignal.js";
+import type { DreamSnapshot } from "../../shared/dreams/DreamTypes.js";
+import { TextAnnotation } from "../../shared/text/TextAnnotation.js";
 
-// Owns one reader-authored Dream and its normalized signals and links.
-export class Dream
+// Owns one reader-authored Dream and its canonical Signal associations.
+export class Dream extends TextAnnotation
 {
-	// Stable identity of this Dream.
-	private readonly id: string;
-	// Canonical owning Library work identifier.
-	private readonly workId: string;
 	// Optional human-readable name of the originating work.
 	private readonly dialogue: string | null;
 	// Reader-authored title.
 	private readonly title: string;
-	// Owned source selection for this Dream.
-	private readonly source: SourceSelection;
-	// Signals owned by this Dream.
-	private readonly signals: DreamSignal[];
-	// Reader-authored exegesis.
+	// Canonical Signal identities associated with this Dream.
+	private readonly signalIds: readonly string[];
+	// Reader-authored reflections.
 	private readonly reflection: string;
+	// Reader-editable result of the model-assisted Clarity Check.
+	private readonly synopticView: string;
 	// Other Dreams linked by stable identifier.
 	private readonly linkedDreamIds: string[];
 	// Initial persistence timestamp.
@@ -26,20 +22,19 @@ export class Dream
 	private readonly updatedAt: string;
 
 	// Hydrates one Dream and normalizes persisted or IPC-supplied record fields.
-	public constructor(record: DreamRecord)
+	public constructor(snapshot: DreamSnapshot)
 	{
-		this.ValidateIdentifier(record.id, "Dream identifier");
-		this.ValidateIdentifier(record.workId, "Dream work identifier");
-		this.id = record.id;
-		this.workId = record.workId;
-		this.dialogue = record.dialogue;
-		this.title = record.title.trim();
-		this.source = this.NormalizeSource(record.source);
-		this.signals = this.CreateSignals(record.signals);
-		this.reflection = record.reflection;
-		this.linkedDreamIds = this.NormalizeLinks(record.linkedDreamIds);
-		this.createdAt = record.createdAt;
-		this.updatedAt = record.updatedAt;
+		ValidateIdentifier(snapshot.id, "Dream identifier");
+		ValidateIdentifier(snapshot.workId, "Dream work identifier");
+		super({ id: snapshot.id, workId: snapshot.workId, selection: snapshot.source });
+		this.dialogue = snapshot.dialogue;
+		this.title = snapshot.title.trim();
+		this.signalIds = this.NormalizeSignalIds(snapshot.signalIds ?? []);
+		this.reflection = snapshot.reflection;
+		this.synopticView = snapshot.synopticView;
+		this.linkedDreamIds = this.NormalizeLinks(snapshot.linkedDreamIds);
+		this.createdAt = snapshot.createdAt;
+		this.updatedAt = snapshot.updatedAt;
 	}
 
 	// Returns the stable identity owned by this Dream.
@@ -49,66 +44,42 @@ export class Dream
 	}
 
 	// Produces an immutable IPC and persistence record.
-	public ToRecord(): DreamRecord
+	public ToSnapshot(): DreamSnapshot
 	{
-		const signals: DreamSignalRecord[] = [];
-
-		for (const signal of this.signals)
-		{
-			const record = signal.ToRecord();
-			signals.push(record);
-		}
-
-		const record: DreamRecord = {
+		const snapshot: DreamSnapshot = {
 			id: this.id,
 			workId: this.workId,
 			dialogue: this.dialogue,
 			title: this.title,
-			source: structuredClone(this.source),
-			signals,
+			source: structuredClone(this.selection),
+			signalIds: [...this.signalIds],
 			reflection: this.reflection,
+			synopticView: this.synopticView,
 			linkedDreamIds: [...this.linkedDreamIds],
 			createdAt: this.createdAt,
 			updatedAt: this.updatedAt
 		};
 
-		return record;
+		return snapshot;
 	}
 
-	// Normalizes source reference fields required by the current persistence schema.
-	private NormalizeSource(source: SourceSelection): SourceSelection
+	// Removes duplicate and invalid Signal identities from this Dream's associations.
+	private NormalizeSignalIds(signalIds: readonly string[]): string[]
 	{
-		const sourceRefs = source.sourceRefs.length > 0 ? [...source.sourceRefs] : [source.start.segmentKey, source.end.segmentKey];
-		const normalized: SourceSelection = {
-			...structuredClone(source),
-			sourceRefs,
-			startSourceRef: source.startSourceRef || source.start.segmentKey,
-			endSourceRef: source.endSourceRef || source.end.segmentKey
-		};
+		const normalizedIds = new Set<string>();
 
-		return normalized;
-	}
-
-	// Hydrates unique signals owned by this Dream.
-	private CreateSignals(records: readonly DreamSignalRecord[]): DreamSignal[]
-	{
-		const signals: DreamSignal[] = [];
-		const seenIds = new Set<string>();
-
-		for (const record of records)
+		for (const signalId of signalIds)
 		{
-			const signal = new DreamSignal(record);
-			const signalRecord = signal.ToRecord();
-			const hasSeen = seenIds.has(signalRecord.id);
+			const normalizedId = signalId.trim();
 
-			if (!hasSeen)
+			if (normalizedId.length > 0)
 			{
-				seenIds.add(signalRecord.id);
-				signals.push(signal);
+				ValidateIdentifier(normalizedId, "Signal identifier");
+				normalizedIds.add(normalizedId);
 			}
 		}
 
-		return signals;
+		return [...normalizedIds];
 	}
 
 	// Removes duplicate links and the Dream's own identity.
@@ -132,15 +103,16 @@ export class Dream
 		return normalizedLinks;
 	}
 
-	// Rejects identifiers that cannot safely participate in Dream ownership.
-	private ValidateIdentifier(value: string, label: string): void
-	{
-		const pattern = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/u;
-		const isValid = pattern.test(value);
+	}
 
-		if (!isValid)
-		{
-			throw new Error(`${label} is invalid`);
-		}
+// Rejects identifiers that cannot safely participate in Dream ownership.
+function ValidateIdentifier(value: string, label: string): void
+{
+	const pattern = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/u;
+	const isValid = pattern.test(value);
+
+	if (!isValid)
+	{
+		throw new Error(`${label} is invalid`);
 	}
 }

@@ -1,17 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ModelRequest } from "../../src/shared/chat/ModelTypes.js";
+import type { ModelRequest } from "../../src/shared/models/ModelTypes.js";
 import { CopilotRelayModelProvider } from "../../src/main/models/CopilotRelayModelProvider.js";
 import { KimiModelProvider } from "../../src/main/models/KimiModelProvider.js";
 import { MockModelProvider } from "../../src/main/models/MockModelProvider.js";
-import { CreateModelProvider, GetProviderOptionsAsync } from "../../src/main/models/ModelProviderFactory.js";
+import { CreateModelProvider } from "../../src/main/models/ModelProviderFactory.js";
 
 function CreateRequest(): ModelRequest
 {
 	const request: ModelRequest = {
 		systemPrompt: "System prompt",
 		userPrompt: "Question",
-		history: [],
-		context: { mode: "FREE" }
+		history: []
 	};
 
 	return request;
@@ -46,31 +45,6 @@ describe("Model provider factory", function ProviderFactoryTests()
 		const relayProvider = CreateModelProvider();
 
 		expect(relayProvider).toBeInstanceOf(CopilotRelayModelProvider);
-	});
-
-	it("lists a configured Relay fallback when the local Relay catalogue is unavailable", async function ListsModelNames(): Promise<void>
-	{
-		vi.stubEnv("KIMI_MODEL", "kimi-k2.6");
-		vi.stubEnv("COPILOT_RELAY_MODEL_FAMILY", "claude-sonnet-4.5");
-		const options = await GetProviderOptionsAsync();
-
-		expect(options).toEqual([
-			{
-				providerId: "mock",
-				modelId: "mock",
-				modelName: "Mock"
-			},
-			{
-				providerId: "kimi",
-				modelId: "kimi-k2.6",
-				modelName: "kimi-k2.6"
-			},
-			{
-				providerId: "copilot-relay",
-				modelId: "claude-sonnet-4.5",
-				modelName: "VS Code Copilot: claude-sonnet-4.5"
-			}
-		]);
 	});
 
 	it("returns a controlled configuration error before a live request", async function ControlsMissingKeys()

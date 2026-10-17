@@ -73,6 +73,8 @@
 	padding: 0.4rem 0.75rem 1rem;
 }
 
+textarea::-webkit-resizer,
+.dream-source-section::-webkit-resizer,
 .markdown-content::-webkit-resizer {
 	background: linear-gradient(135deg,
 		transparent 40%, var(--muted-text) 40% 48%,
@@ -139,13 +141,21 @@
 	font: inherit;
 }
 
-.dream-exegesis-markdown {
+.dream-reflections-markdown,
+.dream-synoptic-view-markdown {
 	border: 1px solid var(--panel-border);
 	border-radius: 4px;
 }
 
-.dream-exegesis-markdown .markdown-content {
+.dream-reflections-markdown .markdown-content,
+.dream-synoptic-view-markdown .markdown-content {
 	min-height: 18rem;
+}
+
+.markdown-content[data-placeholder] .ProseMirror p:first-child:last-child:has(.ProseMirror-trailingBreak)::before {
+	content: attr(data-placeholder);
+	color: var(--muted-text);
+	pointer-events: none;
 }
 
 :root[data-theme="dark"] .signal-markdown-editor {

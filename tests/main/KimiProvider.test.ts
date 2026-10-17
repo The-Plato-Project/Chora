@@ -47,8 +47,7 @@ describe("Kimi provider", function KimiProviderTests()
 		const result = await provider.CompleteAsync({
 			systemPrompt: "System prompt",
 			userPrompt: "User prompt",
-			history: [],
-			context: null
+			history: []
 		}, function ReceiveDelta(delta: string): void
 		{
 			streamedText += delta;
@@ -72,7 +71,6 @@ describe("Kimi provider", function KimiProviderTests()
 		expect(body.model).toBe("kimi-k2.6");
 		expect(body.messages).toEqual([
 			{ role: "system", content: "System prompt" },
-			{ role: "system", content: "null" },
 			{ role: "user", content: "User prompt" }
 		]);
 		expect(body.stream).toBe(true);
@@ -104,7 +102,7 @@ describe("Kimi provider", function KimiProviderTests()
 			return response;
 		});
 		const provider = new KimiModelProvider();
-		const request = { systemPrompt: "Reply directly.", userPrompt: "Discuss this.", history: [], context: null };
+		const request = { systemPrompt: "Reply directly.", userPrompt: "Discuss this.", history: [] };
 		const completion = provider.CompleteAsync(request);
 		await expect(completion).rejects.toMatchObject({ code: "malformed-response", message: expect.stringContaining("output token limit") });
 		const retry = provider.CompleteAsync(request);
@@ -136,8 +134,7 @@ describe("Kimi provider", function KimiProviderTests()
 			history: [
 				{ role: "user", content: "First question" },
 				{ role: "assistant", content: "First answer" }
-			],
-			context: null
+			]
 		});
 		const payload = JSON.parse(requestBody) as {
 			messages: Array<{
@@ -148,7 +145,6 @@ describe("Kimi provider", function KimiProviderTests()
 
 		expect(payload.messages).toEqual([
 			{ role: "system", content: "System prompt" },
-			{ role: "system", content: "null" },
 			{ role: "user", content: "First question" },
 			{ role: "assistant", content: "First answer" },
 			{ role: "user", content: "Second question" }

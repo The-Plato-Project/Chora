@@ -3,7 +3,9 @@ import squirrelStartup from "electron-squirrel-startup";
 import { ChoraApplication } from "./bootstrap/ChoraApplication.js";
 import { EnvironmentFile } from "./bootstrap/EnvironmentFile.js";
 import { Errors } from "./diagnostics/MainErrorManager.js";
+import { InstallProcessOutputGuard } from "./diagnostics/ProcessOutputGuard.js";
 
+InstallProcessOutputGuard();
 EnvironmentFile.LoadFromWorkingDirectory();
 
 let application: ChoraApplication | null = null;

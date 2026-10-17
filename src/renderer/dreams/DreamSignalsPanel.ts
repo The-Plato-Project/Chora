@@ -1,207 +1,216 @@
-import type { Dream, DreamSignal } from "../../shared/dreams/DreamTypes.js";
-import { TabPanel } from "../ui/TabPanel.js";
-import { EscapeHtml } from "../ui/Html.js";
-import { DreamController } from "./DreamController.js";
-import { MarkdownEditor } from "../ui/MarkdownEditor.js";
+import type { DreamView } from "./DreamView.js";
+import type { IdeaRecord } from "../../shared/ideas/IdeaTypes.js";
+import type { ChoraEvents } from "../core/events/ChoraEvents.js";
+import { ChoraEventBus } from "../core/events/ChoraEventBus.js";
 import type { ErrorManager } from "../core/diagnostics/RendererErrorManager.js";
-import { TrashIcon, MoreIcon } from "../ui/Icons.js";
+import type { IdeaStore } from "../ideas/IdeaStore.js";
+import { SignalViewPanel } from "../signals/SignalViewPanel.js";
+import { EscapeHtml } from "../ui/Html.js";
+import { AddIcon, IdeaIcon } from "../ui/Icons.js";
+import { DreamController } from "./DreamController.js";
 
-// Owns signal row DOM and disclosure behavior, without replacing the Dream editor.
-export class DreamSignalsPanel extends TabPanel
+// Adapts the shared Signal view to DreamView-owned associations.
+export class DreamSignalsPanel extends SignalViewPanel
 {
-	// Persistent list root.
-	private readonly list: HTMLElement = document.createElement("div");
-	private readonly detail: HTMLElement = document.createElement("div");
-	private readonly navigation = new Map<string, HTMLElement>();
-	private selectedSignalId: string | null = null;
-	// Empty-state notice.
-	private readonly empty: HTMLElement = document.createElement("p");
-	// Rendered rows indexed by stable signal identity.
-	private readonly rows = new Map<string, HTMLElement>();
-	// Rich text editors retain selection and history while their rows are collapsed.
-	private readonly editors = new Map<string, MarkdownEditor>();
-	// Only the latest reveal request may scroll after editor initialization.
-	private revealVersion = 0;
-	// Retained listeners for disposal.
-	private readonly clickHandler = this.HandleClick.bind(this);
-	// Dream identity currently rendered by this panel.
+	// Identifies the DreamView currently represented by the panel.
 	private dreamId: string | null = null;
 
-	// Connects the signal panel to its workflow controller.
-	public constructor(private readonly controller: DreamController, private readonly errors: ErrorManager)
+	// Connects common Signal presentation to DreamView workflows.
+	public constructor(
+		private readonly controller: DreamController,
+		private readonly events: ChoraEventBus<ChoraEvents>,
+		private readonly ideas: IdeaStore | null,
+		errors: ErrorManager)
 	{
-		super("signals", "Signals");
+		super(errors, false, false);
 		this.Root.classList.add("dream-signals-panel");
-		this.list.className = "signal-list";
-		this.list.setAttribute("aria-label", "Signals");
-		this.detail.className = "signal-detail";
-		this.empty.className = "dream-empty";
-		this.empty.textContent = "No signals.";
-		this.detail.append(this.empty);
-		this.Root.append(this.list, this.detail);
-		this.Root.addEventListener("click", this.clickHandler);
 	}
 
-	// Reconciles structural changes while retaining existing editors and disclosure state.
-	public Update(dream: Dream): void
+	// Reconciles the active DreamView's Signal associations.
+	public Update(dream: DreamView): void
 	{
 		this.dreamId = dream.id;
-		const ids = new Set<string>();
-		for (const signal of dream.signals) ids.add(signal.id);
-		for (const [id, row] of this.rows)
-		{
-			if (!ids.has(id))
-			{
-				this.editors.get(id)?.Dispose();
-				this.editors.delete(id);
-				row.remove();
-				this.rows.delete(id);
-				this.navigation.get(id)?.remove();
-				this.navigation.delete(id);
-			}
-		}
-		let previous: HTMLElement | null = null;
-		for (const signal of dream.signals)
-		{
-			let row = this.rows.get(signal.id);
-			if (row === undefined)
-			{
-				row = this.CreateRow(signal);
-				this.rows.set(signal.id, row);
-			}
-			else
-			{
-				this.editors.get(signal.id)?.SetMarkdown(signal.description);
-			}
-			const header = this.navigation.get(signal.id)!;
-			const next: ChildNode | null = previous === null ? this.list.firstChild : previous.nextSibling;
-			if (next !== header) this.list.insertBefore(header, next);
-			previous = header;
-		}
-		this.empty.hidden = dream.signals.length > 0;
-		const remembered = this.controller.GetSelectedSignal(dream.id);
-		const selected = remembered !== null && ids.has(remembered)
-			? remembered
-			: this.selectedSignalId !== null && ids.has(this.selectedSignalId)
-				? this.selectedSignalId
-				: dream.signals[0]?.id ?? null;
-		this.SelectSignal(selected);
+		this.UpdateSignals(dream.signals);
 	}
 
-	private SelectSignal(signalId: string | null): void
+	// Returns the DreamView session's remembered Signal.
+	protected GetRememberedSignal(): string | null
 	{
-		this.selectedSignalId = signalId;
+		const signalId = this.dreamId === null
+			? null
+			: this.controller.GetSelectedSignal(this.dreamId);
+
+		return signalId;
+	}
+
+	// Stores selection in the active DreamView session.
+	protected RememberSignal(signalId: string | null): void
+	{
 		if (this.dreamId !== null) this.controller.RememberSelectedSignal(this.dreamId, signalId);
-		for (const [id, row] of this.rows)
+	}
+
+	// Navigates the reader to one DreamView Signal.
+	protected async ViewSignalAsync(signalId: string): Promise<void>
+	{
+		await this.controller.ViewSignalAsync(signalId);
+	}
+
+	// Identifies the active DreamView as the owner of these Signal associations.
+	protected GetAssociationOwner(): "Dream"
+	{
+		return "Dream";
+	}
+
+	// Removes one Signal from the active DreamView without affecting other associations.
+	protected RemoveSignalAssociation(signalId: string): void
+	{
+		this.controller.RemoveSignal(signalId);
+	}
+
+	// Saves one shared Signal description.
+	protected UpdateSignalDescription(signalId: string, description: string): void
+	{
+		this.controller.UpdateSignal(signalId, description);
+	}
+
+	// Adds the explicit Add to Idea command to a DreamView Signal.
+	protected AppendSignalActions(actions: HTMLElement, signalId: string): void
+	{
+		const ideasMenu = document.createElement("details");
+		ideasMenu.className = "action-menu signal-ideas-menu";
+		ideasMenu.innerHTML = `<summary data-signal-ideas-menu="${EscapeHtml(signalId)}" title="Add to Idea" aria-label="Add to Idea">${AddIcon}</summary><div class="action-menu-items" data-signal-ideas-list="${EscapeHtml(signalId)}"></div>`;
+		ideasMenu.addEventListener("toggle", this.HandleIdeasMenuToggle.bind(this, ideasMenu));
+		actions.append(ideasMenu);
+		this.PopulateIdeasMenu(signalId, ideasMenu);
+	}
+
+	// Routes the DreamView-specific Add to Idea command.
+	protected HandleSignalAction(target: HTMLElement | null): boolean
+	{
+		const menuSummary = target?.closest<HTMLElement>("[data-signal-ideas-menu]") ?? null;
+		const openIdeaId = target?.closest<HTMLElement>("[data-open-signal-idea]")?.dataset.openSignalIdea;
+		const addChoice = target?.closest<HTMLElement>("[data-add-signal-to-idea]");
+		const addSignalId = addChoice?.dataset.addSignalToIdea;
+		const addIdeaId = addChoice?.dataset.ideaId;
+		const handled = menuSummary !== null || openIdeaId !== undefined || addSignalId !== undefined;
+
+		if (addSignalId !== undefined && addIdeaId !== undefined)
 		{
-			const selected = id === signalId;
-			row.hidden = !selected;
-			const header = this.navigation.get(id);
-			header?.classList.toggle("selected", selected);
-			const button = header?.querySelector("[data-signal-toggle]");
-			button?.setAttribute("aria-current", String(selected));
-			button?.setAttribute("aria-expanded", String(selected));
-		}
-	}
-
-	// Expands a new signal and reveals its final layout after Milkdown is ready.
-	public async ShowSignalAsync(signalId: string): Promise<void>
-	{
-		const row = this.rows.get(signalId);
-		const editor = this.editors.get(signalId);
-		const header = this.navigation.get(signalId);
-		this.revealVersion += 1;
-		const version = this.revealVersion;
-
-		if (row !== undefined && editor !== undefined && header !== undefined)
-		{
-			this.SelectSignal(signalId);
-			await editor.Ready;
-			const canReveal = version === this.revealVersion
-				&& row.isConnected
-				&& header.isConnected
-				&& !this.Root.hidden
-				&& !row.hidden;
-
-			if (canReveal)
-			{
-				editor.Focus();
-				header.scrollIntoView({ block: "nearest", behavior: "smooth" });
-				row.scrollIntoView({ block: "nearest", behavior: "smooth" });
-			}
-		}
-	}
-
-	// Releases listeners and the owned content.
-	public override Dispose(): void
-	{
-		this.revealVersion += 1;
-		this.Root.removeEventListener("click", this.clickHandler);
-		for (const editor of this.editors.values()) editor.Dispose();
-		this.editors.clear();
-		this.rows.clear();
-		this.navigation.clear();
-		super.Dispose();
-	}
-
-	// Creates a signal with a persistent, initially collapsed description editor.
-	private CreateRow(signal: DreamSignal): HTMLElement
-	{
-		const row = document.createElement("section");
-		row.className = "signal-item";
-		row.dataset.signalId = signal.id;
-		const header = document.createElement("div");
-		header.className = "signal-header";
-		header.innerHTML = `<button class="signal-row button-control" data-signal-toggle="${EscapeHtml(signal.id)}" type="button" aria-expanded="false"><strong class="signal-heading">${EscapeHtml(signal.text)}</strong></button>`;
-		this.navigation.set(signal.id, header);
-		const escapedSignalId = EscapeHtml(signal.id);
-		row.innerHTML = `<header class="signal-detail-title"><details class="action-menu"><summary title="Signal actions" aria-label="Signal actions">${MoreIcon}</summary><div class="action-menu-items"><button data-add-signal-to-idea="${escapedSignalId}" type="button">Add to Idea&hellip;</button><button data-delete-signal="${escapedSignalId}" type="button">${TrashIcon}Delete signal</button></div></details></header>`;
-		const body = document.createElement("div");
-		body.className = "signal-detail-body";
-		row.append(body);
-		this.detail.append(row);
-		const change = this.HandleDescriptionChange.bind(this, signal.id);
-		const editor = new MarkdownEditor(signal.description, "Signal description", change, this.errors);
-		editor.Root.classList.add("signal-markdown-editor");
-		editor.Root.dataset.signalDescription = signal.id;
-		this.editors.set(signal.id, editor);
-		const actionMenu = row.querySelector<HTMLDetailsElement>(".action-menu");
-		const markdownToolbar = editor.Root.querySelector<HTMLElement>(".markdown-toolbar");
-		if (actionMenu !== null && markdownToolbar !== null) markdownToolbar.append(actionMenu);
-		row.querySelector(".signal-detail-title")?.remove();
-		const observation = document.createElement("section");
-		observation.className = "signal-observation";
-		observation.append(editor.Root);
-		body.append(observation);
-		return row;
-	}
-
-	// Toggles visibility without removing focusable controls or resetting scroll.
-	private HandleClick(event: Event): void
-	{
-		const target = event.target as HTMLElement | null;
-		const menu = target?.closest<HTMLDetailsElement>(".action-menu");
-		if (menu !== null && menu !== undefined && target?.closest("button") !== null) menu.open = false;
-		const deleteSignalId = target?.closest<HTMLElement>("[data-delete-signal]")?.dataset.deleteSignal;
-		if (deleteSignalId !== undefined) this.controller.RemoveSignal(deleteSignalId);
-		const addToIdeaSignalId = target?.closest<HTMLElement>("[data-add-signal-to-idea]")?.dataset.addSignalToIdea;
-
-		if (addToIdeaSignalId !== undefined)
-		{
-			const addition = this.controller.AddSignalToIdeaAsync(addToIdeaSignalId);
+			const menu = target?.closest<HTMLDetailsElement>(".signal-ideas-menu") ?? null;
+			if (menu !== null) menu.open = false;
+			const addition = this.controller.AddSignalToIdeaAsync(addSignalId, addIdeaId);
 			void addition;
 		}
-		const toggleButton = target?.closest<HTMLButtonElement>("[data-signal-toggle]");
-		if (toggleButton !== null && toggleButton !== undefined)
+		else if (menuSummary !== null)
 		{
-			this.revealVersion += 1;
-			this.SelectSignal(toggleButton.dataset.signalToggle ?? null);
+			const signalId = menuSummary.dataset.signalIdeasMenu;
+			const menu = menuSummary.closest<HTMLDetailsElement>(".signal-ideas-menu");
+
+			if (signalId !== undefined && menu !== null)
+			{
+				this.PopulateIdeasMenu(signalId, menu);
+			}
+		}
+		else if (openIdeaId !== undefined)
+		{
+			const menu = target?.closest<HTMLDetailsElement>(".signal-ideas-menu") ?? null;
+			if (menu !== null) menu.open = false;
+			const opening = this.events.PublishAsync("idea.open-requested", { ideaId: openIdeaId });
+			void opening;
+		}
+
+		return handled;
+	}
+
+	// Lists connected Ideas first, followed by Ideas that can receive the Signal.
+	private PopulateIdeasMenu(signalId: string, menu: HTMLDetailsElement): void
+	{
+		const list = menu.querySelector<HTMLElement>("[data-signal-ideas-list]");
+		const ideas = this.ideas?.GetIdeas() ?? [];
+		const matchingIdeas = this.GetIdeasForSignal(signalId, ideas);
+		const matchingIds = new Set(matchingIdeas.map(function GetIdeaId(idea): string
+		{
+			return idea.id;
+		}));
+		const availableIdeas = ideas.filter(function IsAvailable(idea): boolean
+		{
+			return !matchingIds.has(idea.id);
+		});
+		let markup = "";
+
+		if (matchingIdeas.length > 0)
+		{
+			markup += `<p class="signal-ideas-section-label">Already in</p>`;
+			for (const idea of matchingIdeas)
+			{
+				const title = idea.title.trim() || "Untitled Idea";
+				markup += `<button data-open-signal-idea="${EscapeHtml(idea.id)}" type="button" title="${EscapeHtml(title)}">${IdeaIcon}<span>${EscapeHtml(title)}</span></button>`;
+			}
+		}
+
+		if (availableIdeas.length > 0)
+		{
+			markup += `<p class="signal-ideas-section-label${matchingIdeas.length > 0 ? " separated" : ""}">Add to</p>`;
+			for (const idea of availableIdeas)
+			{
+				const title = idea.title.trim() || "Untitled Idea";
+				markup += `<button data-add-signal-to-idea="${EscapeHtml(signalId)}" data-idea-id="${EscapeHtml(idea.id)}" type="button" title="${EscapeHtml(title)}">${AddIcon}<span>${EscapeHtml(title)}</span></button>`;
+			}
+		}
+
+		if (markup.length === 0) markup = `<p class="signal-ideas-empty">No Ideas yet.</p>`;
+
+		if (list !== null) list.innerHTML = markup;
+	}
+
+	// Positions the Idea list against the viewport so editor overflow cannot clip it.
+	private HandleIdeasMenuToggle(menu: HTMLDetailsElement): void
+	{
+		if (menu.open)
+		{
+			const summary = menu.querySelector<HTMLElement>("[data-signal-ideas-menu]");
+			const list = menu.querySelector<HTMLElement>(".action-menu-items");
+
+			if (summary !== null && list !== null)
+			{
+				const bounds = summary.getBoundingClientRect();
+				const viewportPadding = 12;
+				const menuGap = 4;
+				const preferredWidth = 320;
+				const width = Math.min(preferredWidth, window.innerWidth - (viewportPadding * 2));
+				const left = Math.max(viewportPadding, Math.min(bounds.right - width, window.innerWidth - width - viewportPadding));
+				const below = window.innerHeight - bounds.bottom - menuGap - viewportPadding;
+				const above = bounds.top - menuGap - viewportPadding;
+				const opensBelow = below >= 220 || below >= above;
+				const availableHeight = Math.max(120, opensBelow ? below : above);
+				const top = opensBelow
+					? bounds.bottom + menuGap
+					: Math.max(viewportPadding, bounds.top - menuGap - availableHeight);
+				list.style.left = `${Math.round(left)}px`;
+				list.style.top = `${Math.round(top)}px`;
+				list.style.width = `${Math.round(width)}px`;
+				list.style.maxHeight = `${Math.round(availableHeight)}px`;
+			}
 		}
 	}
 
-	// Sends description edits through the existing autosave workflow.
-	private HandleDescriptionChange(signalId: string, markdown: string): void
+	// Finds durable Ideas connected to one work-owned Signal.
+	private GetIdeasForSignal(signalId: string, ideas: readonly IdeaRecord[]): IdeaRecord[]
 	{
-		this.controller.UpdateSignal(signalId, markdown);
+		const matchingIdeas: IdeaRecord[] = [];
+
+		for (const idea of ideas)
+		{
+			const isOrigin = idea.originSignal?.signalId === signalId;
+			const isRelated = idea.relatedSignals.some(function MatchesSignal(reference): boolean
+			{
+				return reference.signalId === signalId;
+			});
+
+			if (isOrigin || isRelated) matchingIdeas.push(idea);
+		}
+
+		return matchingIdeas;
 	}
+
 }

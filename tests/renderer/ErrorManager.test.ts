@@ -22,12 +22,12 @@ describe("ErrorManager", function ErrorManagerTests()
 			published = record;
 		});
 
-		manager.Report("ChatController", new Error("Network unavailable"), "Chat failed.");
+		manager.Report("ModelProvider", new Error("Network unavailable"), "Model request failed.");
 		await Promise.resolve();
 
 		expect(manager.GetRecords()).toHaveLength(1);
-		expect(published).toMatchObject({ level: "error", source: "ChatController", message: "Network unavailable", userMessage: "Chat failed." });
-		expect(console.error).toHaveBeenCalledWith("[Chora][ERROR][ChatController]", "Network unavailable", expect.any(Error));
+		expect(published).toMatchObject({ level: "error", source: "ModelProvider", message: "Network unavailable", userMessage: "Model request failed." });
+		expect(console.error).toHaveBeenCalledWith("[Chora][ERROR][ModelProvider]", "Network unavailable", expect.any(Error));
 	});
 
 	it("returns a snapshot that cannot mutate stored diagnostics", function ProtectsStoredRecords()

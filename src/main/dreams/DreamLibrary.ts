@@ -1,7 +1,8 @@
 import path from "node:path";
-import type { Dream as DreamRecord } from "../../shared/dreams/DreamTypes.js";
+import type { DreamSnapshot } from "../../shared/dreams/DreamTypes.js";
 import { Dream } from "./Dream.js";
 import { DreamRepository, type DreamPersistenceRecord } from "./DreamRepository.js";
+import type { SignalLibrary } from "../signals/SignalLibrary.js";
 
 // Owns Dreams loaded into this reader's Dream library.
 export class DreamLibrary
@@ -18,34 +19,35 @@ export class DreamLibrary
 	private isLoaded = false;
 
 	// Creates a Dream aggregate root backed by the provided Dream library.
-	public constructor(primaryPath: string, repository: DreamRepository)
+	public constructor(primaryPath: string, repository: DreamRepository, private readonly signals: SignalLibrary)
 	{
 		this.primaryPath = primaryPath;
 		this.repository = repository;
 	}
 
 	// Lists immutable records for every Dream visible to the reader.
-	public async ListAsync(): Promise<DreamRecord[]>
+	public async ListAsync(): Promise<DreamSnapshot[]>
 	{
 		await this.EnsureLoadedAsync();
-		const dreams: DreamRecord[] = [];
+		const dreams: DreamSnapshot[] = [];
 
 		for (const dream of this.dreams.values())
 		{
-			const record = dream.ToRecord();
-			dreams.push(record);
+			const snapshot = dream.ToSnapshot();
+			dreams.push(snapshot);
 		}
 
 		return dreams;
 	}
 
 	// Normalizes and saves one Dream while retaining existing ownership metadata.
-	public async SaveAsync(record: DreamRecord): Promise<DreamRecord>
+	public async SaveAsync(snapshot: DreamSnapshot): Promise<DreamSnapshot>
 	{
 		await this.EnsureLoadedAsync();
-		const existing = this.dreams.get(record.id);
-		const normalizedRecord = this.CreateSaveRecord(record, existing);
-		const dream = new Dream(normalizedRecord);
+		const existing = this.dreams.get(snapshot.id);
+		const previousSignalIds = existing?.ToSnapshot().signalIds ?? [];
+		const normalizedSnapshot = this.CreateSaveSnapshot(snapshot, existing);
+		const dream = new Dream(normalizedSnapshot);
 		const existingPersistence = this.records.get(dream.GetId());
 		const persistence = this.CreatePersistenceRecord(dream);
 		const previousFilePath = existingPersistence?.filePath ?? null;
@@ -53,7 +55,15 @@ export class DreamLibrary
 		await this.repository.SaveAsync(persistence, previousFilePath);
 		this.dreams.set(dream.GetId(), dream);
 		this.records.set(dream.GetId(), persistence);
-		const saved = dream.ToRecord();
+		const saved = dream.ToSnapshot();
+
+		for (const signalId of previousSignalIds)
+		{
+			if (!saved.signalIds.includes(signalId))
+			{
+				await this.signals.DeleteIfOrphanedAsync(signalId);
+			}
+		}
 
 		return saved;
 	}
@@ -67,9 +77,12 @@ export class DreamLibrary
 
 		if (persistence !== undefined)
 		{
+			const signalIds = this.dreams.get(dreamId)?.ToSnapshot().signalIds ?? [];
 			await this.repository.DeleteAsync(persistence);
 			this.dreams.delete(dreamId);
 			this.records.delete(dreamId);
+
+			for (const signalId of signalIds) await this.signals.DeleteIfOrphanedAsync(signalId);
 		}
 	}
 
@@ -82,7 +95,8 @@ export class DreamLibrary
 
 			for (const persistence of records)
 			{
-				const dream = new Dream(persistence.dream);
+				const migrated = await this.MigrateLegacySignalsAsync(persistence);
+				const dream = new Dream(migrated);
 				const hasDream = this.dreams.has(dream.GetId());
 
 				if (!hasDream)
@@ -90,21 +104,42 @@ export class DreamLibrary
 					this.dreams.set(dream.GetId(), dream);
 					this.records.set(dream.GetId(), persistence);
 				}
+
 			}
 
 			this.isLoaded = true;
 		}
 	}
 
-	// Preserves immutable ownership values and assigns the aggregate save timestamp.
-	private CreateSaveRecord(record: DreamRecord, existing: Dream | undefined): DreamRecord
+	// Imports legacy embedded Signals once and rewrites their Dream with canonical identities only.
+	private async MigrateLegacySignalsAsync(persistence: DreamPersistenceRecord): Promise<DreamSnapshot>
 	{
-		const existingRecord = existing?.ToRecord();
+		await this.signals.ImportAsync(persistence.legacySignals);
+		const legacySignalIds = persistence.legacySignals.map(function GetSignalId(signal): string
+		{
+			return signal.id;
+		});
+		const signalIds = [...new Set([...persistence.dream.signalIds, ...legacySignalIds])];
+		const snapshot: DreamSnapshot = { ...persistence.dream, signalIds };
+
+		if (persistence.legacySignals.length > 0)
+		{
+			const migrated: DreamPersistenceRecord = { ...persistence, dream: snapshot, legacySignals: [] };
+			await this.repository.SaveAsync(migrated, persistence.filePath);
+		}
+
+		return snapshot;
+	}
+
+	// Preserves immutable ownership values and assigns the aggregate save timestamp.
+	private CreateSaveSnapshot(snapshot: DreamSnapshot, existing: Dream | undefined): DreamSnapshot
+	{
+		const existingSnapshot = existing?.ToSnapshot();
 		const timestamp = new Date().toISOString();
-		const saved: DreamRecord = {
-			...structuredClone(record),
-			workId: existingRecord?.workId ?? record.workId,
-			createdAt: existingRecord?.createdAt ?? record.createdAt,
+		const saved: DreamSnapshot = {
+			...structuredClone(snapshot),
+			workId: existingSnapshot?.workId ?? snapshot.workId,
+			createdAt: existingSnapshot?.createdAt ?? snapshot.createdAt,
 			updatedAt: timestamp
 		};
 
@@ -114,11 +149,12 @@ export class DreamLibrary
 	// Creates the persistence record owned by this library.
 	private CreatePersistenceRecord(dream: Dream): DreamPersistenceRecord
 	{
-		const record = dream.ToRecord();
-		const filePath = this.CreatePrimaryPath(record);
+		const snapshot = dream.ToSnapshot();
+		const filePath = this.CreatePrimaryPath(snapshot);
 		const persistence: DreamPersistenceRecord = {
-			dream: record,
-			filePath
+			dream: snapshot,
+			filePath,
+			legacySignals: []
 		};
 
 		this.AssertPrimaryPath(filePath);
@@ -127,7 +163,7 @@ export class DreamLibrary
 	}
 
 	// Creates a stable readable filename from an already-valid Dream record.
-	private CreatePrimaryPath(dream: DreamRecord): string
+	private CreatePrimaryPath(dream: DreamSnapshot): string
 	{
 		const slug = dream.title.toLocaleLowerCase().normalize("NFKD").replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "").slice(0, 64) || "dream";
 		const fileName = `${slug}--${dream.id}.md`;

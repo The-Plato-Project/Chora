@@ -1,9 +1,11 @@
-import type { Dream, DreamSignal, SourceSelection } from "../../shared/dreams/DreamTypes.js";
+import type { DreamView } from "./DreamView.js";
+import type { SignalRecord } from "../../shared/signals/SignalTypes.js";
+import type { TextSelection } from "../../shared/text/TextSelection.js";
 import { SessionStore } from "../core/session/SessionStore.js";
-import type { LibraryText } from "../../shared/library/LibraryTypes.js";
-import type { TextSelection } from "../../shared/library/SelectionTypes.js";
+import { TextDocument } from "../../shared/library/LibraryTypes.js";
+import { GetCoveredPassageKeys } from "../library/PassageCoverage.js";
 
-// Identifies the source passage restricting the Dream catalogue.
+// Identifies the source passage restricting the DreamView catalogue.
 export interface DreamPassageFilter
 {
 	// Owning document, preventing collisions between works.
@@ -14,15 +16,15 @@ export interface DreamPassageFilter
 	readonly label: string;
 }
 
-// Lifecycle of the active Dream's most recent save attempt.
+// Lifecycle of the active DreamView's most recent save attempt.
 export type DreamSaveState = "idle" | "saving" | "error";
 
-// Session-persisted snapshot of the active Dream editing session.
+// Session-persisted snapshot of the active DreamView editing session.
 interface DreamSessionSnapshot
 {
-	// The active Dream at the time of the snapshot.
-	dream: Dream;
-	// Whether the active Dream had unsaved changes at the time of the snapshot.
+	// The active DreamView at the time of the snapshot.
+	dream: DreamView;
+	// Whether the active DreamView had unsaved changes at the time of the snapshot.
 	isDirty: boolean;
 	revision?: number;
 	saveState?: DreamSaveState;
@@ -30,14 +32,14 @@ interface DreamSessionSnapshot
 	editorTabId?: string;
 }
 
-// Persisted collection of open Dream tabs and their active identity.
+// Persisted collection of open DreamView tabs and their active identity.
 interface DreamTabsSnapshot
 {
 	readonly tabs: DreamSessionSnapshot[];
 	readonly activeDreamId: string | null;
 }
 
-// Readonly Dream tab descriptor exposed to the editor strip.
+// Readonly DreamView tab descriptor exposed to the editor strip.
 export interface DreamTab
 {
 	readonly dreamId: string;
@@ -45,37 +47,37 @@ export interface DreamTab
 	readonly isDirty: boolean;
 }
 
-// Result of a named mutation to the active Dream.
+// Result of a named mutation to the active DreamView.
 export interface DreamChange
 {
 	// Immutable snapshot after the mutation.
-	readonly dream: Dream;
+	readonly dream: DreamView;
 	// Whether the mutation changed the dirty-state transition.
 	readonly becameDirty: boolean;
 }
 
-// Sole renderer-side owner of Dream catalogue and active-Dream editing state.
+// Sole renderer-side owner of DreamView catalogue and active-DreamView editing state.
 export class DreamStore
 {
-	// Session storage key for the active Dream editing session.
+	// Session storage key for the active DreamView editing session.
 	private static readonly SessionKey = "chora:dream-session";
 	// Delay before an uncommitted mutation is persisted to session storage.
 	private static readonly PersistenceDelayMilliseconds = 400;
 	// All Dreams visible to the reader.
-	private catalogue: Dream[] = [];
-	// The Dream currently open for editing, or null when none is open.
-	private activeDream: Dream | null = null;
-	// Whether the active Dream has unsaved changes.
+	private catalogue: DreamView[] = [];
+	// The DreamView currently open for editing, or null when none is open.
+	private activeDream: DreamView | null = null;
+	// Whether the active DreamView has unsaved changes.
 	private isDirty = false;
 	// Increments on every mutation so a stale save result can be detected.
 	private revision = 0;
-	// Lifecycle of the active Dream's most recent save attempt.
+	// Lifecycle of the active DreamView's most recent save attempt.
 	private saveState: DreamSaveState = "idle";
-	// Ordered per-Dream editing sessions represented by the editor tab strip.
+	// Ordered per-DreamView editing sessions represented by the editor tab strip.
 	private openTabs: DreamSessionSnapshot[] = [];
-	// Signal selected in the active Dream session.
+	// Signal selected in the active DreamView session.
 	private selectedSignalId: string | null = null;
-	// Inner editor tab selected in the active Dream session.
+	// Inner editor tab selected in the active DreamView session.
 	private editorTabId = "signals";
 	// Pending session-persistence timer, or null when nothing is scheduled.
 	private persistenceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -96,7 +98,7 @@ export class DreamStore
 		this.passageFilter = structuredClone(filter);
 	}
 
-	// Restores the active Dream editing session from a prior application run.
+	// Restores the active DreamView editing session from a prior application run.
 	public constructor(private readonly sessions: SessionStore)
 	{
 		const snapshot = this.sessions.Load<DreamSessionSnapshot | DreamTabsSnapshot>(DreamStore.SessionKey);
@@ -117,7 +119,7 @@ export class DreamStore
 		}
 	}
 
-	// Returns ordered descriptors for every open Dream editor tab.
+	// Returns ordered descriptors for every open DreamView editor tab.
 	public GetOpenTabs(): readonly DreamTab[]
 	{
 		this.CaptureActiveTab();
@@ -129,7 +131,7 @@ export class DreamStore
 		return structuredClone(tabs);
 	}
 
-	// Remembers the selected Signal for one open Dream tab.
+	// Remembers the selected Signal for one open DreamView tab.
 	public SetSelectedSignal(dreamId: string, signalId: string | null): void
 	{
 		if (this.activeDream?.id === dreamId) this.selectedSignalId = signalId;
@@ -138,7 +140,7 @@ export class DreamStore
 		this.Persist();
 	}
 
-	// Returns the selected Signal remembered for one open Dream tab.
+	// Returns the selected Signal remembered for one open DreamView tab.
 	public GetSelectedSignal(dreamId: string): string | null
 	{
 		const tab = this.openTabs.find(function FindTab(candidate): boolean { return candidate.dream.id === dreamId; });
@@ -147,7 +149,7 @@ export class DreamStore
 		return signalId;
 	}
 
-	// Remembers the selected inner editor tab for one open Dream.
+	// Remembers the selected inner editor tab for one open DreamView.
 	public SetEditorTab(dreamId: string, tabId: string): void
 	{
 		if (this.activeDream?.id === dreamId) this.editorTabId = tabId;
@@ -156,7 +158,7 @@ export class DreamStore
 		this.Persist();
 	}
 
-	// Returns the selected inner editor tab for one open Dream.
+	// Returns the selected inner editor tab for one open DreamView.
 	public GetEditorTab(dreamId: string): string
 	{
 		const tab = this.openTabs.find(function FindTab(candidate): boolean { return candidate.dream.id === dreamId; });
@@ -177,8 +179,8 @@ export class DreamStore
 		this.searchText = value;
 	}
 
-	// Returns an immutable snapshot of every Dream visible to the reader.
-	public GetCatalogue(): readonly Dream[]
+	// Returns an immutable snapshot of every DreamView visible to the reader.
+	public GetCatalogue(): readonly DreamView[]
 	{
 		const catalogue = structuredClone(this.catalogue);
 
@@ -186,11 +188,15 @@ export class DreamStore
 	}
 
 	// Returns Dreams matching the given search query, ordered by their position in the source text.
-	public GetVisibleCatalogue(searchText: string, document: LibraryText | null = null): Dream[]
+	public GetVisibleCatalogue(searchText: string, document: TextDocument | null = null): DreamView[]
 	{
+		if (document !== null)
+		{
+			document = TextDocument.FromSnapshot(document);
+		}
 		const query = searchText.trim().toLocaleLowerCase();
-		const matches: Dream[] = [];
-		let candidates: readonly Dream[] = this.catalogue;
+		const matches: DreamView[] = [];
+		let candidates: readonly DreamView[] = this.catalogue;
 
 		if (this.passageFilter !== null)
 		{
@@ -205,16 +211,16 @@ export class DreamStore
 		for (const dream of candidates)
 		{
 			const matchesWork = document === null || dream.workId === document.id;
-			if (matchesWork && this.MatchesSearch(dream, query)) matches.push(structuredClone(dream));
+			if (matchesWork && this.MatchesSearch(dream, query, document)) matches.push(structuredClone(dream));
 		}
 
-		matches.sort(this.CompareBySource.bind(this));
+		matches.sort(this.CompareBySource.bind(this, document));
 
 		return matches;
 	}
 
-	// Counts each Dream once per passage, independently of the active search or filter.
-	public GetPassageCounts(document: LibraryText): ReadonlyMap<string, number>
+	// Counts each DreamView once per passage, independently of the active search or filter.
+	public GetPassageCounts(document: TextDocument): ReadonlyMap<string, number>
 	{
 		const passages = this.BuildPassageCatalogue(document);
 		const counts = new Map<string, number>();
@@ -225,66 +231,36 @@ export class DreamStore
 		return counts;
 	}
 
-	// Resolves segment positions and passage-grouping keys once per document, shared by every passage-coverage query.
-	private BuildPassageIndex(document: LibraryText): { positions: Map<string, number>; passageKeys: string[] }
+	// Lists DreamView titles associated with each passage in canonical source order.
+	public GetPassageDreamTitles(document: TextDocument): ReadonlyMap<string, readonly string[]>
 	{
-		const positions = new Map<string, number>();
-		const passageKeys: string[] = [];
-		let previousLocator = "";
-		let passageKey = "";
-		for (const [index, segment] of document.segments.entries())
-		{
-			positions.set(segment.key, index);
-			const locator = segment.locator;
-			const identity = locator === null ? "" : `${locator.scheme}:${locator.value}`;
-			if (identity !== previousLocator)
-			{
-				passageKey = identity.length === 0 ? "" : segment.key;
-				previousLocator = identity;
-			}
-			passageKeys.push(passageKey);
-		}
-		return { positions, passageKeys };
-	}
+		const passages = this.BuildPassageCatalogue(document);
+		const titles = new Map<string, readonly string[]>();
 
-	// Returns the passage keys covered by a start/end segment range, or an empty set when the range cannot be resolved.
-	private ComputeCoveredPassageKeys(document: LibraryText, positions: Map<string, number>, passageKeys: string[], start: TextSelection["start"], end: TextSelection["end"]): Set<string>
-	{
-		const covered = new Set<string>();
-		const startIndex = positions.get(start.segmentKey);
-		const endIndex = positions.get(end.segmentKey);
-		if (startIndex !== undefined && endIndex !== undefined && startIndex <= endIndex)
+		for (const [key, dreams] of passages)
 		{
-			for (let index = startIndex; index <= endIndex; index += 1)
+			const ordered = [...dreams];
+			ordered.sort(this.CompareBySource.bind(this, document));
+			titles.set(key, ordered.map(function GetDreamTitle(dream): string
 			{
-				const segment = document.segments[index];
-				const key = passageKeys[index];
-				if (segment !== undefined && key !== undefined && key.length > 0)
-				{
-					const from = index === startIndex ? start.offset : 0;
-					const to = index === endIndex ? end.offset : segment.text.length;
-					if (from < to && from >= 0 && to <= segment.text.length)
-					{
-						covered.add(key);
-					}
-				}
-			}
+				return dream.title.trim() || "Untitled";
+			}));
 		}
-		return covered;
+
+		return titles;
 	}
 
 	// Resolves persisted source anchors in document order and groups their nonempty overlap by passage.
-	private BuildPassageCatalogue(document: LibraryText): Map<string, Dream[]>
+	private BuildPassageCatalogue(document: TextDocument): Map<string, DreamView[]>
 	{
-		const { positions, passageKeys } = this.BuildPassageIndex(document);
-		const passages = new Map<string, Dream[]>();
+		const passages = new Map<string, DreamView[]>();
 
 		for (const dream of this.catalogue)
 		{
 			const source = dream.source;
 			if (dream.workId === document.id && source.documentId === document.id)
 			{
-				const covered = this.ComputeCoveredPassageKeys(document, positions, passageKeys, source.start, source.end);
+				const covered = GetCoveredPassageKeys(document, source);
 				for (const key of covered)
 				{
 					const dreams = passages.get(key) ?? [];
@@ -296,41 +272,60 @@ export class DreamStore
 		return passages;
 	}
 
-	// Returns an immutable snapshot of the active Dream, or null when none is open.
-	public GetActiveDream(): Dream | null
+	// Returns an immutable snapshot of the active DreamView, or null when none is open.
+	public GetActiveDream(): DreamView | null
 	{
 		const dream = this.activeDream === null ? null : structuredClone(this.activeDream);
 
 		return dream;
 	}
 
-	// Returns whether the active Dream has unsaved changes.
+	// Returns whether the active DreamView has unsaved changes.
 	public GetIsDirty(): boolean
 	{
 		const dirty = this.isDirty;
 		return dirty;
 	}
 
-	// Returns the lifecycle of the active Dream's most recent save attempt.
+	// Returns the lifecycle of the active DreamView's most recent save attempt.
 	public GetSaveState(): DreamSaveState
 	{
 		return this.saveState;
 	}
 
-	// Returns the current mutation revision of the active Dream.
+	// Returns the current mutation revision of the active DreamView.
 	public GetRevision(): number
 	{
 		return this.revision;
 	}
 
-	// Replaces the visible Dream catalogue with a freshly loaded snapshot.
-	public SetCatalogue(catalogue: Dream[]): void
+	// Replaces the visible DreamView catalogue with a freshly loaded snapshot.
+	public SetCatalogue(catalogue: DreamView[]): void
 	{
-		this.catalogue = structuredClone(catalogue);
+		this.catalogue = catalogue.map(this.NormalizeDream);
 	}
 
-	// Opens a Dream for editing and records whether it starts with unsaved changes.
-	public Open(dream: Dream, isDirty: boolean): void
+	// Refreshes canonical Signal fields in every DreamView projection without marking Dreams dirty.
+	public ApplySignal(signal: SignalRecord): string | null
+	{
+		for (const dream of this.catalogue) this.ApplySignalToDream(dream, signal);
+		for (const tab of this.openTabs) this.ApplySignalToDream(tab.dream, signal);
+		const changedActive = this.activeDream === null
+			? false
+			: this.ApplySignalToDream(this.activeDream, signal);
+		const activeDreamId = changedActive ? this.activeDream?.id ?? null : null;
+
+		if (changedActive)
+		{
+			this.CaptureActiveTab();
+			this.Persist();
+		}
+
+		return activeDreamId;
+	}
+
+	// Opens a DreamView for editing and records whether it starts with unsaved changes.
+	public Open(dream: DreamView, isDirty: boolean): void
 	{
 		this.CancelPersistence();
 		this.CaptureActiveTab();
@@ -348,8 +343,8 @@ export class DreamStore
 		this.Persist();
 	}
 
-	// Activates an already open Dream tab without replacing its editing session.
-	public ActivateTab(dreamId: string): Dream | null
+	// Activates an already open DreamView tab without replacing its editing session.
+	public ActivateTab(dreamId: string): DreamView | null
 	{
 		this.CancelPersistence();
 		this.CaptureActiveTab();
@@ -364,7 +359,7 @@ export class DreamStore
 		return dream;
 	}
 
-	// Closes the active Dream editing session.
+	// Closes the active DreamView editing session.
 	public Close(): void
 	{
 		this.CancelPersistence();
@@ -385,7 +380,7 @@ export class DreamStore
 		}
 	}
 
-	// Updates the active Dream title and records one authoritative state change.
+	// Updates the active DreamView title and records one authoritative state change.
 	public UpdateTitle(title: string): DreamChange | null
 	{
 		let change: DreamChange | null = null;
@@ -399,7 +394,7 @@ export class DreamStore
 		return change;
 	}
 
-	// Updates the active Dream reflection and records one authoritative state change.
+	// Updates the active DreamView reflection and records one authoritative state change.
 	public UpdateReflection(reflection: string): DreamChange | null
 	{
 		let change: DreamChange | null = null;
@@ -413,14 +408,31 @@ export class DreamStore
 		return change;
 	}
 
-	// Replaces the active Dream signals after the controller has calculated source order.
-	public ReplaceSignals(signals: DreamSignal[]): DreamChange | null
+	public UpdateSynopticView(synopticView: string): DreamChange | null
+	{
+		let change: DreamChange | null = null;
+
+		if (this.activeDream !== null)
+		{
+			this.activeDream.synopticView = synopticView;
+			change = this.RecordChange();
+		}
+
+		return change;
+	}
+
+	// Replaces the active DreamView signals after the controller has calculated source order.
+	public ReplaceSignals(signals: SignalRecord[]): DreamChange | null
 	{
 		let change: DreamChange | null = null;
 
 		if (this.activeDream !== null)
 		{
 			this.activeDream.signals = structuredClone(signals);
+			this.activeDream.signalIds = signals.map(function GetSignalId(signal): string
+			{
+				return signal.id;
+			});
 			change = this.RecordChange();
 		}
 
@@ -431,28 +443,33 @@ export class DreamStore
 	public UpdateSignalDescription(signalId: string, description: string): DreamChange | null
 	{
 		let change: DreamChange | null = null;
-		let signal: DreamSignal | undefined;
+		let signalIndex = -1;
 
-		for (const candidate of this.activeDream?.signals ?? [])
+		for (let index = 0; index < (this.activeDream?.signals.length ?? 0); index += 1)
 		{
-			if (candidate.id === signalId)
+			if (this.activeDream?.signals[index]?.id === signalId)
 			{
-				signal = candidate;
+				signalIndex = index;
 				break;
 			}
 		}
 
-		if (signal !== undefined)
+		if (this.activeDream !== null && signalIndex >= 0)
 		{
-			signal.description = description;
+			const signal = this.activeDream.signals[signalIndex];
+
+			if (signal !== undefined)
+			{
+				this.activeDream.signals[signalIndex] = { ...signal, description };
+			}
 			change = this.RecordChange();
 		}
 
 		return change;
 	}
 
-	// Replaces the source selection owned by the active Dream.
-	public ReplaceSource(source: SourceSelection): DreamChange | null
+	// Replaces the source selection owned by the active DreamView.
+	public ReplaceSource(source: TextSelection): DreamChange | null
 	{
 		let change: DreamChange | null = null;
 
@@ -466,7 +483,7 @@ export class DreamStore
 	}
 
 	// Commits a successful save when no further mutation has occurred since it began.
-	public MarkSaved(dream: Dream, savedRevision: number): void
+	public MarkSaved(dream: DreamView, savedRevision: number): void
 	{
 		if (savedRevision === this.revision && this.activeDream?.id === dream.id)
 		{
@@ -478,7 +495,7 @@ export class DreamStore
 		}
 	}
 
-	// Records the lifecycle of the active Dream's most recent save attempt.
+	// Records the lifecycle of the active DreamView's most recent save attempt.
 	public SetSaveState(saveState: DreamSaveState): void
 	{
 		this.saveState = saveState;
@@ -490,10 +507,29 @@ export class DreamStore
 		this.FlushPersistence();
 	}
 
-	// Sole assignment point for the active Dream, so every write path is traceable to one place.
-	private SetActiveDream(dream: Dream | null): void
+	// Sole assignment point for the active DreamView, so every write path is traceable to one place.
+	private SetActiveDream(dream: DreamView | null): void
 	{
-		this.activeDream = dream;
+		this.activeDream = dream === null ? null : this.NormalizeDream(dream);
+	}
+
+	// Applies one canonical Signal snapshot to a DreamView projection.
+	private ApplySignalToDream(dream: DreamView, signal: SignalRecord): boolean
+	{
+		let changed = false;
+
+		for (let index = 0; index < dream.signals.length; index += 1)
+		{
+			const candidate = dream.signals[index];
+
+			if (candidate !== undefined && candidate.id === signal.id)
+			{
+				dream.signals[index] = structuredClone(signal);
+				changed = true;
+			}
+		}
+
+		return changed;
 	}
 
 	// Captures the mutable active fields into their ordered tab snapshot.
@@ -516,7 +552,7 @@ export class DreamStore
 		}
 	}
 
-	// Restores one tab snapshot into the active Dream fields.
+	// Restores one tab snapshot into the active DreamView fields.
 	private RestoreTab(snapshot: DreamSessionSnapshot): void
 	{
 		this.SetActiveDream(structuredClone(snapshot.dream));
@@ -524,10 +560,10 @@ export class DreamStore
 		this.revision = snapshot.revision ?? 0;
 		this.saveState = snapshot.saveState ?? "idle";
 		this.selectedSignalId = snapshot.selectedSignalId ?? null;
-		this.editorTabId = snapshot.editorTabId === "exegesis" ? "exegesis" : "signals";
+		this.editorTabId = snapshot.editorTabId === "exegesis" || snapshot.editorTabId === "reflections" ? "reflections" : snapshot.editorTabId === "explorations" || snapshot.editorTabId === "synoptic-view" ? "synoptic-view" : "signals";
 	}
 
-	// Clears every active field after the final Dream tab closes.
+	// Clears every active field after the final DreamView tab closes.
 	private ClearActiveTab(): void
 	{
 		this.SetActiveDream(null);
@@ -538,47 +574,46 @@ export class DreamStore
 		this.editorTabId = "signals";
 	}
 
-	// Returns whether the given Dream matches the reader's normalized search query.
-	private MatchesSearch(dream: Dream, query: string): boolean
+	private NormalizeDream(dream: DreamView): DreamView
 	{
-		const searchable = `${dream.title} ${dream.dialogue ?? ""} ${dream.source.selectedText}`.toLocaleLowerCase();
+		const legacy = dream as DreamView & { exploration?: string };
+		const normalized = structuredClone(legacy);
+		const synopticView = normalized.synopticView ?? normalized.exploration ?? "";
+		const signalIds = normalized.signalIds ?? normalized.signals.map(function GetSignalId(signal): string
+		{
+			return signal.id;
+		});
+		delete normalized.exploration;
+		return { ...normalized, signalIds, synopticView };
+	}
+
+	// Returns whether the given DreamView matches the reader's normalized search query.
+	private MatchesSearch(dream: DreamView, query: string, document: TextDocument | null): boolean
+	{
+		const sourceText = document?.id === dream.workId
+			? document.ReconstructText(dream.source)
+			: "";
+		const searchable = `${dream.title} ${dream.dialogue ?? ""} ${sourceText}`.toLocaleLowerCase();
 		const matches = query.length === 0 || searchable.includes(query);
 
 		return matches;
 	}
 
 	// Orders Dreams by owning work, source locator, source position, then title.
-	private CompareBySource(first: Dream, second: Dream): number
+	private CompareBySource(document: TextDocument | null, first: DreamView, second: DreamView): number
 	{
 		let comparison = first.workId.localeCompare(second.workId);
 
-		if (comparison === 0) comparison = this.CompareLocators(first.source.locatorStart?.value ?? "", second.source.locatorStart?.value ?? "");
+		if (comparison === 0 && document !== null && document.id === first.workId)
+		{
+			comparison = document.CompareSelections(first.source, second.source);
+		}
 		if (comparison === 0) comparison = first.source.start.segmentKey.localeCompare(second.source.start.segmentKey);
-		if (comparison === 0) comparison = first.source.start.offset - second.source.start.offset;
 		if (comparison === 0) comparison = first.title.localeCompare(second.title);
 
 		return comparison;
 	}
 
-	// Orders Stephanus-style locators (e.g. "327a") numerically, falling back to natural string order.
-	private CompareLocators(first: string, second: string): number
-	{
-		const firstMatch = /^(\d+)([a-e])$/iu.exec(first);
-		const secondMatch = /^(\d+)([a-e])$/iu.exec(second);
-		let comparison = 0;
-
-		if (firstMatch !== null && secondMatch !== null)
-		{
-			comparison = Number.parseInt(firstMatch[1] ?? "0", 10) - Number.parseInt(secondMatch[1] ?? "0", 10);
-			if (comparison === 0) comparison = (firstMatch[2] ?? "").localeCompare(secondMatch[2] ?? "");
-		}
-		else
-		{
-			comparison = first.localeCompare(second, undefined, { numeric: true });
-		}
-
-		return comparison;
-	}
 
 	// Schedules a delayed session-persistence write, replacing any pending one.
 	private SchedulePersistence(): void
@@ -602,7 +637,7 @@ export class DreamStore
 		this.revision += 1;
 		this.saveState = "idle";
 		this.SchedulePersistence();
-		const dream = structuredClone(this.activeDream as Dream);
+		const dream = structuredClone(this.activeDream as DreamView);
 		const change: DreamChange = { dream, becameDirty: !wasDirty };
 
 		return change;
@@ -628,7 +663,7 @@ export class DreamStore
 		}
 	}
 
-	// Writes the active Dream editing session to session storage.
+	// Writes the active DreamView editing session to session storage.
 	private Persist(): void
 	{
 		if (this.activeDream !== null)

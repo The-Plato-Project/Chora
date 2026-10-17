@@ -1,5 +1,5 @@
-import type { Dream } from "../../shared/dreams/DreamTypes.js";
-import type { IdeaRecord } from "../../shared/ideas/IdeaTypes.js";
+import type { DreamView } from "../dreams/DreamView.js";
+import type { IdeaRecord, IdeaSignalReference } from "../../shared/ideas/IdeaTypes.js";
 import type { LibraryTextSummary } from "../../shared/library/LibraryTypes.js";
 import type { ChoraEvents } from "../core/events/ChoraEvents.js";
 import { ChoraEventBus, type Unsubscribe } from "../core/events/ChoraEventBus.js";
@@ -11,6 +11,7 @@ import type { LibraryStore } from "../library/LibraryStore.js";
 import { EscapeHtml } from "../ui/Html.js";
 import { AddIcon, CloseIcon, DocumentIcon, EditIcon, IdeaIcon, MoreIcon, PreviousIcon, SaveIcon, SearchIcon, TrashIcon } from "../ui/Icons.js";
 import { PopupPanel } from "../ui/PopupPanel.js";
+import { DeleteConfirmation } from "../ui/DeleteConfirmation.js";
 
 type WorkspaceDocumentKind = "dream" | "idea";
 
@@ -27,11 +28,26 @@ export class WorkspacePanel
 	private readonly collapsed = new Set<string>();
 	private readonly addedWorkIds = new Set<string>();
 	private readonly workPicker: PopupPanel;
+	private readonly ideaPicker: PopupPanel;
+	private readonly dreamRenamePopup: PopupPanel;
+	// Prompts for a persistence decision before an unsaved Idea is closed.
+	private readonly unsavedIdeaPopup: PopupPanel;
+	private readonly deleteConfirmation = new DeleteConfirmation();
 	private tabOrder: WorkspaceTabReference[] = [];
 	private searchText = "";
 	private workPickerSearchText = "";
 	private activeKind: WorkspaceDocumentKind | null = null;
+	private renamingDreamId: string | null = null;
+	// Identifies the unsaved Idea tab awaiting a close decision.
+	private pendingUnsavedIdeaKey: string | null = null;
 	private canReturnToIdea = false;
+	private isAddingSignalToIdea = false;
+	// Handles Signal drag targeting within the Ideas tree.
+	private readonly dragOverHandler = this.HandleDragOver.bind(this);
+	// Clears Signal drop-target presentation.
+	private readonly dragLeaveHandler = this.HandleDragLeave.bind(this);
+	// Associates a dropped Signal with an existing or new Idea.
+	private readonly dropHandler = this.HandleDropAsync.bind(this);
 
 	public constructor(
 		private readonly explorerRoot: HTMLElement,
@@ -45,15 +61,30 @@ export class WorkspacePanel
 	{
 		this.explorerRoot.addEventListener("click", this.HandleClick.bind(this));
 		this.explorerRoot.addEventListener("input", this.HandleInput.bind(this));
+		this.explorerRoot.addEventListener("dragover", this.dragOverHandler);
+		this.explorerRoot.addEventListener("dragleave", this.dragLeaveHandler);
+		this.explorerRoot.addEventListener("drop", this.dropHandler);
 		this.tabsRoot.addEventListener("click", this.HandleClick.bind(this));
 		this.workPicker = new PopupPanel("Add work");
 		this.workPicker.OnBodyClick(this.HandleWorkPickerClick.bind(this));
 		this.workPicker.OnBodyInput(this.HandleWorkPickerInput.bind(this));
+		this.ideaPicker = new PopupPanel("Add Signal to Idea");
+		this.ideaPicker.OnBodyClick(this.HandleIdeaPickerClickAsync.bind(this));
+		this.ideaPicker.OnClose(this.HandleIdeaPickerClosed.bind(this));
+		this.dreamRenamePopup = new PopupPanel("Rename Dream");
+		this.dreamRenamePopup.OnBodySubmit(this.HandleDreamRenameSubmitAsync.bind(this));
+		this.unsavedIdeaPopup = new PopupPanel("Save Idea?");
+		this.unsavedIdeaPopup.OnBodyClick(this.HandleUnsavedIdeaClickAsync.bind(this));
+		this.unsavedIdeaPopup.OnClose(this.HandleUnsavedIdeaPopupClosed.bind(this));
 		this.LoadAddedWorks();
+		this.isAddingSignalToIdea = this.ideas.GetPendingAddReference() !== null;
 		const update = this.Update.bind(this);
 		this.subscriptions.push(this.events.Subscribe("dream.opened", this.HandleDreamOpened.bind(this)));
 		this.subscriptions.push(this.events.Subscribe("dream.closed", this.HandleDreamClosed.bind(this)));
-		for (const eventName of ["dream.catalogue-changed", "dream.changed", "dream.saved", "dream.save-state-changed", "ideas.changed", "idea.draft-changed", "library.selection-changed"] as const)
+		this.subscriptions.push(this.events.Subscribe("idea.open-requested", this.HandleIdeaOpenRequestedAsync.bind(this)));
+		this.subscriptions.push(this.events.Subscribe("workspace.document-selected", this.HandleDocumentSelected.bind(this)));
+		this.subscriptions.push(this.events.Subscribe("ideas.changed", this.HandleIdeasChanged.bind(this)));
+		for (const eventName of ["dream.catalogue-changed", "dream.changed", "dream.saved", "dream.save-state-changed", "idea.draft-changed", "library.selection-changed"] as const)
 		{
 			this.subscriptions.push(this.events.Subscribe(eventName, update));
 		}
@@ -70,6 +101,13 @@ export class WorkspacePanel
 		for (const unsubscribe of this.subscriptions) unsubscribe();
 		this.subscriptions.length = 0;
 		this.workPicker.Dispose();
+		this.ideaPicker.Dispose();
+		this.dreamRenamePopup.Dispose();
+		this.unsavedIdeaPopup.Dispose();
+		this.deleteConfirmation.Dispose();
+		this.explorerRoot.removeEventListener("dragover", this.dragOverHandler);
+		this.explorerRoot.removeEventListener("dragleave", this.dragLeaveHandler);
+		this.explorerRoot.removeEventListener("drop", this.dropHandler);
 	}
 
 	public ActivateIdeaDocument(): void
@@ -93,6 +131,16 @@ export class WorkspacePanel
 		this.ReconcileTabOrder();
 		this.explorerRoot.innerHTML = this.RenderExplorer();
 		this.RefreshTabs();
+	}
+
+	// Reveals and focuses one Explorer folder after the collapsed rail is expanded.
+	public FocusExplorerSection(kind: "dream" | "idea"): void
+	{
+		const key = kind === "dream" ? "dreams" : "ideas";
+		this.collapsed.delete("plato");
+		this.collapsed.delete(key);
+		this.Update();
+		this.explorerRoot.querySelector<HTMLElement>(`[data-workspace-toggle="${key}"]`)?.focus();
 	}
 
 	private RenderExplorer(): string
@@ -162,30 +210,118 @@ export class WorkspacePanel
 	{
 		const isCollapsed = this.collapsed.has("ideas");
 		const query = this.Normalize(this.searchText);
-		const pending = this.ideas.GetPendingAddReference() !== null;
+		const pendingReference = this.ideas.GetPendingAddReference();
+		const pending = pendingReference !== null;
 		let rows = "";
 		for (const idea of this.ideas.GetIdeas())
 		{
 			if (workId !== null && idea.workId !== workId) continue;
 			if (!this.MatchesIdea(idea, query)) continue;
 			const selected = this.activeKind === "idea" && this.ideas.GetDraft()?.ideaId === idea.id;
-			rows += `<button class="workspace-tree-row workspace-item-row button-control${selected ? " selected" : ""}" data-workspace-idea="${EscapeHtml(idea.id)}" type="button" role="treeitem" aria-current="${selected}"><span class="workspace-item-icon" aria-hidden="true">${IdeaIcon}</span><span>${EscapeHtml(idea.title || "Untitled Idea")}</span></button>`;
+			const connected = pendingReference !== null && this.ContainsSignal(idea, pendingReference);
+			const disabled = connected ? ' disabled title="Already connected to this Idea"' : "";
+			rows += `<button class="workspace-tree-row workspace-item-row button-control${selected ? " selected" : ""}" data-workspace-idea="${EscapeHtml(idea.id)}" type="button" role="treeitem" aria-current="${selected}"${disabled}><span class="workspace-item-icon" aria-hidden="true">${IdeaIcon}</span><span>${EscapeHtml(idea.title || "Untitled Idea")}</span></button>`;
 		}
 		if (rows.length === 0) rows = `<p class="workspace-tree-empty">${query.length > 0 ? "No matching Ideas." : "No Ideas yet."}</p>`;
 		const plusLabel = pending ? "Create Idea from Signal" : "New Idea";
 		return `<section class="workspace-tree-folder"><div class="workspace-tree-folder-heading"><button class="workspace-tree-row button-control" data-workspace-toggle="ideas" type="button" role="treeitem" aria-expanded="${!isCollapsed}"><span class="workspace-tree-disclosure" aria-hidden="true"></span><span>Ideas</span></button><button class="workspace-folder-action dream-icon-button button-control" data-new-workspace-idea type="button" title="${plusLabel}" aria-label="${plusLabel}">${AddIcon}</button></div><div class="workspace-tree-children"${isCollapsed ? " hidden" : ""}>${rows}</div></section>`;
 	}
 
+	private HandleIdeasChanged(): void
+	{
+		const isAdding = this.ideas.GetPendingAddReference() !== null;
+		const startedAdding = isAdding && !this.isAddingSignalToIdea;
+		const stoppedAdding = !isAdding && this.isAddingSignalToIdea;
+		this.isAddingSignalToIdea = isAdding;
+		if (startedAdding)
+		{
+			const workId = this.library.GetText()?.id ?? this.ideas.GetWorkId();
+			this.searchText = "";
+			this.collapsed.delete("plato");
+			this.collapsed.delete("ideas");
+			if (workId !== null) this.collapsed.delete(`work:${workId}`);
+		}
+		this.Update();
+		if (startedAdding)
+		{
+			this.OpenIdeaPicker();
+		}
+		else if (stoppedAdding && this.ideaPicker.IsOpen)
+		{
+			this.ideaPicker.Close();
+		}
+	}
+
+	// Opens an explicit chooser for one pending Signal association.
+	private OpenIdeaPicker(): void
+	{
+		let rows = "";
+
+		for (const idea of this.ideas.GetIdeas())
+		{
+			const pending = this.ideas.GetPendingAddReference();
+			const connected = pending !== null && this.ContainsSignal(idea, pending);
+			const disabled = connected ? " disabled" : "";
+			const label = idea.title || "Untitled Idea";
+			rows += `<button class="idea-picker-item button-control" data-picker-idea="${EscapeHtml(idea.id)}" type="button"${disabled}>${IdeaIcon}<span>${EscapeHtml(label)}</span></button>`;
+		}
+
+		if (rows.length === 0) rows = `<p class="idea-picker-empty">No saved Ideas yet.</p>`;
+		const markup = `<div class="idea-picker-actions"><button class="idea-picker-new button-control" data-picker-new-idea type="button">${AddIcon}<span>Create new Idea</span></button></div><div class="idea-picker-list" role="list">${rows}</div>`;
+		this.ideaPicker.SetBodyHtml(markup);
+		this.ideaPicker.Open();
+		const target = document.querySelector<HTMLButtonElement>("[data-picker-idea]:not(:disabled)")
+			?? document.querySelector<HTMLButtonElement>("[data-picker-new-idea]");
+		target?.focus();
+	}
+
+	// Applies the pending Signal to one chosen existing or new Idea.
+	private async HandleIdeaPickerClickAsync(event: MouseEvent): Promise<void>
+	{
+		const target = event.target as HTMLElement | null;
+		const ideaId = target?.closest<HTMLElement>("[data-picker-idea]")?.dataset.pickerIdea;
+		const createsIdea = target?.closest("[data-picker-new-idea]") !== null;
+
+		if (ideaId !== undefined)
+		{
+			await this.ideaController.AddPendingSignalToIdeaAsync(ideaId);
+			this.ideaPicker.Close();
+		}
+		else if (createsIdea)
+		{
+			const saved = await this.ideaController.CreateIdeaFromPendingSignalAsync();
+			this.ActivateIdeaDocument();
+
+			if (saved)
+			{
+				this.ideaPicker.Close();
+			}
+		}
+	}
+
+	// Cancels a pending association when the chooser is dismissed.
+	private HandleIdeaPickerClosed(): void
+	{
+		if (this.ideas.GetPendingAddReference() !== null)
+		{
+			this.ideaController.CancelAddToIdea();
+		}
+	}
+
 	private RenderDreams(workId: string | null): string
 	{
 		const isCollapsed = this.collapsed.has("dreams");
 		const query = this.Normalize(this.searchText);
-		const groups = new Map<string, Dream[]>();
-		for (const dream of this.dreams.GetCatalogue())
+		const groups = new Map<string, DreamView[]>();
+		const document = this.library.GetText();
+		const catalogue = this.dreams.GetVisibleCatalogue(this.searchText, document);
+		for (const dream of catalogue)
 		{
 			if (workId !== null && dream.workId !== workId) continue;
-			if (!this.MatchesDream(dream, query)) continue;
-			const book = dream.source.division?.kind === "book" ? dream.source.division.value : "Other";
+			const division = document?.id === dream.workId
+				? document.ResolveDivision(dream.source.start)
+				: null;
+			const book = division?.type === "book" ? division.label : "Other";
 			const group = groups.get(book) ?? [];
 			group.push(dream);
 			groups.set(book, group);
@@ -240,7 +376,11 @@ export class WorkspacePanel
 				items += this.RenderTab("idea", tab.key, tab.title, IdeaIcon, selected, "");
 			}
 		}
-		const actions = this.activeKind === "dream" ? this.RenderDreamActions() : "";
+		const actions = this.activeKind === "dream"
+			? this.RenderDreamActions()
+			: this.activeKind === "idea"
+				? this.RenderIdeaActions()
+				: "";
 		if (items.length === 0) return "";
 		return `<div class="dream-document-bar workspace-document-bar"><div class="dream-document-tabs" role="tablist" aria-label="Open Ideas and Dreams">${items}</div><div class="dream-document-actions">${actions}</div></div>`;
 	}
@@ -257,6 +397,18 @@ export class WorkspacePanel
 		const returnHidden = this.canReturnToIdea ? "" : " hidden";
 		const status = this.dreams.GetSaveState() === "saving" ? "Saving…" : this.dreams.GetSaveState() === "error" ? "Save failed" : this.dreams.GetIsDirty() ? "Unsaved" : "Saved";
 		return `<button class="dream-icon-button button-control" data-return-to-idea type="button" title="Back to Idea" aria-label="Back to Idea"${returnHidden}>${PreviousIcon}</button><span class="dream-toolbar-status" role="status" aria-live="polite">${status}</span><details class="action-menu"><summary title="Dream actions" aria-label="Dream actions">${MoreIcon}</summary><div class="action-menu-items"><button data-workspace-save-dream type="button">${SaveIcon}Save</button><button data-workspace-close-dream type="button">${CloseIcon}Close</button><button data-workspace-delete-dream type="button">${TrashIcon}Delete</button><button data-workspace-copy-dream type="button">Copy as Markdown</button></div></details>`;
+	}
+
+	// Renders the upper-right actions menu for the active Idea.
+	private RenderIdeaActions(): string
+	{
+		const draft = this.ideas.GetDraft();
+		const deleteAction = draft !== null && this.ideas.HasIdea(draft.ideaId)
+			? `<button data-workspace-delete-idea type="button">${TrashIcon}Delete</button>`
+			: "";
+		const actions = `<button data-workspace-save-idea type="button">${SaveIcon}Save</button><button data-workspace-close-idea type="button">${CloseIcon}Close</button>${deleteAction}`;
+
+		return `<details class="action-menu"><summary title="Idea actions" aria-label="Idea actions">${MoreIcon}</summary><div class="action-menu-items">${actions}</div></details>`;
 	}
 
 	private ReconcileTabOrder(): void
@@ -373,7 +525,7 @@ export class WorkspacePanel
 		const renameId = target?.closest<HTMLElement>("[data-rename-workspace-dream]")?.dataset.renameWorkspaceDream;
 		if (renameId !== undefined)
 		{
-			void this.RenameDreamAsync(renameId);
+			this.OpenDreamRenamePopup(renameId);
 			return;
 		}
 		const tab = target?.closest<HTMLElement>("[data-workspace-tab]");
@@ -394,8 +546,17 @@ export class WorkspacePanel
 		}
 		if (target?.closest("[data-workspace-save-dream]") !== null) void this.dreamController.SaveAsync();
 		if (target?.closest("[data-workspace-close-dream]") !== null) void this.CloseActiveDreamAsync();
-		if (target?.closest("[data-workspace-delete-dream]") !== null) void this.DeleteDreamAsync();
+		const deleteDreamTrigger = target?.closest<HTMLElement>("[data-workspace-delete-dream]") ?? null;
+		if (deleteDreamTrigger !== null) this.ConfirmDreamDelete(deleteDreamTrigger);
 		if (target?.closest("[data-workspace-copy-dream]") !== null) void this.dreamController.CopyDreamAsMarkdownAsync();
+		if (target?.closest("[data-workspace-save-idea]") !== null) void this.ideaController.SaveAsync();
+		if (target?.closest("[data-workspace-close-idea]") !== null)
+		{
+			const key = this.GetActiveIdeaKey();
+			if (key !== null) void this.CloseTabAsync("idea", key);
+		}
+		const deleteIdeaTrigger = target?.closest<HTMLElement>("[data-workspace-delete-idea]") ?? null;
+		if (deleteIdeaTrigger !== null) this.ConfirmIdeaDelete(deleteIdeaTrigger);
 		if (target?.closest("[data-return-to-idea]") !== null) void this.events.PublishAsync("idea.return-requested", {});
 	}
 
@@ -410,6 +571,98 @@ export class WorkspacePanel
 			this.Update();
 			void this.events.PublishAsync("library.text-open-requested", { textId: workId });
 		}
+	}
+
+	// Marks valid Idea targets while a Signal is dragged over the Explorer.
+	private HandleDragOver(event: DragEvent): void
+	{
+		const target = this.GetIdeaDropTarget(event.target as HTMLElement | null);
+
+		if (target !== null && this.HasSignalDrag(event))
+		{
+			event.preventDefault();
+			if (event.dataTransfer !== null) event.dataTransfer.dropEffect = "copy";
+			this.ClearSignalDropTargets();
+			target.classList.add("signal-drop-target");
+		}
+	}
+
+	// Clears one target after the pointer leaves it.
+	private HandleDragLeave(event: DragEvent): void
+	{
+		const target = this.GetIdeaDropTarget(event.target as HTMLElement | null);
+		const related = event.relatedTarget as Node | null;
+
+		if (target !== null && (related === null || !target.contains(related)))
+		{
+			target.classList.remove("signal-drop-target");
+		}
+	}
+
+	// Associates a dropped Signal with an existing Idea or starts a new Idea.
+	private async HandleDropAsync(event: DragEvent): Promise<void>
+	{
+		const target = this.GetIdeaDropTarget(event.target as HTMLElement | null);
+		const signalId = this.GetDraggedSignalId(event);
+
+		if (target !== null && signalId !== null)
+		{
+			event.preventDefault();
+			const ideaId = target.dataset.workspaceIdea;
+
+			if (ideaId !== undefined)
+			{
+				this.ideaController.BeginAddToIdea({ signalId });
+				await this.ideaController.AddPendingSignalToIdeaAsync(ideaId);
+			}
+			else
+			{
+				await this.ideaController.CreateFromSignalAsync({ signalId });
+			}
+
+			this.activeKind = "idea";
+			this.ClearSignalDropTargets();
+			this.Update();
+			await this.events.PublishAsync("workspace.document-selected", { kind: "idea" });
+		}
+	}
+
+	// Returns an existing-Idea row or the Ideas heading as a valid drop target.
+	private GetIdeaDropTarget(target: HTMLElement | null): HTMLElement | null
+	{
+		const idea = target?.closest<HTMLElement>("[data-workspace-idea]") ?? null;
+		const heading = target?.closest<HTMLElement>('[data-workspace-toggle="ideas"]') ?? null;
+		const dropTarget = idea ?? heading;
+
+		return dropTarget;
+	}
+
+	// Returns whether the native drag contains a Chora Signal identity.
+	private HasSignalDrag(event: DragEvent): boolean
+	{
+		const types = event.dataTransfer === null
+			? []
+			: Array.from(event.dataTransfer.types);
+		const hasSignal = types.includes("application/x-chora-signal");
+
+		return hasSignal;
+	}
+
+	// Reads and validates one Signal identity from native drag data.
+	private GetDraggedSignalId(event: DragEvent): string | null
+	{
+		const value = event.dataTransfer?.getData("application/x-chora-signal").trim() ?? "";
+		const signalId = value.length > 0 ? value : null;
+
+		return signalId;
+	}
+
+	// Removes drag-target presentation from the Ideas tree.
+	private ClearSignalDropTargets(): void
+	{
+		const targets = Array.from(this.explorerRoot.querySelectorAll(".signal-drop-target"));
+
+		for (const target of targets) target.classList.remove("signal-drop-target");
 	}
 
 	private HandleWorkPickerInput(event: Event): void
@@ -450,6 +703,21 @@ export class WorkspacePanel
 		await this.events.PublishAsync("workspace.document-selected", { kind: "idea" });
 	}
 
+	private async HandleIdeaOpenRequestedAsync(event: ChoraEvents["idea.open-requested"]): Promise<void>
+	{
+		this.ideaController.Edit(event.ideaId);
+		this.activeKind = "idea";
+		this.Update();
+		await this.events.PublishAsync("workspace.document-selected", { kind: "idea" });
+	}
+
+	// Keeps mixed workspace tabs synchronized with externally activated document editors.
+	private HandleDocumentSelected(event: ChoraEvents["workspace.document-selected"]): void
+	{
+		this.activeKind = event.kind;
+		this.Update();
+	}
+
 	private async CreateIdeaAsync(): Promise<void>
 	{
 		if (this.ideas.GetPendingAddReference() !== null) await this.ideaController.CreateIdeaFromPendingSignalAsync();
@@ -471,8 +739,88 @@ export class WorkspacePanel
 	private async CloseTabAsync(kind: WorkspaceDocumentKind, key: string): Promise<void>
 	{
 		if (kind === "dream") await this.dreamController.CloseTabAsync(key);
-		else this.ideaController.CloseTab(key);
-		this.SelectAvailableDocument();
+		else
+		{
+			const draft = this.ideas.GetDraft();
+			const isUnsavedIdea = key === "new"
+				&& draft !== null
+				&& draft.ideaId === null;
+			const hasReaderContent = draft !== null
+				&& (draft.title.trim().length > 0
+					|| draft.content.trim().length > 0
+					|| draft.originSignal !== null
+					|| draft.relatedSignals.length > 0);
+
+			if (isUnsavedIdea && hasReaderContent) this.OpenUnsavedIdeaPopup(key);
+			else
+			{
+				this.ideaController.CloseTab(key);
+				this.SelectAvailableDocument();
+			}
+		}
+	}
+
+	// Opens the close decision for one unsaved Idea without discarding its draft.
+	private OpenUnsavedIdeaPopup(key: string): void
+	{
+		this.pendingUnsavedIdeaKey = key;
+		const body = `<p>This Idea has not been saved.</p><p data-unsaved-idea-error role="alert" hidden>Unable to save the Idea. It remains open.</p><div class="popup-actions"><button class="button-control" data-unsaved-idea-save type="button">Save</button><button class="button-control" data-unsaved-idea-discard type="button">Close Without Saving</button><button class="button-control" data-unsaved-idea-cancel type="button">Cancel</button></div>`;
+		this.unsavedIdeaPopup.SetBodyHtml(body);
+		this.unsavedIdeaPopup.Open();
+		const save = document.querySelector<HTMLButtonElement>('.popup-overlay:not([hidden]) [data-unsaved-idea-save]');
+		save?.focus();
+	}
+
+	// Applies the reader's save, discard, or cancel decision for an unsaved Idea.
+	private async HandleUnsavedIdeaClickAsync(event: MouseEvent): Promise<void>
+	{
+		const target = event.target as HTMLElement | null;
+		const save = target?.closest<HTMLButtonElement>("[data-unsaved-idea-save]") ?? null;
+		const discard = target?.closest<HTMLButtonElement>("[data-unsaved-idea-discard]") ?? null;
+		const cancel = target?.closest<HTMLButtonElement>("[data-unsaved-idea-cancel]") ?? null;
+		const pendingKey = this.pendingUnsavedIdeaKey;
+
+		if (save !== null && pendingKey !== null)
+		{
+			const buttons = Array.from(save.closest(".popup-actions")?.querySelectorAll<HTMLButtonElement>("button") ?? []);
+			const error = document.querySelector<HTMLElement>('.popup-overlay:not([hidden]) [data-unsaved-idea-error]');
+
+			for (const button of buttons) button.disabled = true;
+			if (error !== null) error.hidden = true;
+
+			const saved = await this.ideaController.SaveAsync();
+
+			if (saved)
+			{
+				const savedDraft = this.ideas.GetDraft();
+				const savedKey = savedDraft?.ideaId ?? pendingKey;
+				this.ideaController.CloseTab(savedKey);
+				this.unsavedIdeaPopup.Close();
+				this.SelectAvailableDocument();
+			}
+			else
+			{
+				for (const button of buttons) button.disabled = false;
+				if (error !== null) error.hidden = false;
+				save.focus();
+			}
+		}
+		else if (discard !== null && pendingKey !== null)
+		{
+			this.ideaController.CloseTab(pendingKey);
+			this.unsavedIdeaPopup.Close();
+			this.SelectAvailableDocument();
+		}
+		else if (cancel !== null)
+		{
+			this.unsavedIdeaPopup.Close();
+		}
+	}
+
+	// Clears transient close state whenever the prompt is dismissed.
+	private HandleUnsavedIdeaPopupClosed(): void
+	{
+		this.pendingUnsavedIdeaKey = null;
 	}
 
 	private async CloseActiveDreamAsync(): Promise<void>
@@ -481,28 +829,91 @@ export class WorkspacePanel
 		this.SelectAvailableDocument();
 	}
 
-	private async DeleteDreamAsync(): Promise<void>
+	private ConfirmDreamDelete(trigger: HTMLElement): void
 	{
 		const dream = this.dreams.GetActiveDream();
-		if (dream !== null && window.confirm(`Delete “${dream.title || "Untitled"}”?`))
+
+		if (dream !== null)
 		{
-			await this.dreamController.DeleteAsync();
-			this.SelectAvailableDocument();
+			this.deleteConfirmation.Open(
+				"Dream",
+				dream.title,
+				"The Dream will be moved to Chora Trash so it can be recovered.",
+				trigger,
+				async (): Promise<boolean> =>
+			{
+				const deleted = await this.dreamController.DeleteAsync();
+				if (deleted) this.SelectAvailableDocument();
+
+				return deleted;
+			});
 		}
 	}
 
-	private async RenameDreamAsync(dreamId: string): Promise<void>
+	// Confirms with the reader before deleting the active Idea.
+	private ConfirmIdeaDelete(trigger: HTMLElement): void
+	{
+		const draft = this.ideas.GetDraft();
+
+		if (draft !== null && this.ideas.HasIdea(draft.ideaId))
+		{
+			this.deleteConfirmation.Open(
+				"Idea",
+				draft.title,
+				"This permanently deletes the Idea. Its connected Signals will remain available.",
+				trigger,
+				async (): Promise<boolean> =>
+				{
+					const deleted = await this.ideaController.DeleteAsync();
+					if (deleted) this.SelectAvailableDocument();
+
+					return deleted;
+				});
+		}
+	}
+
+	private OpenDreamRenamePopup(dreamId: string): void
 	{
 		const dream = this.dreams.GetCatalogue().find((candidate) => candidate.id === dreamId);
 		if (dream === undefined) return;
-		const title = window.prompt("Dream name", dream.title);
-		if (title !== null)
+		this.renamingDreamId = dreamId;
+		this.activeKind = "dream";
+		this.dreamController.Open(dreamId);
+		this.dreamRenamePopup.SetBodyHtml(`<form class="dream-rename-form" data-workspace-dream-rename-form><label class="dream-field dream-settings-title"><span>Dream Name</span><input data-workspace-dream-title value="${EscapeHtml(dream.title)}" placeholder="Untitled Dream"></label><p class="dream-rename-error" data-workspace-dream-rename-error role="alert" hidden>Unable to save the Dream. Your new name has not been saved.</p><div class="dream-rename-actions"><button class="button-control" data-workspace-dream-rename-save type="submit">Save</button></div></form>`);
+		this.dreamRenamePopup.Open();
+		const input = document.querySelector<HTMLInputElement>('.popup-overlay:not([hidden]) [data-workspace-dream-title]');
+		input?.focus();
+		input?.select();
+	}
+
+	private async HandleDreamRenameSubmitAsync(event: Event): Promise<void>
+	{
+		const form = event.target instanceof HTMLFormElement && event.target.matches("[data-workspace-dream-rename-form]") ? event.target : null;
+		if (form === null || this.renamingDreamId === null) return;
+		event.preventDefault();
+		const input = form.querySelector<HTMLInputElement>("[data-workspace-dream-title]");
+		const button = form.querySelector<HTMLButtonElement>("[data-workspace-dream-rename-save]");
+		const error = form.querySelector<HTMLElement>("[data-workspace-dream-rename-error]");
+		if (input === null || button === null || error === null) return;
+
+		const title = input.value.trim();
+		input.value = title;
+		button.disabled = true;
+		error.hidden = true;
+		this.dreamController.Open(this.renamingDreamId);
+		this.dreamController.UpdateTitle(title);
+		await this.dreamController.SaveAsync();
+
+		if (this.dreams.GetSaveState() === "error")
 		{
-			this.activeKind = "dream";
-			this.dreamController.Open(dreamId);
-			this.dreamController.UpdateTitle(title);
-			await this.dreamController.SaveAsync();
+			button.disabled = false;
+			error.hidden = false;
+			input.focus();
+			return;
 		}
+
+		this.renamingDreamId = null;
+		this.dreamRenamePopup.Close();
 	}
 
 	private SelectAvailableDocument(): void
@@ -525,9 +936,12 @@ export class WorkspacePanel
 		return query.length === 0 || this.Normalize(`${idea.title} ${idea.content}`).includes(query);
 	}
 
-	private MatchesDream(dream: Dream, query: string): boolean
+	private ContainsSignal(idea: IdeaRecord, reference: IdeaSignalReference): boolean
 	{
-		return query.length === 0 || this.Normalize(`${dream.title} ${dream.dialogue ?? ""} ${this.FormatSourceRange(dream)}`).includes(query);
+		const references = idea.originSignal === null
+			? [...idea.relatedSignals]
+			: [idea.originSignal, ...idea.relatedSignals];
+		return references.some((candidate) => candidate.signalId === reference.signalId);
 	}
 
 	private Normalize(value: string): string
@@ -535,10 +949,15 @@ export class WorkspacePanel
 		return value.trim().toLocaleLowerCase();
 	}
 
-	private FormatSourceRange(dream: Dream): string
+	private FormatSourceRange(dream: DreamView): string
 	{
-		const start = dream.source.locatorStart?.value;
-		const end = dream.source.locatorEnd?.value;
+		const document = this.library.GetText();
+		const start = document?.id === dream.workId
+			? document.ResolveCitation(dream.source.start)?.value
+			: undefined;
+		const end = document?.id === dream.workId
+			? document.ResolveCitation(dream.source.end)?.value
+			: undefined;
 		if (start !== undefined && end !== undefined && start !== end) return `${start}–${end}`;
 		return start ?? end ?? "source";
 	}

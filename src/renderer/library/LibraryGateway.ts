@@ -1,5 +1,5 @@
-import type { LibraryText, LibraryTextSummary, SourceNotice } from "../../shared/library/LibraryTypes.js";
-import type { SelectionAction } from "../../shared/library/SelectionTypes.js";
+import { TextDocument, type TextDocumentSnapshot, type LibraryTextSummary, type SourceNotice } from "../../shared/library/LibraryTypes.js";
+import type { SelectionAction } from "../../shared/text/TextSelection.js";
 import type { ApiSubscription } from "../../shared/contracts/ChoraApi.js";
 
 // Stateless IPC client for the Library use cases exposed by the main process.
@@ -12,9 +12,12 @@ export class LibraryGateway
 	}
 
 	// Loads one text by id for reading.
-	public LoadAsync(textId: string): Promise<LibraryText>
+	public async LoadAsync(textId: string): Promise<TextDocument>
 	{
-		return window.chora.LoadLibraryText(textId);
+		const snapshot = await window.chora.LoadLibraryText(textId);
+		const document = TextDocument.FromSnapshot(snapshot);
+
+		return document;
 	}
 
 	// Loads the source attribution for a text.
@@ -24,9 +27,9 @@ export class LibraryGateway
 	}
 
 	// Shows the native context menu for a passage selection.
-	public ShowSelectionContextMenuAsync(): Promise<SelectionAction>
+	public ShowSelectionContextMenuAsync(canAddSignal: boolean): Promise<SelectionAction>
 	{
-		return window.chora.ShowSelectionContextMenu();
+		return window.chora.ShowSelectionContextMenu(canAddSignal);
 	}
 
 	// Copies the given text to the operating system clipboard.
@@ -48,8 +51,14 @@ export class LibraryGateway
 	}
 
 	// Subscribes to an externally supplied text being loaded outside the Library catalogue.
-	public SubscribeToExternalText(handler: (text: LibraryText) => void): ApiSubscription
+	public SubscribeToExternalText(handler: (text: TextDocument) => void): ApiSubscription
 	{
-		return window.chora.SubscribeExternalTextLoaded(handler);
+		function HandleSnapshot(snapshot: TextDocumentSnapshot): void
+		{
+			const document = TextDocument.FromSnapshot(snapshot);
+			handler(document);
+		}
+
+		return window.chora.SubscribeExternalTextLoaded(HandleSnapshot);
 	}
 }

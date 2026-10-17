@@ -1,5 +1,4 @@
 import { Menu } from "electron";
-import { ChatModule } from "../chat/ChatModule.js";
 import { DreamModule } from "../dreams/DreamModule.js";
 import { LibraryModule } from "../library/LibraryModule.js";
 import { IdeaModule } from "../ideas/IdeaModule.js";
@@ -8,6 +7,7 @@ import { LoadEnvironmentFiles } from "./Environment.js";
 import { ChoraWindowManager } from "./WindowManager.js";
 import { LookupService } from "../library/LookupService.js";
 import { LookupIpcController } from "../library/LookupIpcController.js";
+import { SignalModule } from "../signals/SignalModule.js";
 
 // Composes, starts, and stops Chora's main-process feature modules.
 export class ChoraApplication
@@ -18,22 +18,20 @@ export class ChoraApplication
 	private readonly lookup = new LookupIpcController(this.lookupService, this.windows);
 // Owns access to the bundled Library and its IPC boundary.
 	private readonly library = new LibraryModule();
+	private readonly signals: SignalModule;
 // Owns Dream persistence for this application run.
 	private readonly dreams: DreamModule;
 // Owns work-scoped Signal-grounded Ideas.
 	private readonly ideas: IdeaModule;
-// Owns chat session state and its IPC boundary.
-	private readonly chat: ChatModule;
 	// Owns the application-level startup and shutdown transition.
 	private lifecycle: "stopped" | "starting" | "started" = "stopped";
 
 	// Creates the application from its operating-system-owned documents path.
 	public constructor(documentsPath: string)
 	{
-		this.dreams = new DreamModule(documentsPath);
-		const dreamService = this.dreams.GetService();
-		this.ideas = new IdeaModule(documentsPath, dreamService);
-		this.chat = new ChatModule(this.library.GetService(), documentsPath);
+		this.signals = new SignalModule(documentsPath, this.library.GetService());
+		this.dreams = new DreamModule(documentsPath, this.signals.GetLibrary());
+		this.ideas = new IdeaModule(documentsPath, this.signals.GetLibrary());
 	}
 
 	// Loads configuration, starts modules, opens the window, and builds the application menu.
@@ -94,18 +92,18 @@ export class ChoraApplication
 	private StartModules(): void
 	{
 		this.library.Start();
+		this.signals.Start();
 		this.lookup.Register();
 		this.ideas.Start();
 		this.dreams.Start();
-		this.chat.Start();
 	}
 
 	private StopModules(): void
 	{
 		this.lookup.Unregister();
-		this.chat.Stop();
 		this.dreams.Stop();
 		this.ideas.Stop();
+		this.signals.Stop();
 		this.library.Stop();
 	}
 }

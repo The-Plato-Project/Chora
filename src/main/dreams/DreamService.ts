@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Dream } from "../../shared/dreams/DreamTypes.js";
+import type { DreamSnapshot } from "../../shared/dreams/DreamTypes.js";
 import { DreamLibrary } from "./DreamLibrary.js";
 
 // Coordinates Dream use cases through the reader-owned DreamLibrary aggregate.
@@ -11,7 +11,7 @@ export class DreamService
 	}
 
 	// Lists immutable Dream records for renderer IPC.
-	public ListAsync(): Promise<Dream[]>
+	public ListAsync(): Promise<DreamSnapshot[]>
 	{
 		const dreams = this.library.ListAsync();
 
@@ -19,7 +19,7 @@ export class DreamService
 	}
 
 	// Saves an IPC record through domain validation and normalization.
-	public SaveAsync(dream: Dream): Promise<Dream>
+	public SaveAsync(dream: DreamSnapshot): Promise<DreamSnapshot>
 	{
 		const saved = this.library.SaveAsync(dream);
 

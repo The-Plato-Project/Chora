@@ -1,6 +1,7 @@
-import type { ModelDeltaHandler, ModelProvider, ModelRequest, ModelResponse } from "../../shared/chat/ModelTypes.js";
+import type { ModelDeltaHandler, ModelProvider, ModelRequest, ModelResponse } from "../../shared/models/ModelTypes.js";
 import { Errors } from "../diagnostics/MainErrorManager.js";
 import { CreateProviderError, CreateResponseError, TranslateProviderError } from "./ModelProviderError.js";
+import { LinkModelRequestAbort } from "./ModelRequestAbort.js";
 import { DefaultKimiBaseUrl, DefaultKimiMaxCompletionTokens, GetOptionalPositiveIntegerValue, GetOptionalValue, GetRequiredValue } from "./ModelProviderSettings.js";
 
 interface KimiMessage
@@ -247,13 +248,6 @@ function BuildBody(request: ModelRequest, model: string, maxCompletionTokens: nu
 		role: "system",
 		content: request.systemPrompt
 	}];
-	const contextMessage: KimiMessage = {
-		role: "system",
-		content: JSON.stringify(request.context, null, 2)
-	};
-
-	messages.push(contextMessage);
-
 	for (const message of request.history)
 	{
 		const historyMessage: KimiMessage = {
@@ -436,7 +430,7 @@ export class KimiModelProvider implements ModelProvider
 		this.modelId = modelId;
 	}
 
-	public async CompleteAsync(request: ModelRequest, onDelta?: ModelDeltaHandler): Promise<ModelResponse>
+	public async CompleteAsync(request: ModelRequest, onDelta?: ModelDeltaHandler, signal?: AbortSignal): Promise<ModelResponse>
 	{
 		let result: ModelResponse;
 
@@ -446,7 +440,7 @@ export class KimiModelProvider implements ModelProvider
 		{
 			try
 			{
-				result = await this.SendAsync(request, onDelta);
+				result = await this.SendAsync(request, onDelta, signal);
 			}
 			catch (error)
 			{
@@ -463,7 +457,7 @@ export class KimiModelProvider implements ModelProvider
 		return result;
 	}
 
-	private async SendAsync(request: ModelRequest, onDelta?: ModelDeltaHandler): Promise<ModelResponse>
+	private async SendAsync(request: ModelRequest, onDelta?: ModelDeltaHandler, signal?: AbortSignal): Promise<ModelResponse>
 	{
 		const apiKey = GetRequiredValue(["KIMI_API_KEY", "MOONSHOT_API_KEY"], "KIMI_API_KEY");
 		const configuredModel = GetRequiredValue(["KIMI_MODEL", "MODEL_NAME"], "KIMI_MODEL");
@@ -480,11 +474,12 @@ export class KimiModelProvider implements ModelProvider
 			requestNumber,
 			time: new Date().toISOString(),
 			model,
-			messageCount: request.history.length + 3,
+			messageCount: request.history.length + 2,
 			maxCompletionTokens,
 			thinking: DisabledThinking.type
 		});
 		const controller = new AbortController();
+		const unlinkAbort = LinkModelRequestAbort(controller, signal);
 		const timeout = setTimeout(function AbortRequest()
 		{
 			controller.abort();
@@ -522,6 +517,7 @@ export class KimiModelProvider implements ModelProvider
 		finally
 		{
 			clearTimeout(timeout);
+			unlinkAbort();
 		}
 
 		return result;

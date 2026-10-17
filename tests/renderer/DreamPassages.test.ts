@@ -3,8 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { DreamStore } from "../../src/renderer/dreams/DreamStore.js";
 import { SessionStore } from "../../src/renderer/core/session/SessionStore.js";
-import type { LibraryText } from "../../src/shared/library/LibraryTypes.js";
-import type { Dream } from "../../src/shared/dreams/DreamTypes.js";
+import type { TextDocument } from "../../src/shared/library/LibraryTypes.js";
+import type { DreamView } from "../../src/renderer/dreams/DreamView.js";
 import { DreamPanel } from "../../src/renderer/dreams/DreamPanel.js";
 import { DreamPassagePanel } from "../../src/renderer/dreams/DreamPassagePanel.js";
 import { DreamController } from "../../src/renderer/dreams/DreamController.js";
@@ -17,31 +17,33 @@ import { ChoraEventBus } from "../../src/renderer/core/events/ChoraEventBus.js";
 import type { ChoraEvents } from "../../src/renderer/core/events/ChoraEvents.js";
 import { ErrorManager } from "../../src/renderer/core/diagnostics/RendererErrorManager.js";
 import { ReadingSettingsStore } from "../../src/renderer/core/settings/ReadingSettingsStore.js";
+import { IdeaStore } from "../../src/renderer/ideas/IdeaStore.js";
+import { SignalStore } from "../../src/renderer/signals/SignalStore.js";
+import type { IdeaRecord } from "../../src/shared/ideas/IdeaTypes.js";
+import type { SignalRecord } from "../../src/shared/signals/SignalTypes.js";
+import { DocumentIcon, IdeaIcon } from "../../src/renderer/ui/Icons.js";
 
 // A passage split across segments followed by two further passages.
-const text: LibraryText = {
+const text: TextDocument = {
 	id: "republic", title: "Republic", urn: null, titleGreek: null, author: "Plato", language: "grc",
 	edition: { editor: null, title: null, volume: null, publisher: null, publicationPlace: null, publicationDate: null },
 	provenance: { repository: "test", commit: "test", sourceFile: "test", license: "test" },
 	segments: [
-		{ key: "s1", locator: { scheme: "Stephanus", value: "340a" }, text: "abcdef", speaker: null, blockKind: "speech" },
-		{ key: "s2", locator: { scheme: "Stephanus", value: "340a" }, text: "ghijkl", speaker: null, blockKind: "speech" },
-		{ key: "s3", locator: { scheme: "Stephanus", value: "340b" }, text: "mnopqr", speaker: null, blockKind: "speech" },
-		{ key: "s4", locator: { scheme: "Stephanus", value: "341c" }, text: "stuvwx", speaker: null, blockKind: "speech" }
+		{ key: "s1", citation: { system: "stephanus", value: "340a" }, division: { type: "book", label: "1" }, text: "abcdef" },
+		{ key: "s2", citation: { system: "stephanus", value: "340a" }, division: { type: "book", label: "1" }, text: "ghijkl" },
+		{ key: "s3", citation: { system: "stephanus", value: "340b" }, division: { type: "book", label: "1" }, text: "mnopqr" },
+		{ key: "s4", citation: { system: "stephanus", value: "341c" }, division: { type: "book", label: "1" }, text: "stuvwx" }
 	]
 };
 
-// Creates a Dream spanning all three passages without any signals.
-function CreateDream(): Dream
+// Creates a DreamView spanning all three passages without any signals.
+function CreateDream(): DreamView
 {
-	const dream: Dream = {
-		id: "dream", workId: text.id, dialogue: text.title, title: "Attention", signals: [], reflection: "",
+	const dream: DreamView = {
+		id: "dream", workId: text.id, dialogue: text.title, title: "Attention", signalIds: [], signals: [], reflection: "", synopticView: "",
 		linkedDreamIds: [], createdAt: "2026-09-07", updatedAt: "2026-09-07",
 		source: {
-			documentId: text.id, start: { segmentKey: "s1", offset: 1 }, end: { segmentKey: "s4", offset: 3 },
-			selectedText: "bcdef ghijkl mnopqr stu", locatorStart: { scheme: "Stephanus", value: "340a" },
-			locatorEnd: { scheme: "Stephanus", value: "341c" }, sourceRefs: ["s1", "s2", "s3", "s4"], startSourceRef: "s1", endSourceRef: "s4",
-			division: { kind: "book", value: "1" }
+			documentId: text.id, start: { segmentKey: "s1", offset: 1 }, end: { segmentKey: "s4", offset: 3 }
 		}
 	};
 	return dream;
@@ -64,7 +66,7 @@ describe("Dream passage matching", function PassageTests()
 		documentText.segments[0].text = "word word";
 		for (const segment of documentText.segments)
 		{
-			segment.division = { kind: "book", value: segment.key === "s4" ? "2" : "1" };
+			segment.division = { type: "book", label: segment.key === "s4" ? "2" : "1" };
 		}
 		library.Open(documentText, {
 			source: "Perseus Digital Library", license: "CC BY-SA", editor: null, editionTitle: null, repository: "test"
@@ -202,6 +204,11 @@ describe("Dream passage matching", function PassageTests()
 		store.SetCatalogue([dream, other]);
 		const counts = store.GetPassageCounts(text);
 		expect([...counts]).toEqual([["s1", 1], ["s3", 1], ["s4", 1]]);
+		expect([...store.GetPassageDreamTitles(text)]).toEqual([
+			["s1", ["Attention"]],
+			["s3", ["Attention"]],
+			["s4", ["Attention"]]
+		]);
 		store.SetPassageFilter({ workId: text.id, segmentKey: "s3", label: "Republic · 340b" });
 		expect(store.GetVisibleCatalogue("", text)).toEqual([dream]);
 		expect(store.GetVisibleCatalogue("attention", text)).toEqual([dream]);
@@ -316,13 +323,44 @@ describe("Dream passage matching", function PassageTests()
 			return [...catalogue];
 		});
 		const controller = new DreamController(events, errors, library, store, gateway);
+		const ideaStore = new IdeaStore(new SessionStore());
+		const signalStore = new SignalStore();
+		const ideaSignal: SignalRecord = {
+			id: "idea-signal",
+			workId: text.id,
+			sourceRef: "s3",
+			selection: {
+				documentId: text.id,
+				start: { segmentKey: "s3", offset: 1 },
+				end: { segmentKey: "s3", offset: 4 },
+				selectedText: "nop",
+				locatorStart: { scheme: "Stephanus", value: "340b" },
+				locatorEnd: { scheme: "Stephanus", value: "340b" }
+			},
+			text: "nop",
+			description: "",
+			createdAt: "2026-09-07",
+			updatedAt: "2026-09-07"
+		};
+		const idea: IdeaRecord = {
+			id: "idea",
+			workId: text.id,
+			title: "Speech and Return",
+			content: "",
+			originSignal: { signalId: ideaSignal.id },
+			relatedSignals: [{ signalId: ideaSignal.id }],
+			createdAt: "2026-09-07",
+			updatedAt: "2026-09-07"
+		};
+		ideaStore.SetWork(text.id, [idea]);
+		signalStore.SetWork(text.id, [ideaSignal]);
 		const libraryGateway = new LibraryGateway();
 		const libraryController = new LibraryController(events, errors, library, libraryGateway);
 		const readingRoot = document.createElement("div");
 		const catalogueRoot = document.createElement("div");
 		document.body.append(readingRoot, catalogueRoot);
 		const documentPanel = new DocumentPanel(readingRoot, events, library, libraryController, new ReadingSettingsStore());
-		const passagePanel = new DreamPassagePanel(readingRoot, events, library, controller);
+		const passagePanel = new DreamPassagePanel(readingRoot, events, library, controller, ideaStore, signalStore);
 		const cataloguePanel = new DreamPanel(catalogueRoot, events, store, controller, library, "catalogue");
 		try
 		{
@@ -337,7 +375,12 @@ describe("Dream passage matching", function PassageTests()
 			expect(catalogueRoot.querySelector("[data-dream-id]")?.getAttribute("aria-level")).toBe("3");
 			readingRoot.scrollTop = 120;
 			const button = readingRoot.querySelector<HTMLButtonElement>('[data-passage-dreams="s3"]');
-			expect(button?.getAttribute("aria-label")).toBe("1 Dream for 340b");
+			expect(button?.getAttribute("aria-label")).toBe("1 Dream for 340b:\nAttention");
+			expect(button?.title).toBe("1 Dream for 340b:\nAttention");
+			expect(button?.innerHTML).toBe(DocumentIcon);
+			const ideaButton = readingRoot.querySelector<HTMLButtonElement>('[data-passage-ideas="s3"]');
+			expect(ideaButton?.getAttribute("aria-label")).toBe("1 Idea for 340b:\nSpeech and Return");
+			expect(ideaButton?.innerHTML).toBe(IdeaIcon);
 			button?.click();
 			await vi.waitFor(function FilterRendered(): void
 			{

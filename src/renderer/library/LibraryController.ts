@@ -1,6 +1,5 @@
-import type { TextSelection } from "../../shared/library/SelectionTypes.js";
-import type { LibraryText, LibraryTextSummary } from "../../shared/library/LibraryTypes.js";
-import { ReconstructSelection } from "../../shared/library/SelectionService.js";
+import type { TextSelection } from "../../shared/text/TextSelection.js";
+import type { TextDocument, LibraryTextSummary } from "../../shared/library/LibraryTypes.js";
 import { ErrorManager } from "../core/diagnostics/RendererErrorManager.js";
 import { ChoraEventBus } from "../core/events/ChoraEventBus.js";
 import type { ChoraEvents } from "../core/events/ChoraEvents.js";
@@ -12,6 +11,7 @@ export class LibraryController
 {
 	// Local storage key for the reader's last-opened work.
 	private static readonly LastWorkKey = "chora:last-work";
+	private activeDocumentKind: "dream" | "idea" | null = null;
 
 	// Creates the controller and subscribes to the application events it coordinates.
 	public constructor(
@@ -21,6 +21,7 @@ export class LibraryController
 		private readonly gateway: LibraryGateway)
 	{
 		this.events.Subscribe("library.text-open-requested", this.HandleTextOpenRequested.bind(this));
+		this.events.Subscribe("workspace.document-selected", this.HandleDocumentSelected.bind(this));
 	}
 
 	// Loads the Library catalogue and opens the reader's preferred work.
@@ -68,7 +69,7 @@ export class LibraryController
 	}
 
 	// Opens a text supplied directly by the main process, bypassing the Library catalogue lookup.
-	public OpenExternal(text: LibraryText): void
+	public OpenExternal(text: TextDocument): void
 	{
 		this.store.Open(text, null);
 		this.SetFocusSegment(text.segments[0]?.key ?? "");
@@ -85,7 +86,8 @@ export class LibraryController
 		{
 			try
 			{
-				canonical = ReconstructSelection(snapshot.text, selection);
+				snapshot.text.ValidateSelection(selection);
+				canonical = snapshot.text.CreateSelection(selection.start, selection.end);
 			}
 			catch (error)
 			{
@@ -106,7 +108,9 @@ export class LibraryController
 		const segment = text?.segments.find((item) => item.key === segmentKey);
 		if (text !== null && text !== undefined && segment !== undefined)
 		{
-			const focus: TextSelection = { documentId: text.id, start: { segmentKey, offset: 0 }, end: { segmentKey, offset: segment.text.length }, selectedText: segment.text, locatorStart: segment.locator, locatorEnd: segment.locator };
+			const focus = text.CreateSelection(
+				{ segmentKey, offset: 0 },
+				{ segmentKey, offset: segment.text.length });
 			this.store.SetFocus(focus);
 			void this.events.PublishAsync("library.focus-changed", { textId: text.id, segmentKey });
 		}
@@ -115,12 +119,22 @@ export class LibraryController
 	// Shows the selection context menu and routes the reader's choice to its workflow.
 	public async HandleSelectionActionAsync(selection: TextSelection): Promise<void>
 	{
-		const action = await this.gateway.ShowSelectionContextMenuAsync();
+		const action = await this.gateway.ShowSelectionContextMenuAsync(this.activeDocumentKind !== null);
 		if (action === "create-dream") await this.events.PublishAsync("dream.create-requested", { selection });
 		if (action === "add-to-dream") await this.events.PublishAsync("dream.source-extend-requested", { selection });
-		if (action === "add-dream-signal") await this.events.PublishAsync("dream.signal-add-requested", { selection });
-		if (action === "copy") await this.gateway.CopyAsync(selection.selectedText);
-		if (action === "lookup") await this.gateway.LookUpAsync(selection.selectedText);
+		if (action === "add-signal") await this.events.PublishAsync("signal.add-requested", { selection });
+		const document = this.store.GetText();
+		const selectedText = document?.id === selection.documentId
+			? document.ReconstructText(selection)
+			: "";
+		if (action === "copy") await this.gateway.CopyAsync(selectedText);
+		if (action === "lookup") await this.gateway.LookUpAsync(selectedText);
+	}
+
+	// Tracks which document may receive the generic Add Signal action.
+	private HandleDocumentSelected(event: ChoraEvents["workspace.document-selected"]): void
+	{
+		this.activeDocumentKind = event.kind;
 	}
 
 	// Routes a text-open-requested application event to the open workflow.

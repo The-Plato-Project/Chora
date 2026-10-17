@@ -23,2537 +23,2175 @@
 	"segments": [
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00000",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "225a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. τί γὰρ τὸ φιλοκερδές; τί ποτέ ἐστιν, καὶ τίνες οἱ φιλοκερδεῖς;",
-			"blockKind": "narration"
+			"text": "ΣΩ. τί γὰρ τὸ φιλοκερδές; τί ποτέ ἐστιν, καὶ τίνες οἱ φιλοκερδεῖς;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00001",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "225a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ἐμοὶ μὲν δοκοῦσιν οἳ ἂν κερδαίνειν ἀξιῶσιν ἀπὸ τῶν μηδενὸς ἀξίων.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ἐμοὶ μὲν δοκοῦσιν οἳ ἂν κερδαίνειν ἀξιῶσιν ἀπὸ τῶν μηδενὸς ἀξίων."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00002",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "225a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. πότερον οὖν σοι δοκοῦσιν γιγνώσκοντες ὅτι οὐδενός ἐστιν ἄξια, ἢ ἀγνοοῦντες; εἰ γὰρ ἀγνοοῦντες, ἀνοήτους λέγεις τοὺς φιλοκερδεῖς.",
-			"blockKind": "narration"
+			"text": "ΣΩ. πότερον οὖν σοι δοκοῦσιν γιγνώσκοντες ὅτι οὐδενός ἐστιν ἄξια, ἢ ἀγνοοῦντες; εἰ γὰρ ἀγνοοῦντες, ἀνοήτους λέγεις τοὺς φιλοκερδεῖς."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00003",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "225a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ἀλλʼ οὐκ ἀνοήτους λέγω, ἀλλὰ πανούργους καὶ",
-			"blockKind": "narration"
+			"text": "ΕΤ. ἀλλʼ οὐκ ἀνοήτους λέγω, ἀλλὰ πανούργους καὶ"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00004",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "225b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "πονηροὺς καὶ ἥττους τοῦ κέρδους, γιγνώσκοντας ὅτι οὐδενὸς ἄξιά ἐστιν ἀφʼ ὧν τολμῶσι κερδαίνειν, ὅμως τολμᾶν φιλοκερδεῖν διʼ ἀναισχυντίαν.",
-			"blockKind": "narration"
+			"text": "πονηροὺς καὶ ἥττους τοῦ κέρδους, γιγνώσκοντας ὅτι οὐδενὸς ἄξιά ἐστιν ἀφʼ ὧν τολμῶσι κερδαίνειν, ὅμως τολμᾶν φιλοκερδεῖν διʼ ἀναισχυντίαν."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00005",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "225b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἆρʼ οὖν τοιόνδε λέγεις τὸν φιλοκερδῆ, οἷον ἐὰν φυτεύων γεωργὸς ἀνὴρ καὶ γιγνώσκων ὅτι οὐδενὸς ἄξιον τὸ φυτόν, ἀξιοῖ ἀπὸ τούτου ἐκτραφέντος κερδαίνειν; ἆρα τοιοῦτον αὐτὸν λέγεις;",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἆρʼ οὖν τοιόνδε λέγεις τὸν φιλοκερδῆ, οἷον ἐὰν φυτεύων γεωργὸς ἀνὴρ καὶ γιγνώσκων ὅτι οὐδενὸς ἄξιον τὸ φυτόν, ἀξιοῖ ἀπὸ τούτου ἐκτραφέντος κερδαίνειν; ἆρα τοιοῦτον αὐτὸν λέγεις;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00006",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "225b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ἀπὸ παντὸς ὅ γε φιλοκερδής, ὦ Σώκρατες, οἴεται δεῖν κερδαίνειν.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ἀπὸ παντὸς ὅ γε φιλοκερδής, ὦ Σώκρατες, οἴεται δεῖν κερδαίνειν."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00007",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "225b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. μή μοι οὕτως εἰκῇ, ὥσπερ τι ἠδικημένος ὑπό τινος,",
-			"blockKind": "narration"
+			"text": "ΣΩ. μή μοι οὕτως εἰκῇ, ὥσπερ τι ἠδικημένος ὑπό τινος,"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00008",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "225c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ἀλλὰ προσέχων ἐμοὶ τὸν νοῦν ἀπόκριναι, ὥσπερ ἂν εἰ ἐξ ἀρχῆς πάλιν ἠρώτων· οὐχὶ ὁμολογεῖς τὸν φιλοκερδῆ ἐπιστήμονα εἶναι περὶ τῆς ἀξίας τούτου ὅθεν κερδαίνειν ἀξιοῖ;",
-			"blockKind": "narration"
+			"text": "ἀλλὰ προσέχων ἐμοὶ τὸν νοῦν ἀπόκριναι, ὥσπερ ἂν εἰ ἐξ ἀρχῆς πάλιν ἠρώτων· οὐχὶ ὁμολογεῖς τὸν φιλοκερδῆ ἐπιστήμονα εἶναι περὶ τῆς ἀξίας τούτου ὅθεν κερδαίνειν ἀξιοῖ;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00009",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "225c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ἔγωγε.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ἔγωγε."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00010",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "225c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. τίς οὖν ἐπιστήμων περὶ φυτῶν τῆς ἀξίας, ἐν ὁποίᾳ ἄξια φυτευθῆναι καὶ ὥρᾳ καὶ χώρᾳ; ἵνα τι καὶ ἡμεῖς τῶν σοφῶν ῥημάτων ἐμβάλωμεν, ὧν οἱ δεξιοὶ περὶ τὰς δίκας καλλιεποῦνται.",
-			"blockKind": "narration"
+			"text": "ΣΩ. τίς οὖν ἐπιστήμων περὶ φυτῶν τῆς ἀξίας, ἐν ὁποίᾳ ἄξια φυτευθῆναι καὶ ὥρᾳ καὶ χώρᾳ; ἵνα τι καὶ ἡμεῖς τῶν σοφῶν ῥημάτων ἐμβάλωμεν, ὧν οἱ δεξιοὶ περὶ τὰς δίκας καλλιεποῦνται."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00011",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "225d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ἐγὼ μὲν οἶμαι γεωργόν.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ἐγὼ μὲν οἶμαι γεωργόν."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00012",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "225d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. τὸ οὖν ἀξιοῦν κερδαίνειν ἄλλο τι λέγεις ἢ οἴεσθαι δεῖν κερδαίνειν;",
-			"blockKind": "narration"
+			"text": "ΣΩ. τὸ οὖν ἀξιοῦν κερδαίνειν ἄλλο τι λέγεις ἢ οἴεσθαι δεῖν κερδαίνειν;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00013",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "225d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. τοῦτο λέγω.",
-			"blockKind": "narration"
+			"text": "ΕΤ. τοῦτο λέγω."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00014",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "225d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. μὴ τοίνυν με ἐπιχείρει ἐξαπατᾶν, ἄνδρα πρεσβύτερον",
-			"blockKind": "narration"
+			"text": "ΣΩ. μὴ τοίνυν με ἐπιχείρει ἐξαπατᾶν, ἄνδρα πρεσβύτερον"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00015",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "226a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ἤδη οὕτω νέος ὤν, ἀποκρινόμενος ὥσπερ νυνδὴ ἃ οὐδʼ αὐτὸς οἴει, ἀλλʼ ὡς ἀληθῶς εἰπέ· ἆρʼ ἔστιν ὅντινα οἴει γεωργικὸν ἄνδρα γιγνόμενον, καὶ γιγνώσκοντα ὅτι οὐδενὸς ἄξιον φυτεύει τὸ φυτόν, οἴεσθαι ἀπὸ τούτου κερδαίνειν;",
-			"blockKind": "narration"
+			"text": "ἤδη οὕτω νέος ὤν, ἀποκρινόμενος ὥσπερ νυνδὴ ἃ οὐδʼ αὐτὸς οἴει, ἀλλʼ ὡς ἀληθῶς εἰπέ· ἆρʼ ἔστιν ὅντινα οἴει γεωργικὸν ἄνδρα γιγνόμενον, καὶ γιγνώσκοντα ὅτι οὐδενὸς ἄξιον φυτεύει τὸ φυτόν, οἴεσθαι ἀπὸ τούτου κερδαίνειν;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00016",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "226a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. μὰ Δίʼ οὐκ ἔγωγε.",
-			"blockKind": "narration"
+			"text": "ΕΤ. μὰ Δίʼ οὐκ ἔγωγε."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00017",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "226a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. τί δέ; ἱππικὸν ἄνδρα γιγνώσκοντα ὅτι οὐδενὸς ἄξια σιτία τῷ ἵππῳ παρέχει, ἀγνοεῖν αὐτὸν οἴει ὅτι τὸν ἵππον διαφθείρει;",
-			"blockKind": "narration"
+			"text": "ΣΩ. τί δέ; ἱππικὸν ἄνδρα γιγνώσκοντα ὅτι οὐδενὸς ἄξια σιτία τῷ ἵππῳ παρέχει, ἀγνοεῖν αὐτὸν οἴει ὅτι τὸν ἵππον διαφθείρει;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00018",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "226a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. οὐκ ἔγωγε.",
-			"blockKind": "narration"
+			"text": "ΕΤ. οὐκ ἔγωγε."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00019",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "226b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. οὐκ ἄρα οἴεταί γε ἀπὸ τούτων κερδαίνειν τῶν σιτίων τῶν μηδενὸς ἀξίων.",
-			"blockKind": "narration"
+			"text": "ΣΩ. οὐκ ἄρα οἴεταί γε ἀπὸ τούτων κερδαίνειν τῶν σιτίων τῶν μηδενὸς ἀξίων."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00020",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "226b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. οὐχί.",
-			"blockKind": "narration"
+			"text": "ΕΤ. οὐχί."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00021",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "226b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. τί δέ; κυβερνήτην μηδενὸς ἄξια ἱστία καὶ πηδάλια τῇ νηὶ παρεσκευασμένον ἀγνοεῖν οἴει ὅτι ζημιωθήσεται καὶ κινδυνεύσει καὶ αὐτὸς ἀπολέσθαι καὶ τὴν ναῦν ἀπολέσαι καὶ ἃ ἂν ἄγῃ πάντα;",
-			"blockKind": "narration"
+			"text": "ΣΩ. τί δέ; κυβερνήτην μηδενὸς ἄξια ἱστία καὶ πηδάλια τῇ νηὶ παρεσκευασμένον ἀγνοεῖν οἴει ὅτι ζημιωθήσεται καὶ κινδυνεύσει καὶ αὐτὸς ἀπολέσθαι καὶ τὴν ναῦν ἀπολέσαι καὶ ἃ ἂν ἄγῃ πάντα;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00022",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "226b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. οὐκ ἔγωγε.",
-			"blockKind": "narration"
+			"text": "ΕΤ. οὐκ ἔγωγε."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00023",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "226b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. οὐκ ἄρα οἴεταί γε κερδαίνειν ἀπὸ τῶν σκευῶν τῶν",
-			"blockKind": "narration"
+			"text": "ΣΩ. οὐκ ἄρα οἴεταί γε κερδαίνειν ἀπὸ τῶν σκευῶν τῶν"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00024",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "226c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "μηδενὸς ἀξίων.",
-			"blockKind": "narration"
+			"text": "μηδενὸς ἀξίων."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00025",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "226c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. οὐ γάρ.",
-			"blockKind": "narration"
+			"text": "ΕΤ. οὐ γάρ."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00026",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "226c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἀλλὰ στρατηγὸς γιγνώσκων ὅτι ἡ στρατιὰ αὐτῷ οὐδενὸς ἄξια ὅπλα ἔχει, οἴεται ἀπὸ τούτων κερδαίνειν καὶ ἀξιοῖ κερδαίνειν;",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἀλλὰ στρατηγὸς γιγνώσκων ὅτι ἡ στρατιὰ αὐτῷ οὐδενὸς ἄξια ὅπλα ἔχει, οἴεται ἀπὸ τούτων κερδαίνειν καὶ ἀξιοῖ κερδαίνειν;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00027",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "226c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. οὐδαμῶς.",
-			"blockKind": "narration"
+			"text": "ΕΤ. οὐδαμῶς."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00028",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "226c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἀλλʼ αὐλητὴς αὐλοὺς οὐδενὸς ἀξίους ἔχων ἢ κιθαριστὴς λύραν ἢ τοξότης τόξον ἢ ἄλλος ὁστισοῦν συλλήβδην τῶν δημιουργῶν ἢ τῶν ἄλλων τῶν ἐμφρόνων ἀνδρῶν μηδενὸς ἄξια ὄργανα ἢ ἄλλην παρασκευὴν ἡντιναοῦν ἔχων ἀπὸ τούτων οἴεται κερδαίνειν;",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἀλλʼ αὐλητὴς αὐλοὺς οὐδενὸς ἀξίους ἔχων ἢ κιθαριστὴς λύραν ἢ τοξότης τόξον ἢ ἄλλος ὁστισοῦν συλλήβδην τῶν δημιουργῶν ἢ τῶν ἄλλων τῶν ἐμφρόνων ἀνδρῶν μηδενὸς ἄξια ὄργανα ἢ ἄλλην παρασκευὴν ἡντιναοῦν ἔχων ἀπὸ τούτων οἴεται κερδαίνειν;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00029",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "226d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. οὔκουν φαίνεταί γε.",
-			"blockKind": "narration"
+			"text": "ΕΤ. οὔκουν φαίνεταί γε."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00030",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "226d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. τίνας οὖν ποτε λέγεις τοὺς φιλοκερδεῖς; οὐ γάρ που τούτους γε οὓς διεληλύθαμεν, ἀλλʼ οἵτινες γιγνώσκοντες τὰ οὐδενὸς ἄξια ἀπὸ τούτων οἴονται δεῖν κερδαίνειν· ἀλλʼ οὕτω μέν, ὦ θαυμάσιε, ὡς σὺ λέγεις, οὐκ ἔστʼ ἀνθρώπων οὐδεὶς φιλοκερδής.",
-			"blockKind": "narration"
+			"text": "ΣΩ. τίνας οὖν ποτε λέγεις τοὺς φιλοκερδεῖς; οὐ γάρ που τούτους γε οὓς διεληλύθαμεν, ἀλλʼ οἵτινες γιγνώσκοντες τὰ οὐδενὸς ἄξια ἀπὸ τούτων οἴονται δεῖν κερδαίνειν· ἀλλʼ οὕτω μέν, ὦ θαυμάσιε, ὡς σὺ λέγεις, οὐκ ἔστʼ ἀνθρώπων οὐδεὶς φιλοκερδής."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00031",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "226d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ἀλλʼ ἐγώ, ὦ Σώκρατες, βούλομαι λέγειν τούτους φιλοκερδεῖς εἶναι, οἳ ἑκάστοτε ὑπὸ ἀπληστίας καὶ πάνυ",
-			"blockKind": "narration"
+			"text": "ΕΤ. ἀλλʼ ἐγώ, ὦ Σώκρατες, βούλομαι λέγειν τούτους φιλοκερδεῖς εἶναι, οἳ ἑκάστοτε ὑπὸ ἀπληστίας καὶ πάνυ"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00032",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "226e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "σμικρὰ καὶ ὀλίγου ἄξια καὶ οὐδενὸς γλίχονται ὑπερφυῶς καὶ φιλοκερδοῦσιν.",
-			"blockKind": "narration"
+			"text": "σμικρὰ καὶ ὀλίγου ἄξια καὶ οὐδενὸς γλίχονται ὑπερφυῶς καὶ φιλοκερδοῦσιν."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00033",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "226e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. οὐ δήπου, ὦ βέλτιστε, γιγνώσκοντες ὅτι οὐδενὸς ἄξιά ἐστιν· τοῦτο μὲν γὰρ ἤδη ἡμᾶς αὐτοὺς τῷ λόγῳ ἐξηλέγξαμεν ὅτι ἀδύνατον.",
-			"blockKind": "narration"
+			"text": "ΣΩ. οὐ δήπου, ὦ βέλτιστε, γιγνώσκοντες ὅτι οὐδενὸς ἄξιά ἐστιν· τοῦτο μὲν γὰρ ἤδη ἡμᾶς αὐτοὺς τῷ λόγῳ ἐξηλέγξαμεν ὅτι ἀδύνατον."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00034",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "226e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ἔμοιγε δοκεῖ.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ἔμοιγε δοκεῖ."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00035",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "226e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. οὐκοῦν εἰ μὴ γιγνώσκοντες, δῆλον ὅτι ἀγνοοῦντες, οἰόμενοι δὲ τὰ οὐδενὸς ἄξια πολλοῦ ἄξια εἶναι.",
-			"blockKind": "narration"
+			"text": "ΣΩ. οὐκοῦν εἰ μὴ γιγνώσκοντες, δῆλον ὅτι ἀγνοοῦντες, οἰόμενοι δὲ τὰ οὐδενὸς ἄξια πολλοῦ ἄξια εἶναι."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00036",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "226e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. φαίνεται.",
-			"blockKind": "narration"
+			"text": "ΕΤ. φαίνεται."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00037",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "226e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἄλλο τι οὖν οἵ γε φιλοκερδεῖς φιλοῦσι τὸ κέρδος;",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἄλλο τι οὖν οἵ γε φιλοκερδεῖς φιλοῦσι τὸ κέρδος;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00038",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "226e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ναί.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ναί."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00039",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "226e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. κέρδος δὲ λέγεις ἐναντίον τῇ ζημίᾳ;",
-			"blockKind": "narration"
+			"text": "ΣΩ. κέρδος δὲ λέγεις ἐναντίον τῇ ζημίᾳ;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00040",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ἔγωγε.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ἔγωγε."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00041",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἔστιν οὖν ὅτῳ ἀγαθόν ἐστι ζημιοῦσθαι;",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἔστιν οὖν ὅτῳ ἀγαθόν ἐστι ζημιοῦσθαι;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00042",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. οὐδενί.",
-			"blockKind": "narration"
+			"text": "ΕΤ. οὐδενί."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00043",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἀλλὰ κακόν;",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἀλλὰ κακόν;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00044",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ναί.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ναί."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00045",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. βλάπτονται ὑπὸ τῆς ζημίας ἄρα ἄνθρωποι.",
-			"blockKind": "narration"
+			"text": "ΣΩ. βλάπτονται ὑπὸ τῆς ζημίας ἄρα ἄνθρωποι."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00046",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. βλάπτονται.",
-			"blockKind": "narration"
+			"text": "ΕΤ. βλάπτονται."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00047",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. κακὸν ἄρα ἡ ζημία.",
-			"blockKind": "narration"
+			"text": "ΣΩ. κακὸν ἄρα ἡ ζημία."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00048",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ναί.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ναί."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00049",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἐναντίον δὲ τῇ ζημίᾳ τὸ κέρδος.",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἐναντίον δὲ τῇ ζημίᾳ τὸ κέρδος."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00050",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ἐναντίον.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ἐναντίον."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00051",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἀγαθὸν ἄρα τὸ κέρδος.",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἀγαθὸν ἄρα τὸ κέρδος."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00052",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ναί.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ναί."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00053",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. τοὺς οὖν τὸ ἀγαθὸν φιλοῦντας φιλοκερδεῖς καλεῖς.",
-			"blockKind": "narration"
+			"text": "ΣΩ. τοὺς οὖν τὸ ἀγαθὸν φιλοῦντας φιλοκερδεῖς καλεῖς."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00054",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ἔοικεν.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ἔοικεν."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00055",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. οὐ μανικούς γε, ὦ ἑταῖρε, λέγεις τοὺς φιλοκερδεῖς. ἀλλὰ σὺ αὐτὸς πότερον φιλεῖς ὃ ἂν ἀγαθὸν ᾖ, ἢ οὐ φιλεῖς;",
-			"blockKind": "narration"
+			"text": "ΣΩ. οὐ μανικούς γε, ὦ ἑταῖρε, λέγεις τοὺς φιλοκερδεῖς. ἀλλὰ σὺ αὐτὸς πότερον φιλεῖς ὃ ἂν ἀγαθὸν ᾖ, ἢ οὐ φιλεῖς;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00056",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ἔγωγε.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ἔγωγε."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00057",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἔστι δέ τι ἀγαθόν, ὃ οὐ φιλεῖς, ἀλλὰ κακόν;",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἔστι δέ τι ἀγαθόν, ὃ οὐ φιλεῖς, ἀλλὰ κακόν;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00058",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. μὰ Δίʼ οὐκ ἔγωγε.",
-			"blockKind": "narration"
+			"text": "ΕΤ. μὰ Δίʼ οὐκ ἔγωγε."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00059",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἀλλὰ πάντα τὰ ἀγαθὰ ἴσως φιλεῖς.",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἀλλὰ πάντα τὰ ἀγαθὰ ἴσως φιλεῖς."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00060",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ναί.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ναί."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00061",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἐροῦ δὴ καὶ ἐμὲ εἰ οὐ καὶ ἐγώ· ὁμολογήσω γὰρ καὶ",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἐροῦ δὴ καὶ ἐμὲ εἰ οὐ καὶ ἐγώ· ὁμολογήσω γὰρ καὶ"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00062",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ἐγώ σοι φιλεῖν τἀγαθά. ἀλλὰ πρὸς ἐμοὶ καὶ σοὶ οἱ ἄλλοι ἄνθρωποι ἅπαντες οὐ δοκοῦσί σοι τἀγαθὰ φιλεῖν, τὰ δὲ κακὰ μισεῖν;",
-			"blockKind": "narration"
+			"text": "ἐγώ σοι φιλεῖν τἀγαθά. ἀλλὰ πρὸς ἐμοὶ καὶ σοὶ οἱ ἄλλοι ἄνθρωποι ἅπαντες οὐ δοκοῦσί σοι τἀγαθὰ φιλεῖν, τὰ δὲ κακὰ μισεῖν;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00063",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ἔμοιγε φαίνεται.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ἔμοιγε φαίνεται."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00064",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. τὸ δὲ κέρδος ἀγαθὸν ὡμολογήσαμεν;",
-			"blockKind": "narration"
+			"text": "ΣΩ. τὸ δὲ κέρδος ἀγαθὸν ὡμολογήσαμεν;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00065",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ναί.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ναί."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00066",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. πάντες αὖ φιλοκερδεῖς φαίνονται τοῦτον τὸν τρόπον· ὃν δὲ τὸ πρότερον ἐλέγομεν, οὐδεὶς ἦν φιλοκερδής. ποτέρῳ οὖν ἄν τις τῷ λόγῳ χρώμενος οὐκ ἂν ἐξαμαρτάνοι;",
-			"blockKind": "narration"
+			"text": "ΣΩ. πάντες αὖ φιλοκερδεῖς φαίνονται τοῦτον τὸν τρόπον· ὃν δὲ τὸ πρότερον ἐλέγομεν, οὐδεὶς ἦν φιλοκερδής. ποτέρῳ οὖν ἄν τις τῷ λόγῳ χρώμενος οὐκ ἂν ἐξαμαρτάνοι;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00067",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. εἴ τις, ὦ Σώκρατες οἶμαι ὀρθῶς λαμβάνοι τὸν",
-			"blockKind": "narration"
+			"text": "ΕΤ. εἴ τις, ὦ Σώκρατες οἶμαι ὀρθῶς λαμβάνοι τὸν"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00068",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "φιλοκερδῆ. ὀρθῶς δʼ ἐστὶ τοῦτον ἡγεῖσθαι φιλοκερδῆ, ὃς ἂν σπουδάζῃ ἐπὶ τούτοις καὶ ἀξιοῖ κερδαίνειν ἀπʼ αὐτῶν, ἀφʼ ὧν οἱ χρηστοὶ οὐ τολμῶσι κερδαίνειν.",
-			"blockKind": "narration"
+			"text": "φιλοκερδῆ. ὀρθῶς δʼ ἐστὶ τοῦτον ἡγεῖσθαι φιλοκερδῆ, ὃς ἂν σπουδάζῃ ἐπὶ τούτοις καὶ ἀξιοῖ κερδαίνειν ἀπʼ αὐτῶν, ἀφʼ ὧν οἱ χρηστοὶ οὐ τολμῶσι κερδαίνειν."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00069",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἀλλʼ ὁρᾷς, ὦ γλυκύτατε, τὸ κερδαίνειν ἄρτι ὡμολογήσαμεν εἶναι ὠφελεῖσθαι.",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἀλλʼ ὁρᾷς, ὦ γλυκύτατε, τὸ κερδαίνειν ἄρτι ὡμολογήσαμεν εἶναι ὠφελεῖσθαι."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00070",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. τί οὖν δὴ τοῦτο;",
-			"blockKind": "narration"
+			"text": "ΕΤ. τί οὖν δὴ τοῦτο;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00071",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ὅτι καὶ τόδε αὐτῷ προσωμολογήσαμεν, βούλεσθαι τὰ ἀγαθὰ πάντας καὶ ἀεί.",
-			"blockKind": "narration"
+			"text": "ΣΩ. ὅτι καὶ τόδε αὐτῷ προσωμολογήσαμεν, βούλεσθαι τὰ ἀγαθὰ πάντας καὶ ἀεί."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00072",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ναί.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ναί."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00073",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. οὐκοῦν καὶ οἱ ἀγαθοὶ πάντα τὰ κέρδη βούλονται ἔχειν, εἴπερ ἀγαθά γέ ἐστιν.",
-			"blockKind": "narration"
+			"text": "ΣΩ. οὐκοῦν καὶ οἱ ἀγαθοὶ πάντα τὰ κέρδη βούλονται ἔχειν, εἴπερ ἀγαθά γέ ἐστιν."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00074",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. οὐκ ἀφʼ ὧν γε μέλλουσιν, ὦ Σώκρατες, βλαβήσεσθαι τῶν κερδῶν.",
-			"blockKind": "narration"
+			"text": "ΕΤ. οὐκ ἀφʼ ὧν γε μέλλουσιν, ὦ Σώκρατες, βλαβήσεσθαι τῶν κερδῶν."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00075",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. βλαβήσεσθαι δὲ λέγεις ζημιώσεσθαι ἢ ἄλλο τι;",
-			"blockKind": "narration"
+			"text": "ΣΩ. βλαβήσεσθαι δὲ λέγεις ζημιώσεσθαι ἢ ἄλλο τι;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00076",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. οὔκ, ἀλλὰ ζημιώσεσθαι λέγω.",
-			"blockKind": "narration"
+			"text": "ΕΤ. οὔκ, ἀλλὰ ζημιώσεσθαι λέγω."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00077",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ὑπὸ τοῦ κέρδους οὖν ζημιοῦνται ἢ ὑπὸ τῆς ζημίας ἄνθρωποι;",
-			"blockKind": "narration"
+			"text": "ΣΩ. ὑπὸ τοῦ κέρδους οὖν ζημιοῦνται ἢ ὑπὸ τῆς ζημίας ἄνθρωποι;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00078",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ὑπὸ ἀμφοτέρων· καὶ γὰρ ὑπὸ τῆς ζημίας ζημιοῦνται καὶ ὑπὸ τοῦ κέρδους τοῦ πονηροῦ.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ὑπὸ ἀμφοτέρων· καὶ γὰρ ὑπὸ τῆς ζημίας ζημιοῦνται καὶ ὑπὸ τοῦ κέρδους τοῦ πονηροῦ."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00079",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἦ δοκεῖ οὖν τί σοι χρηστὸν καὶ ἀγαθὸν πρᾶγμα πονηρὸν εἶναι;",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἦ δοκεῖ οὖν τί σοι χρηστὸν καὶ ἀγαθὸν πρᾶγμα πονηρὸν εἶναι;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00080",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "227e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. οὐκ ἔμοιγε.",
-			"blockKind": "narration"
+			"text": "ΕΤ. οὐκ ἔμοιγε."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00081",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "228a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. οὐκοῦν ὡμολογήσαμεν ὀλίγον πρότερον τὸ κέρδος τῇ ζημίᾳ κακῷ ὄντι ἐναντίον εἶναι;",
-			"blockKind": "narration"
+			"text": "ΣΩ. οὐκοῦν ὡμολογήσαμεν ὀλίγον πρότερον τὸ κέρδος τῇ ζημίᾳ κακῷ ὄντι ἐναντίον εἶναι;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00082",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "228a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. φημί.",
-			"blockKind": "narration"
+			"text": "ΕΤ. φημί."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00083",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "228a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἐναντίον δὲ ὂν κακῷ ἀγαθὸν εἶναι;",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἐναντίον δὲ ὂν κακῷ ἀγαθὸν εἶναι;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00084",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "228a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ὡμολογήσαμεν γάρ.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ὡμολογήσαμεν γάρ."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00085",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "228a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ὁρᾷς οὖν, ἐπιχειρεῖς με ἐξαπατᾶν, ἐπίτηδες ἐναντία λέγων οἷς ἄρτι ὡμολογήσαμεν.",
-			"blockKind": "narration"
+			"text": "ΣΩ. ὁρᾷς οὖν, ἐπιχειρεῖς με ἐξαπατᾶν, ἐπίτηδες ἐναντία λέγων οἷς ἄρτι ὡμολογήσαμεν."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00086",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "228a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. οὐ μὰ Δία, ὦ Σώκρατες, ἀλλὰ τοὐναντίον σύ με ἐξαπατᾷς καὶ οὐκ οἶδα ὅπῃ ἐν τοῖς λόγοις ἄνω καὶ κάτω στρέφεις.",
-			"blockKind": "narration"
+			"text": "ΕΤ. οὐ μὰ Δία, ὦ Σώκρατες, ἀλλὰ τοὐναντίον σύ με ἐξαπατᾷς καὶ οὐκ οἶδα ὅπῃ ἐν τοῖς λόγοις ἄνω καὶ κάτω στρέφεις."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00087",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "228b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. εὐφήμει· οὐ μεντἂν καλῶς ποιοίην οὐ πειθόμενος ἀνδρὶ ἀγαθῷ καὶ σοφῷ.",
-			"blockKind": "narration"
+			"text": "ΣΩ. εὐφήμει· οὐ μεντἂν καλῶς ποιοίην οὐ πειθόμενος ἀνδρὶ ἀγαθῷ καὶ σοφῷ."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00088",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "228b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. τίνι τούτῳ; καὶ τί μάλιστα;",
-			"blockKind": "narration"
+			"text": "ΕΤ. τίνι τούτῳ; καὶ τί μάλιστα;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00089",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "228b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. πολίτῃ μὲν ἐμῷ τε καὶ σῷ, Πεισιστράτου δὲ ὑεῖ τοῦ ἐκ Φιλαϊδῶν, Ἱππάρχῳ, ὃς τῶν Πεισιστράτου παίδων ἦν πρεσβύτατος καὶ σοφώτατος, ὃς ἄλλα τε πολλὰ καὶ καλὰ ἔργα σοφίας ἀπεδείξατο, καὶ τὰ Ὁμήρου ἔπη πρῶτος ἐκόμισεν εἰς τὴν γῆν ταυτηνί, καὶ ἠνάγκασε τοὺς ῥαψῳδοὺς Παναθηναίοις ἐξ ὑπολήψεως ἐφεξῆς αὐτὰ διιέναι, ὥσπερ νῦν ἔτι",
-			"blockKind": "narration"
+			"text": "ΣΩ. πολίτῃ μὲν ἐμῷ τε καὶ σῷ, Πεισιστράτου δὲ ὑεῖ τοῦ ἐκ Φιλαϊδῶν, Ἱππάρχῳ, ὃς τῶν Πεισιστράτου παίδων ἦν πρεσβύτατος καὶ σοφώτατος, ὃς ἄλλα τε πολλὰ καὶ καλὰ ἔργα σοφίας ἀπεδείξατο, καὶ τὰ Ὁμήρου ἔπη πρῶτος ἐκόμισεν εἰς τὴν γῆν ταυτηνί, καὶ ἠνάγκασε τοὺς ῥαψῳδοὺς Παναθηναίοις ἐξ ὑπολήψεως ἐφεξῆς αὐτὰ διιέναι, ὥσπερ νῦν ἔτι"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00090",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "228c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "οἵδε ποιοῦσιν, καὶ ἐπʼ Ἀνακρέοντα τὸν Τήιον πεντηκόντορον στείλας ἐκόμισεν εἰς τὴν πόλιν, Σιμωνίδην δὲ τὸν Κεῖον ἀεὶ περὶ αὑτὸν εἶχεν, μεγάλοις μισθοῖς καὶ δώροις πείθων· ταῦτα δʼ ἐποίει βουλόμενος παιδεύειν τοὺς πολίτας, ἵνʼ ὡς βελτίστων ὄντων αὐτῶν ἄρχοι, οὐκ οἰόμενος δεῖν οὐδενὶ σοφίας φθονεῖν, ἅτε ὢν καλός τε κἀγαθός. ἐπειδὴ δὲ αὐτῷ οἱ περὶ τὸ ἄστυ τῶν πολιτῶν πεπαιδευμένοι ἦσαν καὶ",
-			"blockKind": "narration"
+			"text": "οἵδε ποιοῦσιν, καὶ ἐπʼ Ἀνακρέοντα τὸν Τήιον πεντηκόντορον στείλας ἐκόμισεν εἰς τὴν πόλιν, Σιμωνίδην δὲ τὸν Κεῖον ἀεὶ περὶ αὑτὸν εἶχεν, μεγάλοις μισθοῖς καὶ δώροις πείθων· ταῦτα δʼ ἐποίει βουλόμενος παιδεύειν τοὺς πολίτας, ἵνʼ ὡς βελτίστων ὄντων αὐτῶν ἄρχοι, οὐκ οἰόμενος δεῖν οὐδενὶ σοφίας φθονεῖν, ἅτε ὢν καλός τε κἀγαθός. ἐπειδὴ δὲ αὐτῷ οἱ περὶ τὸ ἄστυ τῶν πολιτῶν πεπαιδευμένοι ἦσαν καὶ"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00091",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "228d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ἐθαύμαζον αὐτὸν ἐπὶ σοφίᾳ, ἐπιβουλεύων αὖ τοὺς ἐν τοῖς ἀγροῖς παιδεῦσαι ἔστησεν αὐτοῖς Ἑρμᾶς κατὰ τὰς ὁδοὺς ἐν μέσῳ τοῦ ἄστεος καὶ τῶν δήμων ἑκάστων, κἄπειτα τῆς σοφίας τῆς αὑτοῦ, ἥν τʼ ἔμαθεν καὶ ἣν αὐτὸς ἐξηῦρεν, ἐκλεξάμενος ἃ ἡγεῖτο σοφώτατα εἶναι, ταῦτα αὐτὸς ἐντείνας εἰς ἐλεγεῖον αὑτοῦ ποιήματα καὶ ἐπιδείγματα τῆς σοφίας ἐπέγραψεν,",
-			"blockKind": "narration"
+			"text": "ἐθαύμαζον αὐτὸν ἐπὶ σοφίᾳ, ἐπιβουλεύων αὖ τοὺς ἐν τοῖς ἀγροῖς παιδεῦσαι ἔστησεν αὐτοῖς Ἑρμᾶς κατὰ τὰς ὁδοὺς ἐν μέσῳ τοῦ ἄστεος καὶ τῶν δήμων ἑκάστων, κἄπειτα τῆς σοφίας τῆς αὑτοῦ, ἥν τʼ ἔμαθεν καὶ ἣν αὐτὸς ἐξηῦρεν, ἐκλεξάμενος ἃ ἡγεῖτο σοφώτατα εἶναι, ταῦτα αὐτὸς ἐντείνας εἰς ἐλεγεῖον αὑτοῦ ποιήματα καὶ ἐπιδείγματα τῆς σοφίας ἐπέγραψεν,"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00092",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "228e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ἵνα πρῶτον μὲν τὰ ἐν Δελφοῖς γράμματα τὰ σοφὰ ταῦτα μὴ θαυμάζοιεν οἱ πολῖται αὐτοῦ, τό τε γνῶθι σαυτόν καὶ τὸ μηδὲν ἄγαν καὶ τἆλλα τὰ τοιαῦτα, ἀλλὰ τὰ Ἱππάρχου ῥήματα μᾶλλον σοφὰ ἡγοῖντο, ἔπειτα παριόντες ἄνω καὶ κάτω καὶ ἀναγιγνώσκοντες καὶ γεῦμα λαμβάνοντες αὐτοῦ τῆς σοφίας φοιτῷεν ἐκ τῶν ἀγρῶν καὶ ἐπὶ τὰ λοιπὰ παιδευθησόμενοι.",
-			"blockKind": "narration"
+			"text": "ἵνα πρῶτον μὲν τὰ ἐν Δελφοῖς γράμματα τὰ σοφὰ ταῦτα μὴ θαυμάζοιεν οἱ πολῖται αὐτοῦ, τό τε γνῶθι σαυτόν καὶ τὸ μηδὲν ἄγαν καὶ τἆλλα τὰ τοιαῦτα, ἀλλὰ τὰ Ἱππάρχου ῥήματα μᾶλλον σοφὰ ἡγοῖντο, ἔπειτα παριόντες ἄνω καὶ κάτω καὶ ἀναγιγνώσκοντες καὶ γεῦμα λαμβάνοντες αὐτοῦ τῆς σοφίας φοιτῷεν ἐκ τῶν ἀγρῶν καὶ ἐπὶ τὰ λοιπὰ παιδευθησόμενοι."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00093",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "228e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἐστὸν δὲ δύο τὠπιγράμματε· ἐν μὲν τοῖς",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἐστὸν δὲ δύο τὠπιγράμματε· ἐν μὲν τοῖς"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00094",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "229a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ἐπʼ ἀριστερὰ τοῦ Ἑρμοῦ ἑκάστου ἐπιγέγραπται λέγων ὁ Ἑρμῆς ὅτι ἐν μέσῳ τοῦ ἄστεος καὶ τοῦ δήμου ἕστηκεν, ἐν δὲ τοῖς ἐπὶ δεξιά—μνῆμα τόδʼ Ἱππάρχου· στεῖχε δίκαια φρονῶνφησίν. ἔστι δὲ τῶν ποιημάτων καὶ ἄλλα ἐν ἄλλοις Ἑρμαῖς πολλὰ καὶ καλὰ ἐπιγεγραμμένα· ἔστι δὲ δὴ καὶ τοῦτο ἐπὶ τῇ Στειριακῇ ὁδῷ, ἐν ᾧ λέγει—",
-			"blockKind": "narration"
+			"text": "ἐπʼ ἀριστερὰ τοῦ Ἑρμοῦ ἑκάστου ἐπιγέγραπται λέγων ὁ Ἑρμῆς ὅτι ἐν μέσῳ τοῦ ἄστεος καὶ τοῦ δήμου ἕστηκεν, ἐν δὲ τοῖς ἐπὶ δεξιά—μνῆμα τόδʼ Ἱππάρχου· στεῖχε δίκαια φρονῶνφησίν. ἔστι δὲ τῶν ποιημάτων καὶ ἄλλα ἐν ἄλλοις Ἑρμαῖς πολλὰ καὶ καλὰ ἐπιγεγραμμένα· ἔστι δὲ δὴ καὶ τοῦτο ἐπὶ τῇ Στειριακῇ ὁδῷ, ἐν ᾧ λέγει—"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00095",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "229b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "μνῆμα τόδʼ Ἱππάρχου· μὴ φίλον ἐξαπάτα.ἐγὼ οὖν σὲ ἐμοὶ ὄντα φίλον οὐ δήπου τολμῴην ἂν ἐξαπατᾶν καὶ ἐκείνῳ τοιούτῳ ὄντι ἀπιστεῖν, οὗ καὶ ἀποθανόντος τρία ἔτη ἐτυραννεύθησαν Ἀθηναῖοι ὑπὸ τοῦ ἀδελφοῦ αὐτοῦ Ἱππίου, καὶ πάντων ἂν τῶν παλαιῶν ἤκουσας ὅτι ταῦτα μόνον τὰ ἔτη τυραννὶς ἐγένετο ἐν Ἀθήναις, τὸν δʼ ἄλλον χρόνον ἐγγύς τι ἔζων Ἀθηναῖοι ὥσπερ ἐπὶ Κρόνου βασιλεύοντος. λέγεται δὲ ὑπὸ τῶν χαριεστέρων ἀνθρώπων καὶ ὁ θάνατος αὐτοῦ",
-			"blockKind": "narration"
+			"text": "μνῆμα τόδʼ Ἱππάρχου· μὴ φίλον ἐξαπάτα.ἐγὼ οὖν σὲ ἐμοὶ ὄντα φίλον οὐ δήπου τολμῴην ἂν ἐξαπατᾶν καὶ ἐκείνῳ τοιούτῳ ὄντι ἀπιστεῖν, οὗ καὶ ἀποθανόντος τρία ἔτη ἐτυραννεύθησαν Ἀθηναῖοι ὑπὸ τοῦ ἀδελφοῦ αὐτοῦ Ἱππίου, καὶ πάντων ἂν τῶν παλαιῶν ἤκουσας ὅτι ταῦτα μόνον τὰ ἔτη τυραννὶς ἐγένετο ἐν Ἀθήναις, τὸν δʼ ἄλλον χρόνον ἐγγύς τι ἔζων Ἀθηναῖοι ὥσπερ ἐπὶ Κρόνου βασιλεύοντος. λέγεται δὲ ὑπὸ τῶν χαριεστέρων ἀνθρώπων καὶ ὁ θάνατος αὐτοῦ"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00096",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "229c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "γενέσθαι οὐ διʼ ἃ οἱ πολλοὶ ᾠήθησαν, διὰ τὴν τῆς ἀδελφῆς ἀτιμίαν τῆς κανηφορίας—ἐπεὶ τοῦτό γε εὔηθες—ἀλλὰ τὸν μὲν Ἁρμόδιον γεγονέναι παιδικὰ τοῦ Ἀριστογείτονος καὶ πεπαιδεῦσθαι ὑπʼ ἐκείνου, μέγα δʼ ἐφρόνει ἄρα καὶ ὁ Ἀριστογείτων ἐπὶ τῷ παιδεῦσαι ἄνθρωπον, καὶ ἀνταγωνιστὴν ἡγεῖτο εἶναι τὸν Ἵππαρχον. ἐν ἐκείνῳ δὲ τῷ χρόνῳ αὐτὸν τὸν",
-			"blockKind": "narration"
+			"text": "γενέσθαι οὐ διʼ ἃ οἱ πολλοὶ ᾠήθησαν, διὰ τὴν τῆς ἀδελφῆς ἀτιμίαν τῆς κανηφορίας—ἐπεὶ τοῦτό γε εὔηθες—ἀλλὰ τὸν μὲν Ἁρμόδιον γεγονέναι παιδικὰ τοῦ Ἀριστογείτονος καὶ πεπαιδεῦσθαι ὑπʼ ἐκείνου, μέγα δʼ ἐφρόνει ἄρα καὶ ὁ Ἀριστογείτων ἐπὶ τῷ παιδεῦσαι ἄνθρωπον, καὶ ἀνταγωνιστὴν ἡγεῖτο εἶναι τὸν Ἵππαρχον. ἐν ἐκείνῳ δὲ τῷ χρόνῳ αὐτὸν τὸν"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00097",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "229d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "Ἁρμόδιον τυγχάνειν ἐρῶντά τινος τῶν νέων τε καὶ καλῶν καὶ γενναίων τῶν τότε—καὶ λέγουσι τοὔνομα αὐτοῦ, ἐγὼ δὲ οὐ μέμνημαι—τὸν οὖν νεανίσκον τοῦτον τέως μὲν θαυμάζειν τόν τε Ἁρμόδιον καὶ τὸν Ἀριστογείτονα ὡς σοφούς, ἔπειτα συγγενόμενον τῷ Ἱππάρχῳ καταφρονῆσαι ἐκείνων, καὶ τοὺς περιαλγήσαντας ταύτῃ τῇ ἀτιμίᾳ οὕτως ἀποκτεῖναι τὸν Ἵππαρχον.",
-			"blockKind": "narration"
+			"text": "Ἁρμόδιον τυγχάνειν ἐρῶντά τινος τῶν νέων τε καὶ καλῶν καὶ γενναίων τῶν τότε—καὶ λέγουσι τοὔνομα αὐτοῦ, ἐγὼ δὲ οὐ μέμνημαι—τὸν οὖν νεανίσκον τοῦτον τέως μὲν θαυμάζειν τόν τε Ἁρμόδιον καὶ τὸν Ἀριστογείτονα ὡς σοφούς, ἔπειτα συγγενόμενον τῷ Ἱππάρχῳ καταφρονῆσαι ἐκείνων, καὶ τοὺς περιαλγήσαντας ταύτῃ τῇ ἀτιμίᾳ οὕτως ἀποκτεῖναι τὸν Ἵππαρχον."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00098",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "229d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. κινδυνεύεις τοίνυν, ὦ Σώκρατες, ἢ οὐ φίλον με ἡγεῖσθαι ἤ, εἰ ἡγῇ φίλον, οὐ πείθεσθαι Ἱππάρχῳ· ἐγὼ γὰρ",
-			"blockKind": "narration"
+			"text": "ΕΤ. κινδυνεύεις τοίνυν, ὦ Σώκρατες, ἢ οὐ φίλον με ἡγεῖσθαι ἤ, εἰ ἡγῇ φίλον, οὐ πείθεσθαι Ἱππάρχῳ· ἐγὼ γὰρ"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00099",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "229e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ὅπως οὐ σὺ ἐμὲ ἐξαπατᾷς—οὐκ οἶδʼ ὅντινα μέντοι τρόπον— ἐν τοῖς λόγοις, οὐ δύναμαι πεισθῆναι.",
-			"blockKind": "narration"
+			"text": "ὅπως οὐ σὺ ἐμὲ ἐξαπατᾷς—οὐκ οἶδʼ ὅντινα μέντοι τρόπον— ἐν τοῖς λόγοις, οὐ δύναμαι πεισθῆναι."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00100",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "229e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἀλλὰ μὴν καὶ ὥσπερ πεττεύων ἐθέλω σοι ἐν τοῖς λόγοις ἀναθέσθαι ὅτι βούλει τῶν εἰρημένων, ἵνα μὴ οἴῃ ἐξαπατᾶσθαι. πότερον γὰρ τοῦτό σοι ἀναθῶμαι, ὡς οὐχὶ τῶν ἀγαθῶν πάντες ἐπιθυμοῦσιν ἄνθρωποι;",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἀλλὰ μὴν καὶ ὥσπερ πεττεύων ἐθέλω σοι ἐν τοῖς λόγοις ἀναθέσθαι ὅτι βούλει τῶν εἰρημένων, ἵνα μὴ οἴῃ ἐξαπατᾶσθαι. πότερον γὰρ τοῦτό σοι ἀναθῶμαι, ὡς οὐχὶ τῶν ἀγαθῶν πάντες ἐπιθυμοῦσιν ἄνθρωποι;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00101",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "229e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. μή μοί γε.",
-			"blockKind": "narration"
+			"text": "ΕΤ. μή μοί γε."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00102",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "229e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἀλλʼ ὡς τὸ ζημιοῦσθαι καὶ ἡ ζημία οὐ κακόν;",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἀλλʼ ὡς τὸ ζημιοῦσθαι καὶ ἡ ζημία οὐ κακόν;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00103",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "229e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. μή μοί γε.",
-			"blockKind": "narration"
+			"text": "ΕΤ. μή μοί γε."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00104",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "229e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἀλλʼ ὡς οὐ τῇ ζημίᾳ καὶ τῷ ζημιοῦσθαι τὸ κέρδος καὶ τὸ κερδαίνειν ἐναντίον;",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἀλλʼ ὡς οὐ τῇ ζημίᾳ καὶ τῷ ζημιοῦσθαι τὸ κέρδος καὶ τὸ κερδαίνειν ἐναντίον;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00105",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. μηδὲ τοῦτο.",
-			"blockKind": "narration"
+			"text": "ΕΤ. μηδὲ τοῦτο."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00106",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἀλλʼ ὡς ἐναντίον ὂν τῷ κακῷ οὐκ ἀγαθόν ἐστι τὸ κερδαίνειν;",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἀλλʼ ὡς ἐναντίον ὂν τῷ κακῷ οὐκ ἀγαθόν ἐστι τὸ κερδαίνειν;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00107",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. οὔτι πᾶν γε· τουτί μοι ἀνάθου.",
-			"blockKind": "narration"
+			"text": "ΕΤ. οὔτι πᾶν γε· τουτί μοι ἀνάθου."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00108",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. δοκεῖ ἄρα σοι, ὡς ἔοικε, τοῦ κέρδους τὸ μέν τι ἀγαθὸν εἶναι, τὸ δέ τι κακόν.",
-			"blockKind": "narration"
+			"text": "ΣΩ. δοκεῖ ἄρα σοι, ὡς ἔοικε, τοῦ κέρδους τὸ μέν τι ἀγαθὸν εἶναι, τὸ δέ τι κακόν."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00109",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ἔμοιγε.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ἔμοιγε."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00110",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἀνατίθεμαι τοίνυν σοὶ τοῦτο· ἔστω γὰρ δὴ κέρδος τι ἀγαθὸν καὶ ἕτερον κέρδος τι κακόν. κέρδος δέ γε οὐδὲν μᾶλλόν ἐστιν αὐτῶν τὸ ἀγαθὸν ἢ τὸ κακόν· ἦ γάρ;",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἀνατίθεμαι τοίνυν σοὶ τοῦτο· ἔστω γὰρ δὴ κέρδος τι ἀγαθὸν καὶ ἕτερον κέρδος τι κακόν. κέρδος δέ γε οὐδὲν μᾶλλόν ἐστιν αὐτῶν τὸ ἀγαθὸν ἢ τὸ κακόν· ἦ γάρ;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00111",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. πῶς με ἐρωτᾷς;",
-			"blockKind": "narration"
+			"text": "ΕΤ. πῶς με ἐρωτᾷς;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00112",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἐγὼ φράσω. σιτίον ἐστίν τι ἀγαθόν τε καὶ κακόν;",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἐγὼ φράσω. σιτίον ἐστίν τι ἀγαθόν τε καὶ κακόν;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00113",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ναί.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ναί."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00114",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἆρʼ οὖν μᾶλλόν τι αὐτῶν ἐστι τὸ ἕτερον τοῦ ἑτέρου σιτίον, ἢ ὁμοίως τοῦτό γε, σιτία, ἐστὸν ἀμφότερα καὶ ταύτῃ γε οὐδὲν διαφέρει τὸ ἕτερον τοῦ ἑτέρου, κατὰ τὸ σιτίον εἶναι, ἀλλὰ ᾗ τὸ μὲν αὐτῶν ἀγαθόν, τὸ δὲ κακόν;",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἆρʼ οὖν μᾶλλόν τι αὐτῶν ἐστι τὸ ἕτερον τοῦ ἑτέρου σιτίον, ἢ ὁμοίως τοῦτό γε, σιτία, ἐστὸν ἀμφότερα καὶ ταύτῃ γε οὐδὲν διαφέρει τὸ ἕτερον τοῦ ἑτέρου, κατὰ τὸ σιτίον εἶναι, ἀλλὰ ᾗ τὸ μὲν αὐτῶν ἀγαθόν, τὸ δὲ κακόν;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00115",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ναί.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ναί."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00116",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. οὐκοῦν καὶ ποτὸν καὶ τἆλλα πάντα, ὅσα τῶν ὄντων ταὐτὰ ὄντα τὰ μὲν πέπονθεν ἀγαθὰ εἶναι, τὰ δὲ κακά, οὐδὲν ἐκείνῃ γε διαφέρει τὸ ἕτερον τοῦ ἑτέρου, ᾗ τὸ",
-			"blockKind": "narration"
+			"text": "ΣΩ. οὐκοῦν καὶ ποτὸν καὶ τἆλλα πάντα, ὅσα τῶν ὄντων ταὐτὰ ὄντα τὰ μὲν πέπονθεν ἀγαθὰ εἶναι, τὰ δὲ κακά, οὐδὲν ἐκείνῃ γε διαφέρει τὸ ἕτερον τοῦ ἑτέρου, ᾗ τὸ"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00117",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "αὐτό ἐστιν; ὥσπερ ἄνθρωπος δήπου ὁ μὲν χρηστός ἐστιν, ὁ δὲ πονηρός.",
-			"blockKind": "narration"
+			"text": "αὐτό ἐστιν; ὥσπερ ἄνθρωπος δήπου ὁ μὲν χρηστός ἐστιν, ὁ δὲ πονηρός."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00118",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ναί.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ναί."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00119",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἀλλʼ ἄνθρωπός γε οἶμαι οὐδέτερος οὐδετέρου οὔτε μᾶλλον οὔτε ἧττόν ἐστιν, οὔτε ὁ χρηστὸς τοῦ πονηροῦ οὔτε ὁ πονηρὸς τοῦ χρηστοῦ.",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἀλλʼ ἄνθρωπός γε οἶμαι οὐδέτερος οὐδετέρου οὔτε μᾶλλον οὔτε ἧττόν ἐστιν, οὔτε ὁ χρηστὸς τοῦ πονηροῦ οὔτε ὁ πονηρὸς τοῦ χρηστοῦ."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00120",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ἀληθῆ λέγεις.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ἀληθῆ λέγεις."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00121",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. οὐκοῦν οὕτω καὶ περὶ τοῦ κέρδους διανοώμεθα, ὡς κέρδος γε ὁμοίως ἐστὶ καὶ τὸ πονηρὸν καὶ τὸ χρηστόν;",
-			"blockKind": "narration"
+			"text": "ΣΩ. οὐκοῦν οὕτω καὶ περὶ τοῦ κέρδους διανοώμεθα, ὡς κέρδος γε ὁμοίως ἐστὶ καὶ τὸ πονηρὸν καὶ τὸ χρηστόν;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00122",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ἀνάγκη.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ἀνάγκη."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00123",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. οὐδὲν ἄρα μᾶλλον κερδαίνει ὁ τὸ χρηστὸν κέρδος ἔχων ἢ τὸ πονηρόν· οὔκουν μᾶλλόν γε κέρδος φαίνεται",
-			"blockKind": "narration"
+			"text": "ΣΩ. οὐδὲν ἄρα μᾶλλον κερδαίνει ὁ τὸ χρηστὸν κέρδος ἔχων ἢ τὸ πονηρόν· οὔκουν μᾶλλόν γε κέρδος φαίνεται"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00124",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "οὐδέτερον ὄν, ὡς ὁμολογοῦμεν.",
-			"blockKind": "narration"
+			"text": "οὐδέτερον ὄν, ὡς ὁμολογοῦμεν."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00125",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ναί.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ναί."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00126",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. οὐδετέρῳ γὰρ αὐτῶν οὔτε τὸ μᾶλλον οὔτε τὸ ἧττον πρόσεστιν.",
-			"blockKind": "narration"
+			"text": "ΣΩ. οὐδετέρῳ γὰρ αὐτῶν οὔτε τὸ μᾶλλον οὔτε τὸ ἧττον πρόσεστιν."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00127",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. οὐ γὰρ δή.",
-			"blockKind": "narration"
+			"text": "ΕΤ. οὐ γὰρ δή."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00128",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. τῷ δὴ τοιούτῳ πράγματι πῶς ἄν τις μᾶλλον ἢ ἧττον ὁτιοῦν ἂν ποιοῖ ἢ πάσχοι, ᾧ μηδέτερον τούτων προσείη;",
-			"blockKind": "narration"
+			"text": "ΣΩ. τῷ δὴ τοιούτῳ πράγματι πῶς ἄν τις μᾶλλον ἢ ἧττον ὁτιοῦν ἂν ποιοῖ ἢ πάσχοι, ᾧ μηδέτερον τούτων προσείη;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00129",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ἀδύνατον.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ἀδύνατον."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00130",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἐπειδὴ τοίνυν κέρδη μὲν ὁμοίως ἐστὶν ἀμφότερα καὶ κερδαλέα, τουτὶ δὴ δεῖ ἡμᾶς ἐπισκέψασθαι, διὰ τί ποτε ἀμφότερα αὐτὰ κέρδος καλεῖς, τί ταὐτὸν ἐν ἀμφοτέροις ὁρῶν;",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἐπειδὴ τοίνυν κέρδη μὲν ὁμοίως ἐστὶν ἀμφότερα καὶ κερδαλέα, τουτὶ δὴ δεῖ ἡμᾶς ἐπισκέψασθαι, διὰ τί ποτε ἀμφότερα αὐτὰ κέρδος καλεῖς, τί ταὐτὸν ἐν ἀμφοτέροις ὁρῶν;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00131",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ὥσπερ ἂν εἰ ἃ σύ με ἠρώτας τὰ νυνδή, διὰ τί ποτε καὶ τὸ ἀγαθὸν σιτίον καὶ τὸ κακὸν σιτίον ὁμοίως ἀμφότερα σιτία καλῶ, εἶπον ἄν σοι διότι ἀμφότερα ξηρὰ τροφὴ σώματός ἐστιν, διὰ τοῦτο ἔγωγε· τοῦτο γὰρ εἶναι σιτίον κἂν σύ που ἡμῖν ὁμολογοῖς. ἦ γάρ;",
-			"blockKind": "narration"
+			"text": "ὥσπερ ἂν εἰ ἃ σύ με ἠρώτας τὰ νυνδή, διὰ τί ποτε καὶ τὸ ἀγαθὸν σιτίον καὶ τὸ κακὸν σιτίον ὁμοίως ἀμφότερα σιτία καλῶ, εἶπον ἄν σοι διότι ἀμφότερα ξηρὰ τροφὴ σώματός ἐστιν, διὰ τοῦτο ἔγωγε· τοῦτο γὰρ εἶναι σιτίον κἂν σύ που ἡμῖν ὁμολογοῖς. ἦ γάρ;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00132",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ἔγωγε.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ἔγωγε."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00133",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "230e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. καὶ περὶ ποτοῦ οὖν ὁ αὐτὸς ἂν τρόπος εἴη τῆς ἀποκρίσεως, ὅτι τῇ τοῦ σώματος ὑγρᾷ τροφῇ, ἐάντε χρηστὴ",
-			"blockKind": "narration"
+			"text": "ΣΩ. καὶ περὶ ποτοῦ οὖν ὁ αὐτὸς ἂν τρόπος εἴη τῆς ἀποκρίσεως, ὅτι τῇ τοῦ σώματος ὑγρᾷ τροφῇ, ἐάντε χρηστὴ"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00134",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ἐάντε πονηρὰ ᾖ, τοῦτο τὸ ὄνομά ἐστι, ποτόν· καὶ τοῖς ἄλλοις ὡσαύτως. πειρῶ οὖν καὶ σὺ ἐμὲ μιμεῖσθαι οὕτως ἀποκρινόμενον. τὸ χρηστὸν κέρδος καὶ τὸ πονηρὸν κέρδος κέρδος φῂς ἀμφότερον εἶναι τί τὸ αὐτὸ ἐν αὐτοῖς ὁρῶν, ὅτι δὴ καὶ τοῦτο κέρδος ἐστίν; εἰ δʼ αὖ μὴ αὐτὸς ἔχεις ἀποκρίνασθαι, ἀλλʼ ἐμοῦ λέγοντος σκόπει· ἆρα κέρδος λέγεις πᾶν κτῆμα ὃ ἄν τις κτήσηται ἢ μηδὲν ἀναλώσας, ἢ ἔλαττον ἀναλώσας πλέον λάβῃ;",
-			"blockKind": "narration"
+			"text": "ἐάντε πονηρὰ ᾖ, τοῦτο τὸ ὄνομά ἐστι, ποτόν· καὶ τοῖς ἄλλοις ὡσαύτως. πειρῶ οὖν καὶ σὺ ἐμὲ μιμεῖσθαι οὕτως ἀποκρινόμενον. τὸ χρηστὸν κέρδος καὶ τὸ πονηρὸν κέρδος κέρδος φῂς ἀμφότερον εἶναι τί τὸ αὐτὸ ἐν αὐτοῖς ὁρῶν, ὅτι δὴ καὶ τοῦτο κέρδος ἐστίν; εἰ δʼ αὖ μὴ αὐτὸς ἔχεις ἀποκρίνασθαι, ἀλλʼ ἐμοῦ λέγοντος σκόπει· ἆρα κέρδος λέγεις πᾶν κτῆμα ὃ ἄν τις κτήσηται ἢ μηδὲν ἀναλώσας, ἢ ἔλαττον ἀναλώσας πλέον λάβῃ;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00135",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ἔμοιγε δοκῶ τοῦτο καλεῖν κέρδος.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ἔμοιγε δοκῶ τοῦτο καλεῖν κέρδος."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00136",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἆρα καὶ τὰ τοιάδε λέγεις, ἐάν τις ἑστιαθείς, μηδὲν ἀναλώσας ἀλλʼ εὐωχηθείς, νόσον κτήσηται;",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἆρα καὶ τὰ τοιάδε λέγεις, ἐάν τις ἑστιαθείς, μηδὲν ἀναλώσας ἀλλʼ εὐωχηθείς, νόσον κτήσηται;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00137",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. μὰ Δίʼ οὐκ ἔγωγε.",
-			"blockKind": "narration"
+			"text": "ΕΤ. μὰ Δίʼ οὐκ ἔγωγε."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00138",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. Ὑγίειαν δὲ κτησάμενος ἀπὸ ἑστιάσεως κέρδος ἂν κτήσαιτο ἢ ζημίαν;",
-			"blockKind": "narration"
+			"text": "ΣΩ. Ὑγίειαν δὲ κτησάμενος ἀπὸ ἑστιάσεως κέρδος ἂν κτήσαιτο ἢ ζημίαν;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00139",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. κέρδος.",
-			"blockKind": "narration"
+			"text": "ΕΤ. κέρδος."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00140",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. οὐκ ἄρα τοῦτό γέ ἐστι κέρδος, τὸ ὁτιοῦν κτῆμα κτήσασθαι.",
-			"blockKind": "narration"
+			"text": "ΣΩ. οὐκ ἄρα τοῦτό γέ ἐστι κέρδος, τὸ ὁτιοῦν κτῆμα κτήσασθαι."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00141",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. οὐ μέντοι.",
-			"blockKind": "narration"
+			"text": "ΕΤ. οὐ μέντοι."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00142",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. πότερον οὔκ, ἐὰν κακόν; ἢ οὐδʼ ἂν ἀγαθὸν ὁτιοῦν κτήσηται, οὐ κέρδος κτήσεται;",
-			"blockKind": "narration"
+			"text": "ΣΩ. πότερον οὔκ, ἐὰν κακόν; ἢ οὐδʼ ἂν ἀγαθὸν ὁτιοῦν κτήσηται, οὐ κέρδος κτήσεται;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00143",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. φαίνεται, ἐάν γε ἀγαθόν.",
-			"blockKind": "narration"
+			"text": "ΕΤ. φαίνεται, ἐάν γε ἀγαθόν."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00144",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἐὰν δὲ κακόν, οὐ ζημίαν κτήσεται;",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἐὰν δὲ κακόν, οὐ ζημίαν κτήσεται;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00145",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ἔμοιγε δοκεῖ.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ἔμοιγε δοκεῖ."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00146",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ὁρᾷς οὖν ὡς πάλιν αὖ περιτρέχεις εἰς τὸ αὐτό; τὸ μὲν κέρδος ἀγαθὸν φαίνεται, ἡ δὲ ζημία κακόν.",
-			"blockKind": "narration"
+			"text": "ΣΩ. ὁρᾷς οὖν ὡς πάλιν αὖ περιτρέχεις εἰς τὸ αὐτό; τὸ μὲν κέρδος ἀγαθὸν φαίνεται, ἡ δὲ ζημία κακόν."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00147",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ἀπορῶ ἔγωγε ὅτι εἴπω.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ἀπορῶ ἔγωγε ὅτι εἴπω."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00148",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. οὐκ ἀδίκως γε σὺ ἀπορῶν. ἔτι γὰρ καὶ τόδε ἀπόκριναι· ἐάν τις ἔλαττον ἀναλώσας πλέον κτήσηται, φῂς κέρδος εἶναι;",
-			"blockKind": "narration"
+			"text": "ΣΩ. οὐκ ἀδίκως γε σὺ ἀπορῶν. ἔτι γὰρ καὶ τόδε ἀπόκριναι· ἐάν τις ἔλαττον ἀναλώσας πλέον κτήσηται, φῂς κέρδος εἶναι;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00149",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. οὔτι κακόν γε λέγω, ἀλλʼ ἐὰν χρυσίον ἢ ἀργύριον ἔλαττον ἀναλώσας πλέον λάβῃ.",
-			"blockKind": "narration"
+			"text": "ΕΤ. οὔτι κακόν γε λέγω, ἀλλʼ ἐὰν χρυσίον ἢ ἀργύριον ἔλαττον ἀναλώσας πλέον λάβῃ."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00150",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. καὶ ἐγὼ μέλλω τοῦτο ἐρήσεσθαι. φέρε γάρ, ἐάν τις χρυσίου σταθμὸν ἥμισυν ἀναλώσας διπλάσιον λάβῃ ἀργυρίου, κέρδος ἢ ζημίαν εἴληφεν;",
-			"blockKind": "narration"
+			"text": "ΣΩ. καὶ ἐγὼ μέλλω τοῦτο ἐρήσεσθαι. φέρε γάρ, ἐάν τις χρυσίου σταθμὸν ἥμισυν ἀναλώσας διπλάσιον λάβῃ ἀργυρίου, κέρδος ἢ ζημίαν εἴληφεν;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00151",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ζημίαν δήπου, ὦ Σώκρατες· ἀντὶ δωδεκαστασίου γὰρ διστάσιον αὐτῷ καθίσταται τὸ χρυσίον.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ζημίαν δήπου, ὦ Σώκρατες· ἀντὶ δωδεκαστασίου γὰρ διστάσιον αὐτῷ καθίσταται τὸ χρυσίον."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00152",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. καὶ μὴν πλέον γʼ εἴληφεν· ἢ οὐ πλέον ἐστὶ τὸ διπλάσιον τοῦ ἡμίσεος;",
-			"blockKind": "narration"
+			"text": "ΣΩ. καὶ μὴν πλέον γʼ εἴληφεν· ἢ οὐ πλέον ἐστὶ τὸ διπλάσιον τοῦ ἡμίσεος;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00153",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. οὔτι τῇ ἀξίᾳ γε ἀργύριον χρυσίου.",
-			"blockKind": "narration"
+			"text": "ΕΤ. οὔτι τῇ ἀξίᾳ γε ἀργύριον χρυσίου."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00154",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231d"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. δεῖ ἄρα, ὡς ἔοικε, τῷ κέρδει τοῦτο προσεῖναι, τὴν ἀξίαν. νῦν γοῦν τὸ μὲν ἀργύριον πλέον ὂν τοῦ χρυσίου οὐ φῂς ἄξιον εἶναι, τὸ δὲ χρυσίον ἔλαττον ὂν ἄξιον φῂς εἶναι.",
-			"blockKind": "narration"
+			"text": "ΣΩ. δεῖ ἄρα, ὡς ἔοικε, τῷ κέρδει τοῦτο προσεῖναι, τὴν ἀξίαν. νῦν γοῦν τὸ μὲν ἀργύριον πλέον ὂν τοῦ χρυσίου οὐ φῂς ἄξιον εἶναι, τὸ δὲ χρυσίον ἔλαττον ὂν ἄξιον φῂς εἶναι."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00155",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. σφόδρα· ἔχει γὰρ οὕτως.",
-			"blockKind": "narration"
+			"text": "ΕΤ. σφόδρα· ἔχει γὰρ οὕτως."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00156",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. τὸ μὲν ἄξιον ἄρα κερδαλέον ἐστίν, ἐάντε σμικρὸν ᾖ ἐάντε μέγα, τὸ δὲ ἀνάξιον ἀκερδές.",
-			"blockKind": "narration"
+			"text": "ΣΩ. τὸ μὲν ἄξιον ἄρα κερδαλέον ἐστίν, ἐάντε σμικρὸν ᾖ ἐάντε μέγα, τὸ δὲ ἀνάξιον ἀκερδές."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00157",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ναί.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ναί."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00158",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. τὸ δὲ ἄξιον λέγεις ἄξιον εἶναι ἄλλο τι ἢ κεκτῆσθαι;",
-			"blockKind": "narration"
+			"text": "ΣΩ. τὸ δὲ ἄξιον λέγεις ἄξιον εἶναι ἄλλο τι ἢ κεκτῆσθαι;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00159",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ναί, κεκτῆσθαι.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ναί, κεκτῆσθαι."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00160",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. τὸ δὲ ἄξιον αὖ λέγεις κεκτῆσθαι τὸ ἀνωφελὲς ἢ τὸ ὠφέλιμον;",
-			"blockKind": "narration"
+			"text": "ΣΩ. τὸ δὲ ἄξιον αὖ λέγεις κεκτῆσθαι τὸ ἀνωφελὲς ἢ τὸ ὠφέλιμον;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00161",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "231e"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. τὸ ὠφέλιμον δήπου.",
-			"blockKind": "narration"
+			"text": "ΕΤ. τὸ ὠφέλιμον δήπου."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00162",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "232a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. οὐκοῦν τὸ ὠφέλιμον ἀγαθόν ἐστιν;",
-			"blockKind": "narration"
+			"text": "ΣΩ. οὐκοῦν τὸ ὠφέλιμον ἀγαθόν ἐστιν;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00163",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "232a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ναί.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ναί."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00164",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "232a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. οὐκοῦν, ὦ ἀνδρειότατε πάντων, οὐ τὸ κερδαλέον ἀγαθὸν αὖ πάλιν τρίτον ἢ τέταρτον ἥκει ἡμῖν ὁμολογούμενον;",
-			"blockKind": "narration"
+			"text": "ΣΩ. οὐκοῦν, ὦ ἀνδρειότατε πάντων, οὐ τὸ κερδαλέον ἀγαθὸν αὖ πάλιν τρίτον ἢ τέταρτον ἥκει ἡμῖν ὁμολογούμενον;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00165",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "232a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ἔοικεν.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ἔοικεν."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00166",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "232a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. μνημονεύεις οὖν ὅθεν ἡμῖν οὗτος ὁ λόγος γέγονεν;",
-			"blockKind": "narration"
+			"text": "ΣΩ. μνημονεύεις οὖν ὅθεν ἡμῖν οὗτος ὁ λόγος γέγονεν;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00167",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "232a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. οἶμαί γε.",
-			"blockKind": "narration"
+			"text": "ΕΤ. οἶμαί γε."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00168",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "232a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. εἰ δὲ μή, ἐγώ σε ὑπομνήσω. ἠμφεσβήτησάς μοι τοὺς ἀγαθοὺς μὴ πάντα τὰ κέρδη βούλεσθαι κερδαίνειν, ἀλλὰ τῶν κερδῶν τἀγαθά, τὰ δὲ πονηρὰ μή.",
-			"blockKind": "narration"
+			"text": "ΣΩ. εἰ δὲ μή, ἐγώ σε ὑπομνήσω. ἠμφεσβήτησάς μοι τοὺς ἀγαθοὺς μὴ πάντα τὰ κέρδη βούλεσθαι κερδαίνειν, ἀλλὰ τῶν κερδῶν τἀγαθά, τὰ δὲ πονηρὰ μή."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00169",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "232a"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ναίχι.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ναίχι."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00170",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "232b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. οὐκοῦν νῦν πάντα τὰ κέρδη ὁ λόγος ἡμᾶς ἠνάγκακε καὶ σμικρὰ καὶ μεγάλα ὁμολογεῖν ἀγαθὰ εἶναι;",
-			"blockKind": "narration"
+			"text": "ΣΩ. οὐκοῦν νῦν πάντα τὰ κέρδη ὁ λόγος ἡμᾶς ἠνάγκακε καὶ σμικρὰ καὶ μεγάλα ὁμολογεῖν ἀγαθὰ εἶναι;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00171",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "232b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ἠνάγκακε γάρ, ὦ Σώκρατες, μᾶλλον ἐμέ γε ἢ πέπεικεν.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ἠνάγκακε γάρ, ὦ Σώκρατες, μᾶλλον ἐμέ γε ἢ πέπεικεν."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00172",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "232b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἀλλʼ ἴσως μετὰ τοῦτο καὶ πείσειεν ἄν· νῦν δʼ οὖν, εἴτε πέπεισαι εἴτε ὁπωσδὴ ἔχεις, σύμφῃς γοῦν ἡμῖν πάντα τὰ κέρδη ἀγαθὰ εἶναι, καὶ σμικρὰ καὶ μεγάλα.",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἀλλʼ ἴσως μετὰ τοῦτο καὶ πείσειεν ἄν· νῦν δʼ οὖν, εἴτε πέπεισαι εἴτε ὁπωσδὴ ἔχεις, σύμφῃς γοῦν ἡμῖν πάντα τὰ κέρδη ἀγαθὰ εἶναι, καὶ σμικρὰ καὶ μεγάλα."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00173",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "232b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ὁμολογῶ γὰρ οὖν.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ὁμολογῶ γὰρ οὖν."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00174",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "232b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. τοὺς δὲ χρηστοὺς ἀνθρώπους βούλεσθαι τἀγαθὰ ὁμολογεῖς ἅπαντα ἅπαντας· ἢ οὔ;",
-			"blockKind": "narration"
+			"text": "ΣΩ. τοὺς δὲ χρηστοὺς ἀνθρώπους βούλεσθαι τἀγαθὰ ὁμολογεῖς ἅπαντα ἅπαντας· ἢ οὔ;"
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00175",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "232b"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. ὁμολογῶ.",
-			"blockKind": "narration"
+			"text": "ΕΤ. ὁμολογῶ."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00176",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "232c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. ἀλλὰ μὲν δὴ τούς γε πονηροὺς αὐτὸς εἶπες ὅτι καὶ σμικρὰ καὶ μεγάλα κέρδη φιλοῦσιν.",
-			"blockKind": "narration"
+			"text": "ΣΩ. ἀλλὰ μὲν δὴ τούς γε πονηροὺς αὐτὸς εἶπες ὅτι καὶ σμικρὰ καὶ μεγάλα κέρδη φιλοῦσιν."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00177",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "232c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. εἶπον.",
-			"blockKind": "narration"
+			"text": "ΕΤ. εἶπον."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00178",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "232c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. οὐκοῦν κατὰ τὸν σὸν λόγον πάντες ἄνθρωποι φιλοκερδεῖς ἂν εἶεν, καὶ οἱ χρηστοὶ καὶ οἱ πονηροί.",
-			"blockKind": "narration"
+			"text": "ΣΩ. οὐκοῦν κατὰ τὸν σὸν λόγον πάντες ἄνθρωποι φιλοκερδεῖς ἂν εἶεν, καὶ οἱ χρηστοὶ καὶ οἱ πονηροί."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00179",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "232c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΕΤ. φαίνεται.",
-			"blockKind": "narration"
+			"text": "ΕΤ. φαίνεται."
 		},
 		{
 			"key": "tlg0059.tlg015.perseus-grc2.xml-00180",
-			"locator": {
-				"scheme": "stephanus",
+			"citation": {
+				"system": "stephanus",
 				"value": "232c"
 			},
 			"division": {
-				"kind": "chapter",
-				"value": "1"
+				"type": "chapter",
+				"label": "1"
 			},
-			"speaker": null,
-			"text": "ΣΩ. οὐκ ἄρα ὀρθῶς ὀνειδίζει, εἴ τίς τῳ ὀνειδίζει φιλοκερδεῖ εἶναι· τυγχάνει γὰρ καὶ ὁ ταῦτα ὀνειδίζων αὐτὸς τοιοῦτος ὤν.",
-			"blockKind": "narration"
+			"text": "ΣΩ. οὐκ ἄρα ὀρθῶς ὀνειδίζει, εἴ τίς τῳ ὀνειδίζει φιλοκερδεῖ εἶναι· τυγχάνει γὰρ καὶ ὁ ταῦτα ὀνειδίζων αὐτὸς τοιοῦτος ὤν."
 		}
 	]
 }

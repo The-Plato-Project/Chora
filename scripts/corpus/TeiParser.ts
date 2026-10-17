@@ -6,17 +6,15 @@ const TextNodeType = 3;
 export interface ParsedTeiSegment
 {
 	key: string;
-	locator: {
-		scheme: string;
+	citation: {
+		system: string;
 		value: string;
 	} | null;
 	division: {
-		kind: string;
-		value: string;
+		type: string;
+		label: string;
 	} | null;
-	speaker: string | null;
 	text: string;
-	blockKind: "speech" | "narration" | "heading" | "other";
 }
 
 export interface ParsedTeiWork
@@ -31,16 +29,12 @@ export interface ParsedTeiWork
 	segments: ParsedTeiSegment[];
 }
 
-type BlockKind = ParsedTeiSegment["blockKind"];
-
 class SegmentCollector
 {
 	private readonly segments: ParsedTeiSegment[] = [];
 	private readonly sourceFile: string;
-	private currentBlockKind: BlockKind = "narration";
-	private currentLocator: ParsedTeiSegment["locator"] = null;
+	private currentCitation: ParsedTeiSegment["citation"] = null;
 	private currentDivision: ParsedTeiSegment["division"] = null;
-	private currentSpeaker: string | null = null;
 	private currentText = "";
 	private segmentIndex = 0;
 
@@ -51,9 +45,7 @@ class SegmentCollector
 
 	public ParseBlock(block: XmlElement): void
 	{
-		this.currentBlockKind = GetBlockKind(block);
 		this.currentDivision = ReadDivision(block);
-		this.currentSpeaker = null;
 		this.ParseChildren(block);
 		this.FlushSegment();
 	}
@@ -95,17 +87,12 @@ class SegmentCollector
 				this.ReadMilestone(element);
 			}
 
-			if (elementName === "speaker")
-			{
-				this.ReadSpeaker(element);
-			}
-
 			if (elementName === "lb")
 			{
 				this.AppendBreak();
 			}
 
-			if (elementName !== "milestone" && elementName !== "speaker" && elementName !== "lb")
+			if (elementName !== "milestone" && elementName !== "lb")
 			{
 				this.ParseChildren(element);
 			}
@@ -123,20 +110,13 @@ class SegmentCollector
 		if (isSection)
 		{
 			this.FlushSegment();
-			this.currentLocator = CreateLocator(response, locatorValue);
+			this.currentCitation = CreateCitation(response, locatorValue);
 		}
 
 		if (isParagraph)
 		{
 			this.FlushSegment();
 		}
-	}
-
-	private ReadSpeaker(element: XmlElement): void
-	{
-		const speakerText = GetText(element);
-		const normalizedSpeaker = NormalizeText(speakerText);
-		this.currentSpeaker = normalizedSpeaker.length > 0 ? normalizedSpeaker : null;
 	}
 
 	private AppendText(value: string): void
@@ -159,11 +139,9 @@ class SegmentCollector
 			const key = CreateSegmentKey(this.sourceFile, this.segmentIndex);
 			const segment: ParsedTeiSegment = {
 				key,
-				locator: this.currentLocator,
+				citation: this.currentCitation,
 				division: this.currentDivision,
-				speaker: this.currentSpeaker,
-				text,
-				blockKind: this.currentBlockKind
+				text
 			};
 			this.segments.push(segment);
 			this.segmentIndex += 1;
@@ -188,7 +166,7 @@ function ReadDivision(element: XmlElement): ParsedTeiSegment["division"]
 
 			if (ancestorElement.localName === "div" && subtype === "book" && value !== null)
 			{
-				division = { kind: "book", value };
+				division = { type: "book", label: value };
 			}
 		}
 
@@ -196,32 +174,6 @@ function ReadDivision(element: XmlElement): ParsedTeiSegment["division"]
 	}
 
 	return division;
-}
-
-function GetText(node: XmlNode): string
-{
-	let text = "";
-
-	if (node.nodeType === TextNodeType)
-	{
-		text = node.nodeValue ?? "";
-	}
-
-	if (node.nodeType !== TextNodeType)
-	{
-		for (let index = 0; index < node.childNodes.length; index += 1)
-		{
-			const childNode = node.childNodes.item(index);
-
-			if (childNode)
-			{
-				const childText = GetText(childNode);
-				text += childText;
-			}
-		}
-	}
-
-	return text;
 }
 
 function NormalizeText(value: string): string
@@ -246,17 +198,17 @@ function GetAttributeValue(element: XmlElement, attributeName: string): string |
 	return attributeValue;
 }
 
-function CreateLocator(response: string | null, value: string | null): ParsedTeiSegment["locator"]
+function CreateCitation(response: string | null, value: string | null): ParsedTeiSegment["citation"]
 {
-	const scheme = response?.toLowerCase() ?? "generic";
-	const locatorValue = value ?? "";
-	const locator = locatorValue.length > 0
+	const system = response?.toLowerCase() ?? "generic";
+	const citationValue = value ?? "";
+	const citation = citationValue.length > 0
 		? {
-			scheme,
-			value: locatorValue
+			system,
+			value: citationValue
 		}
 		: null;
-	return locator;
+	return citation;
 }
 
 function CreateSegmentKey(sourceFile: string, segmentIndex: number): string
@@ -271,24 +223,6 @@ function IsBlock(element: XmlElement): boolean
 	const elementName = element.localName;
 	const isBlock = elementName === "p" || elementName === "sp" || elementName === "lg";
 	return isBlock;
-}
-
-function GetBlockKind(element: XmlElement): BlockKind
-{
-	const elementName = element.localName;
-	let blockKind: BlockKind = "narration";
-
-	if (elementName === "sp")
-	{
-		blockKind = "speech";
-	}
-
-	if (elementName === "lg")
-	{
-		blockKind = "other";
-	}
-
-	return blockKind;
 }
 
 function CollectBlocks(node: XmlNode, blocks: XmlElement[]): void
@@ -316,6 +250,31 @@ function CollectBlocks(node: XmlNode, blocks: XmlElement[]): void
 			}
 		}
 	}
+}
+
+// Reads all descendant text without inferring presentation metadata.
+function GetText(node: XmlNode): string
+{
+	let text = "";
+
+	if (node.nodeType === TextNodeType)
+	{
+		text = node.nodeValue ?? "";
+	}
+	else
+	{
+		for (let index = 0; index < node.childNodes.length; index += 1)
+		{
+			const childNode = node.childNodes.item(index);
+
+			if (childNode !== null)
+			{
+				text += GetText(childNode);
+			}
+		}
+	}
+
+	return text;
 }
 
 function ReadTitle(document: XmlDocument): string

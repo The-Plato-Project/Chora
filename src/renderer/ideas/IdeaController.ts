@@ -39,12 +39,6 @@ export class IdeaController
 
 		if (workId !== null)
 		{
-			if (this.store.HasOpenTab("new"))
-			{
-				this.store.ActivateTab("new");
-				await this.PublishChangedAsync();
-				return;
-			}
 			const draft: IdeaDraft = {
 				ideaId: null,
 				workId,
@@ -150,35 +144,46 @@ export class IdeaController
 		void publication;
 	}
 
-	// Creates a new Idea from the Signal waiting in the Ideas catalogue.
-	public async CreateIdeaFromPendingSignalAsync(): Promise<void>
+	// Creates and immediately persists a new Idea from the pending Signal.
+	public async CreateIdeaFromPendingSignalAsync(): Promise<boolean>
 	{
 		const reference = this.store.GetPendingAddReference();
+		let saved = false;
 
 		if (reference !== null)
 		{
 			await this.CreateFromSignalAsync(reference);
+			saved = await this.SaveAsync();
 		}
+
+		return saved;
 	}
 
 	// Adds the pending Signal to one selected durable Idea.
 	public async AddPendingSignalToIdeaAsync(ideaId: string): Promise<void>
 	{
 		const reference = this.store.GetPendingAddReference();
+
+		if (reference !== null) await this.AddSignalToIdeaAsync(ideaId, reference);
+	}
+
+	// Adds one explicit Signal directly to a durable Idea without opening the catalogue picker.
+	public async AddSignalToIdeaAsync(ideaId: string, reference: IdeaSignalReference): Promise<void>
+	{
 		const idea = this.store.GetIdea(ideaId);
 
 		if (reference !== null && idea !== null && !this.ContainsSignal(idea.originSignal, idea.relatedSignals, reference))
 		{
-			const relatedSignals = this.AddDistinctRelatedSignal(
-				idea.originSignal,
-				idea.relatedSignals,
-				reference);
+			const originSignal = idea.originSignal ?? reference;
+			const relatedSignals = idea.originSignal === null
+				? [...idea.relatedSignals]
+				: this.AddDistinctRelatedSignal(idea.originSignal, idea.relatedSignals, reference);
 			const command: SaveIdeaCommand = {
 				ideaId: idea.id,
 				workId: idea.workId,
 				title: idea.title,
 				content: idea.content,
-				originSignal: idea.originSignal,
+				originSignal,
 				relatedSignals
 			};
 
@@ -244,12 +249,26 @@ export class IdeaController
 		void this.events.PublishAsync("idea.draft-changed", {});
 	}
 
-	// Discards the active renderer draft and closes the Idea editor.
-	public CancelEdit(): void
+	// Updates the active Idea title without replacing its Seeing.
+	public UpdateTitle(title: string): void
 	{
-		this.store.SetDraft(null);
-		const publication = this.PublishChangedAsync();
-		void publication;
+		const draft = this.store.GetDraft();
+
+		if (draft !== null)
+		{
+			this.Update(title, draft.content);
+		}
+	}
+
+	// Updates the active Idea's reader-authored Seeing without replacing its title.
+	public UpdateSeeing(content: string): void
+	{
+		const draft = this.store.GetDraft();
+
+		if (draft !== null)
+		{
+			this.Update(draft.title, content);
+		}
 	}
 
 	// Connects one existing Signal to the active draft.
@@ -260,10 +279,27 @@ export class IdeaController
 		void publication;
 	}
 
-	// Removes one later connected Signal from the active draft.
-	public RemoveRelatedSignal(index: number): void
+	// Returns the Idea-owned rationale for one connected Signal.
+	public GetSignalRationale(signalId: string): string | null
 	{
-		this.store.RemoveRelatedSignal(index);
+		const draft = this.store.GetDraft();
+		const references = draft?.originSignal === null || draft?.originSignal === undefined
+			? draft?.relatedSignals ?? []
+			: [draft.originSignal, ...draft.relatedSignals];
+		const reference = references.find(function FindReference(candidate): boolean
+		{
+			return candidate.signalId === signalId;
+		});
+		const rationaleText = reference?.rationale?.trim() ?? "";
+		const rationale = rationaleText.length > 0 ? rationaleText : null;
+
+		return rationale;
+	}
+
+	// Removes one connected Signal from the active draft.
+	public RemoveSignal(reference: IdeaSignalReference): void
+	{
+		this.store.RemoveSignal(reference);
 		const publication = this.PublishChangedAsync();
 		void publication;
 	}
@@ -274,15 +310,14 @@ export class IdeaController
 		await this.events.PublishAsync("idea.signal-view-requested", reference);
 	}
 
-	// Saves the active draft when it contains the internal origin and two later Signals.
-	public async SaveAsync(): Promise<void>
+	// Saves the active draft, including a Signal-free placeholder.
+	public async SaveAsync(): Promise<boolean>
 	{
 		const draft = this.store.GetDraft();
-		const canSave = draft !== null
-			&& draft.originSignal !== null
-			&& draft.relatedSignals.length >= 2;
+		const canSave = draft !== null;
+		let savedSuccessfully = false;
 
-		if (draft !== null && draft.originSignal !== null && canSave)
+		if (draft !== null && canSave)
 		{
 			const command: SaveIdeaCommand = {
 				ideaId: draft.ideaId,
@@ -300,6 +335,7 @@ export class IdeaController
 				const savedDraft = this.store.CreateDraft(saved);
 				this.store.SetDraft(savedDraft);
 				await this.PublishChangedAsync();
+				savedSuccessfully = true;
 			}
 			catch (error)
 			{
@@ -308,14 +344,17 @@ export class IdeaController
 				await this.PublishChangedAsync();
 			}
 		}
+
+		return savedSuccessfully;
 	}
 
 	// Deletes the durable Idea represented by the active draft.
-	public async DeleteAsync(): Promise<void>
+	public async DeleteAsync(): Promise<boolean>
 	{
 		const draft = this.store.GetDraft();
 		const ideaId = draft?.ideaId ?? null;
 		const isSaved = this.store.HasIdea(ideaId);
+		let deleted = false;
 
 		if (draft !== null && ideaId !== null && isSaved)
 		{
@@ -329,12 +368,15 @@ export class IdeaController
 				await this.gateway.DeleteAsync(command);
 				this.store.RemoveIdea(ideaId);
 				await this.PublishChangedAsync();
+				deleted = true;
 			}
 			catch (error)
 			{
 				this.Report(error, "Unable to delete this Idea.");
 			}
 		}
+
+		return deleted;
 	}
 
 	// Adds one Signal unless it is already the origin or connected evidence.
@@ -369,13 +411,13 @@ export class IdeaController
 
 	// Determines whether one Signal already belongs to an Idea.
 	private ContainsSignal(
-		originSignal: IdeaSignalReference,
+		originSignal: IdeaSignalReference | null,
 		relatedSignals: readonly IdeaSignalReference[],
 		reference: IdeaSignalReference): boolean
 	{
 		const identity = this.CreateReferenceIdentity(reference);
-		const originIdentity = this.CreateReferenceIdentity(originSignal);
-		let isIncluded = identity === originIdentity;
+		const originIdentity = originSignal === null ? null : this.CreateReferenceIdentity(originSignal);
+		let isIncluded = originIdentity !== null && identity === originIdentity;
 
 		for (const candidate of relatedSignals)
 		{
@@ -393,7 +435,7 @@ export class IdeaController
 	// Creates the stable identity used to compare Signal references.
 	private CreateReferenceIdentity(reference: IdeaSignalReference): string
 	{
-		const identity = `signal:${reference.dreamId}:${reference.signalId}`;
+		const identity = `signal:${reference.signalId}`;
 
 		return identity;
 	}

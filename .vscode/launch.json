@@ -2,71 +2,21 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "Chora Copilot Relay: Launch Extension Host",
-			"type": "extensionHost",
-			"request": "launch",
-			"runtimeExecutable": "${execPath}",
-			"args": [
-				"--extensionDevelopmentPath=${workspaceFolder}/tools/copilot-relay"
-			],
-			"preLaunchTask": "Chora Copilot Relay: Build Extension",
-			"outFiles": [
-				"${workspaceFolder}/tools/copilot-relay/dist/**/*.js"
-			]
-		},
-		{
-			"name": "Electron: Debug Main",
+ugly			"name": "Chora",
 			"type": "node",
 			"request": "launch",
-			"runtimeExecutable": "${workspaceFolder}\\node_modules\\electron\\dist\\electron.exe",
-			"env": {
-				"ELECTRON_RUN_AS_NODE": ""
-			},
-			"runtimeArgs": [
-				"--inspect=9229",
-				"--remote-debugging-port=9223",
-				"."
-			],
+			"program": "${workspaceFolder}\\scripts\\StartMode.mjs",
+			"args": ["copilot-relay"],
 			"cwd": "${workspaceFolder}",
 			"console": "integratedTerminal",
-			"protocol": "inspector",
-			"preLaunchTask": "build",
+			"autoAttachChildProcesses": true,
 			"outFiles": [
-				"${workspaceFolder}/.vite/build/**/*.js"
+				"${workspaceFolder}/.vite/build/**/*.js",
+				"${workspaceFolder}/tools/copilot-relay/dist/**/*.js"
 			],
 			"skipFiles": [
 				"<node_internals>/**"
 			]
-		},
-		{
-			"name": "Electron: Attach Renderer",
-			"type": "pwa-chrome",
-			"request": "attach",
-			"port": 9223,
-			"webRoot": "${workspaceFolder}",
-			"timeout": 30000,
-			"skipFiles": [
-				"<node_internals>/**"
-			]
-		}
-	],
-	"compounds": [
-		{
-			"name": "Chora: Debug App With Copilot Relay",
-			"configurations": [
-				"Chora Copilot Relay: Launch Extension Host",
-				"Electron: Debug Main",
-				"Electron: Attach Renderer"
-			],
-			"stopAll": true
-		},
-		{
-			"name": "Electron: Debug App",
-			"configurations": [
-				"Electron: Debug Main",
-				"Electron: Attach Renderer"
-			],
-			"stopAll": true
 		}
 	]
 }
