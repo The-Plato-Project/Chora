@@ -26,9 +26,9 @@ export class DreamGateway
 	}
 
 	// Shows the native context menu for a DreamView source-passage selection.
-	public ShowSourceContextMenuAsync(): Promise<SelectionAction>
+	public ShowSourceContextMenuAsync(canAddToSelectedSignal: boolean): Promise<SelectionAction>
 	{
-		return window.chora.ShowDreamSourceContextMenu();
+		return window.chora.ShowDreamSourceContextMenu(canAddToSelectedSignal);
 	}
 
 	// Copies the given text to the operating system clipboard.
@@ -55,7 +55,7 @@ export class DreamGateway
 		return window.chora.SaveSignal({
 			signalId: null,
 			workId: selection.documentId,
-			selection,
+			selections: [selection],
 			description: ""
 		});
 	}
@@ -66,7 +66,7 @@ export class DreamGateway
 		return window.chora.SaveSignal({
 			signalId: signal.id,
 			workId,
-			selection: signal.selection,
+			selections: signal.selections,
 			description
 		});
 	}

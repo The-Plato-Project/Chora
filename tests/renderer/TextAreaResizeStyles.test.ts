@@ -35,8 +35,8 @@ describe("Text area resize styles", function TextAreaResizeStyleTests()
 		const dreamPath = resolve(process.cwd(), "src", "renderer", "styles", "dream-editor.css");
 		const dream = readFileSync(dreamPath, "utf8");
 
-		expect(dream).toMatch(/\.signal-toolbar-actions \.signal-ideas-menu \.action-menu-items\s*\{[^}]*position:\s*fixed;[^}]*max-width:\s*calc\(100vw - 24px\);[^}]*overflow-y:\s*auto;/s);
-		expect(dream).toMatch(/\.signal-toolbar-actions \.signal-ideas-menu \.action-menu-items button\s*\{[^}]*grid-template-columns:\s*18px minmax\(0, 1fr\);/s);
-		expect(dream).toMatch(/\.signal-toolbar-actions \.signal-ideas-menu \.action-menu-items button span\s*\{[^}]*text-overflow:\s*ellipsis;[^}]*white-space:\s*nowrap;/s);
+		expect(dream).toMatch(/\.signal-editor-actions \.signal-ideas-menu \.action-menu-items\s*\{[^}]*position:\s*fixed;[^}]*max-width:\s*calc\(100vw - 24px\);[^}]*overflow-y:\s*auto;/s);
+		expect(dream).toMatch(/\.signal-editor-actions \.signal-ideas-menu \.action-menu-items button\s*\{[^}]*grid-template-columns:\s*18px minmax\(0, 1fr\);/s);
+		expect(dream).toMatch(/\.signal-editor-actions \.signal-ideas-menu \.action-menu-items button span\s*\{[^}]*text-overflow:\s*ellipsis;[^}]*white-space:\s*nowrap;/s);
 	});
 });

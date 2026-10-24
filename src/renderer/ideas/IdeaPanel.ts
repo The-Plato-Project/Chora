@@ -18,6 +18,8 @@ import { IdeaSignalsPanel, type IdeaSignalViewOwner } from "./IdeaSignalsPanel.j
 import type { SignalViewRecord } from "../signals/SignalViewPanel.js";
 import { IdeaSeeingPanel } from "./IdeaSeeingPanel.js";
 import { TabControl } from "../ui/TabControl.js";
+import type { LibraryStore } from "../library/LibraryStore.js";
+import type { TextSelection } from "../../shared/text/TextSelection.js";
 
 // Which view of the Ideas feature this panel instance renders.
 export type IdeaPanelMode = "catalogue" | "editor";
@@ -60,13 +62,14 @@ export class IdeaPanel extends SignalDocumentPanel implements IdeaSignalViewOwne
 	// Creates one persistent Ideas panel mode and registers delegated events once.
 	public constructor(
 		private readonly root: HTMLElement,
-		events: ChoraEventBus<ChoraEvents>,
+		private readonly events: ChoraEventBus<ChoraEvents>,
 		private readonly store: IdeaStore,
 		private readonly controller: IdeaController,
 		private readonly dreams: DreamStore,
 		private readonly mode: IdeaPanelMode,
 		signals: SignalStore | null = null,
-		signalController: SignalController | null = null)
+		signalController: SignalController | null = null,
+		private readonly library: LibraryStore | null = null)
 	{
 		super(root, events, signals, signalController);
 		this.errors = new ErrorManager(events);
@@ -106,6 +109,18 @@ export class IdeaPanel extends SignalDocumentPanel implements IdeaSignalViewOwne
 		const signalId = this.selectedIdeaSignalId;
 
 		return signalId;
+	}
+
+	// Publishes the active Idea Signal for source-selection composition.
+	public NotifyActiveIdeaSignal(signalId: string | null, selections: readonly TextSelection[]): void
+	{
+		void this.events.PublishAsync("signal.active-changed", { signalId, selections });
+	}
+
+	// Navigates to one exact passage inside the selected Signal.
+	public ViewIdeaSignalSelection(selection: TextSelection): void
+	{
+		void this.events.PublishAsync("library.jump-requested", { selection, target: "signal" });
 	}
 
 	// Remembers the Signal selected in the active Idea.
@@ -301,7 +316,7 @@ export class IdeaPanel extends SignalDocumentPanel implements IdeaSignalViewOwne
 			{
 				const locator = this.CreateSignalLocator(resolved.signal);
 				const context = resolved.dream === null
-					? resolved.signal.selection.documentId
+					? resolved.signal.workId
 					: `${resolved.dream.title} ${resolved.dream.dialogue ?? resolved.dream.workId}`;
 				searchable += ` ${context} ${resolved.signal.text} ${resolved.signal.description} ${locator}`;
 			}
@@ -364,7 +379,7 @@ export class IdeaPanel extends SignalDocumentPanel implements IdeaSignalViewOwne
 
 			if (tabList !== null) this.ideaSignalsPanel.AttachAddSignalAction(tabList);
 			host.append(this.ideaTabs.Root);
-			this.ideaSignalsPanel.Update(signals);
+			this.ideaSignalsPanel.Update(signals, this.library?.GetText() ?? null);
 		}
 	}
 
@@ -453,7 +468,7 @@ export class IdeaPanel extends SignalDocumentPanel implements IdeaSignalViewOwne
 				: "";
 			const locator = this.CreateSignalLocator(signal);
 			const context = dream === null
-				? `${signal.selection.documentId} · ${locator}`
+				? `${signal.workId} · ${locator}`
 				: `${dream.title || "Untitled Dream"} · ${dream.dialogue ?? dream.workId} · ${locator}`;
 			const dreamId = EscapeHtml(dream?.id ?? "");
 			const signalId = EscapeHtml(signal.id);

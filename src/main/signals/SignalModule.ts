@@ -18,8 +18,7 @@ export class SignalModule extends ApplicationModule
 	{
 		super();
 		const rootPath = path.join(documentsPath, "Chora");
-		const legacyDreamPath = path.join(rootPath, "Dreams");
-		const repository = new SignalRepository(rootPath, legacyDreamPath, new SignalMarkdownCodec());
+		const repository = new SignalRepository(rootPath, new SignalMarkdownCodec());
 		this.library = new SignalLibrary(repository, documents);
 		this.ipcController = new SignalIpcController(this.library);
 	}

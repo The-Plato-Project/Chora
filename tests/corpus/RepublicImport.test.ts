@@ -26,4 +26,43 @@ describe("Republic corpus import", () =>
 		expect(hasParagraphBoundary).toBe(true);
 		expect(bookNumbers).toEqual(["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]);
 	});
+
+	it("preserves the Pindar fragment as verse with its bibliography", () =>
+	{
+		const sourceText = fs.readFileSync(SourcePath, "utf8");
+		const work = ParseTeiWork(sourceText, "tlg0059.tlg030.perseus-grc2.xml");
+		const segment = work.segments.find(function ContainsPindar(candidate): boolean
+		{
+			return candidate.text.includes("γλυκεῖά οἱ καρδίαν");
+		});
+		const quotation = segment?.annotations?.find(function IsQuotation(annotation): boolean
+		{
+			return annotation.kind === "quotation";
+		});
+		const citation = segment?.annotations?.find(function IsCitation(annotation): boolean
+		{
+			return annotation.kind === "citation";
+		});
+
+		expect(segment).toBeDefined();
+		expect(segment?.text.slice(quotation?.start, quotation?.end)).toBe("γλυκεῖά οἱ καρδίαν\nἀτάλλοισα γηροτρόφος συναορεῖ\nἐλπὶς ἃ μάλιστα θνατῶν πολύστροφον\nγνώμαν κυβερνᾷ.");
+		expect(segment?.text.slice(citation?.start, citation?.end)).toBe("Pindar Frag. 214, Loeb");
+		expect(segment?.text).toContain("διαγάγῃ,\nγλυκεῖά");
+		expect(segment?.text).toContain("Loeb\nεὖ οὖν λέγει");
+	});
+
+	it("keeps uncited prose quotations inline", () =>
+	{
+		const sourceText = fs.readFileSync(SourcePath, "utf8");
+		const work = ParseTeiWork(sourceText, "tlg0059.tlg030.perseus-grc2.xml");
+		const segment = work.segments.find(function ContainsOldAgeThreshold(candidate): boolean
+		{
+			return candidate.text.includes("ἐπὶ γήραος οὐδῷ");
+		});
+
+		expect(segment).toBeDefined();
+		expect(segment?.annotations).toBeUndefined();
+		expect(segment?.text).toContain("ὃ δὴ ἐπὶ γήραος οὐδῷ φασιν εἶναι οἱ ποιηταί");
+		expect(segment?.text).not.toContain("\nἐπὶ γήραος οὐδῷ\n");
+	});
 });

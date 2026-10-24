@@ -86,6 +86,34 @@ export class DreamLibrary
 		}
 	}
 
+	// Removes one Signal association from every persisted Dream.
+	public async RemoveSignalEverywhereAsync(signalId: string): Promise<void>
+	{
+		await this.EnsureLoadedAsync();
+
+		for (const [dreamId, dream] of this.dreams)
+		{
+			const snapshot = dream.ToSnapshot();
+
+			if (snapshot.signalIds.includes(signalId))
+			{
+				const updated = new Dream({
+					...snapshot,
+					signalIds: snapshot.signalIds.filter(function KeepSignal(candidate): boolean
+					{
+						return candidate !== signalId;
+					}),
+					updatedAt: new Date().toISOString()
+				});
+				const persistence = this.CreatePersistenceRecord(updated);
+				const previousPath = this.records.get(dreamId)?.filePath ?? null;
+				await this.repository.SaveAsync(persistence, previousPath);
+				this.dreams.set(dreamId, updated);
+				this.records.set(dreamId, persistence);
+			}
+		}
+	}
+
 	// Loads persisted records once for this application run.
 	private async EnsureLoadedAsync(): Promise<void>
 	{
@@ -95,8 +123,7 @@ export class DreamLibrary
 
 			for (const persistence of records)
 			{
-				const migrated = await this.MigrateLegacySignalsAsync(persistence);
-				const dream = new Dream(migrated);
+				const dream = new Dream(persistence.dream);
 				const hasDream = this.dreams.has(dream.GetId());
 
 				if (!hasDream)
@@ -109,26 +136,6 @@ export class DreamLibrary
 
 			this.isLoaded = true;
 		}
-	}
-
-	// Imports legacy embedded Signals once and rewrites their Dream with canonical identities only.
-	private async MigrateLegacySignalsAsync(persistence: DreamPersistenceRecord): Promise<DreamSnapshot>
-	{
-		await this.signals.ImportAsync(persistence.legacySignals);
-		const legacySignalIds = persistence.legacySignals.map(function GetSignalId(signal): string
-		{
-			return signal.id;
-		});
-		const signalIds = [...new Set([...persistence.dream.signalIds, ...legacySignalIds])];
-		const snapshot: DreamSnapshot = { ...persistence.dream, signalIds };
-
-		if (persistence.legacySignals.length > 0)
-		{
-			const migrated: DreamPersistenceRecord = { ...persistence, dream: snapshot, legacySignals: [] };
-			await this.repository.SaveAsync(migrated, persistence.filePath);
-		}
-
-		return snapshot;
 	}
 
 	// Preserves immutable ownership values and assigns the aggregate save timestamp.
@@ -153,8 +160,7 @@ export class DreamLibrary
 		const filePath = this.CreatePrimaryPath(snapshot);
 		const persistence: DreamPersistenceRecord = {
 			dream: snapshot,
-			filePath,
-			legacySignals: []
+			filePath
 		};
 
 		this.AssertPrimaryPath(filePath);

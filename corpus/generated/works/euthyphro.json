@@ -2239,7 +2239,19 @@
 				"type": "chapter",
 				"label": "1"
 			},
-			"text": "οὐκ ἐθέλει νεικεῖν· ἵνα γὰρ δέος ἔνθα καὶ αἰδώς.Stasinus Cypria Fr. 20ἐγὼ οὖν τούτῳ διαφέρομαι τῷ ποιητῇ. εἴπω σοι ὅπῃ;"
+			"text": "οὐκ ἐθέλει νεικεῖν· ἵνα γὰρ δέος ἔνθα καὶ αἰδώς.\nStasinus Cypria Fr. 20\nἐγὼ οὖν τούτῳ διαφέρομαι τῷ ποιητῇ. εἴπω σοι ὅπῃ;",
+			"annotations": [
+				{
+					"kind": "quotation",
+					"start": 0,
+					"end": 48
+				},
+				{
+					"kind": "citation",
+					"start": 49,
+					"end": 71
+				}
+			]
 		},
 		{
 			"key": "tlg0059.tlg001.perseus-grc1.xml-00185",

@@ -9,11 +9,11 @@ function CreateCommand(selectedText: string): SaveSignalCommand
 	const command: SaveSignalCommand = {
 		signalId: null,
 		workId: "republic",
-		selection: {
+		selections: [{
 			documentId: "republic",
 			start: { segmentKey: "s1", offset: 0 },
 			end: { segmentKey: "s1", offset: selectedText.length }
-		},
+		}],
 		description: ""
 	};
 
@@ -62,5 +62,45 @@ describe("Signal", function SignalTests()
 		const signal = Signal.Create(CreateCommand(text), "signal-1", "2026-10-11", CreateDocument(text));
 
 		expect(signal.ToRecord().text).toBe(text);
+	});
+
+	it("orders and joins non-contiguous Signal components", function CreatesMultipartSignal(): void
+	{
+		const document = CreateDocument("alpha beta gamma");
+		const command: SaveSignalCommand = {
+			signalId: null,
+			workId: "republic",
+			selections: [
+				{ documentId: "republic", start: { segmentKey: "s1", offset: 11 }, end: { segmentKey: "s1", offset: 16 } },
+				{ documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 5 } }
+			],
+			description: ""
+		};
+
+		const signal = Signal.Create(command, "signal-1", "2026-10-11", document).ToRecord();
+
+		expect(signal.title).toBe("alpha");
+		expect(signal.text).toBe("alpha … gamma");
+		expect(signal.selections.map((selection) => selection.start.offset)).toEqual([0, 11]);
+	});
+
+	it("merges overlapping and duplicate Signal components", function MergesComponents(): void
+	{
+		const document = CreateDocument("alpha beta");
+		const command: SaveSignalCommand = {
+			signalId: null,
+			workId: "republic",
+			selections: [
+				{ documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 5 } },
+				{ documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 5 } },
+				{ documentId: "republic", start: { segmentKey: "s1", offset: 4 }, end: { segmentKey: "s1", offset: 10 } }
+			],
+			description: ""
+		};
+
+		const signal = Signal.Create(command, "signal-1", "2026-10-11", document).ToRecord();
+
+		expect(signal.selections).toHaveLength(1);
+		expect(signal.text).toBe("alpha beta");
 	});
 });

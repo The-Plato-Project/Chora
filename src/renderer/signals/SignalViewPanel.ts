@@ -1,8 +1,11 @@
 import type { SignalRecord } from "../../shared/signals/SignalTypes.js";
+import { OrderSignalsByText } from "../../shared/signals/SignalOrder.js";
+import type { TextDocument } from "../../shared/text/TextDocument.js";
+import type { TextSelection } from "../../shared/text/TextSelection.js";
 import type { ErrorManager } from "../core/diagnostics/RendererErrorManager.js";
 import { LayoutSettings } from "../core/settings/LayoutSettingsStore.js";
 import { EscapeHtml } from "../ui/Html.js";
-import { AddIcon, DocumentIcon, SearchIcon, SignalIcon, TrashIcon } from "../ui/Icons.js";
+import { AddIcon, CloseIcon, DocumentIcon, SearchIcon, SignalIcon, TextQuoteIcon, TrashIcon } from "../ui/Icons.js";
 import { MarkdownEditor } from "../ui/MarkdownEditor.js";
 import { TabPanel } from "../ui/TabPanel.js";
 import { SignalRemovalConfirmation, type SignalAssociationOwner } from "./SignalRemovalConfirmation.js";
@@ -37,6 +40,8 @@ export abstract class SignalViewPanel extends TabPanel
 	private readonly clickHandler = this.HandleClick.bind(this);
 	// Handles connected-Signal filtering for the panel lifetime.
 	private readonly inputHandler = this.HandleInput.bind(this);
+	// Persists title edits when the reader commits the field.
+	private readonly changeHandler = this.HandleChange.bind(this);
 	// Publishes one Signal identity through native drag data.
 	private readonly dragStartHandler = this.HandleDragStart.bind(this);
 	// Begins resizing the Signal navigation pane.
@@ -51,6 +56,8 @@ export abstract class SignalViewPanel extends TabPanel
 	private selectedSignalId: string | null = null;
 	// Contains the latest connected Signals in display order.
 	private records: readonly SignalViewRecord[] = [];
+	// Contains the source text used to reconstruct exact passage labels.
+	private textDocument: TextDocument | null = null;
 	// Contains an active Signal navigation resize gesture.
 	private resizeDrag: { pointerId: number; x: number; width: number } | null = null;
 	// Ensures only the latest reveal request may scroll.
@@ -107,6 +114,7 @@ export abstract class SignalViewPanel extends TabPanel
 		this.Root.append(this.body);
 		this.Root.addEventListener("click", this.clickHandler);
 		this.Root.addEventListener("input", this.inputHandler);
+		this.Root.addEventListener("change", this.changeHandler);
 		this.Root.addEventListener("dragstart", this.dragStartHandler);
 		this.divider.addEventListener("pointerdown", this.resizeDownHandler);
 		this.divider.addEventListener("pointermove", this.resizeMoveHandler);
@@ -135,14 +143,23 @@ export abstract class SignalViewPanel extends TabPanel
 	// Records a changed Signal selection with the owning document.
 	protected abstract RememberSignal(signalId: string | null): void;
 
+	// Publishes the Signal that may receive another source component.
+	protected abstract NotifyActiveSignal(signalId: string | null, selections: readonly TextSelection[]): void;
+
 	// Navigates the reader to one Signal.
 	protected abstract ViewSignalAsync(signalId: string): Promise<void>;
+
+	// Navigates the reader to one exact passage inside a Signal.
+	protected abstract ViewSignalSelection(selection: TextSelection): void;
 
 	// Returns the document type that owns the displayed Signal association.
 	protected abstract GetAssociationOwner(): SignalAssociationOwner;
 
 	// Removes one Signal association from the owning document.
 	protected abstract RemoveSignalAssociation(signalId: string): void;
+
+	// Deletes one Signal from every owning document.
+	protected abstract DeleteSignalEverywhereAsync(signalId: string): Promise<boolean>;
 
 	// Appends owner-specific commands to one Signal action row.
 	protected AppendSignalActions(_actions: HTMLElement, _signalId: string): void
@@ -160,18 +177,26 @@ export abstract class SignalViewPanel extends TabPanel
 	// Persists one shared Signal description.
 	protected abstract UpdateSignalDescription(signalId: string, description: string): void;
 
+	// Persists one reader-authored Signal title.
+	protected abstract UpdateSignalTitle(signalId: string, title: string): void;
+
+	// Removes one passage while retaining the Signal and its remaining passages.
+	protected abstract RemoveSignalSelection(signalId: string, selectionIndex: number): void;
+
 	// Starts an optional owner-specific workflow for adding a Signal.
 	protected AddSignal(): void
 	{
 	}
 
 	// Reconciles Signal rows while preserving selection and editor state.
-	protected UpdateSignals(signals: readonly SignalViewRecord[]): void
+	protected UpdateSignals(signals: readonly SignalViewRecord[], document: TextDocument | null = null): void
 	{
-		this.records = Array.from(signals);
+		const ordered = OrderSignalsByText(document, signals);
+		this.textDocument = document;
+		this.records = ordered;
 		const ids = new Set<string>();
 
-		for (const signal of signals) ids.add(signal.id);
+		for (const signal of ordered) ids.add(signal.id);
 		for (const [id, row] of this.rows)
 		{
 			if (!ids.has(id))
@@ -187,7 +212,7 @@ export abstract class SignalViewPanel extends TabPanel
 
 		let previous: HTMLElement | null = this.search;
 
-		for (const signal of signals)
+		for (const signal of ordered)
 		{
 			let row = this.rows.get(signal.id);
 
@@ -198,7 +223,7 @@ export abstract class SignalViewPanel extends TabPanel
 			}
 			else
 			{
-				this.editors.get(signal.id)?.SetMarkdown(signal.description);
+				this.RefreshSignal(signal);
 			}
 
 			const header = this.navigation.get(signal.id);
@@ -223,11 +248,16 @@ export abstract class SignalViewPanel extends TabPanel
 				return candidate.id === signal.id ? signal : candidate;
 			});
 			const heading = this.navigation.get(signal.id)?.querySelector<HTMLElement>(".signal-heading");
+			const title = this.GetSignalTitle(signal);
 
-			if (heading !== null && heading !== undefined) heading.textContent = signal.text;
+			if (heading !== null && heading !== undefined) heading.textContent = title;
 			const button = this.navigation.get(signal.id)?.querySelector<HTMLElement>("[data-signal-toggle]");
-			if (button !== null && button !== undefined) button.title = signal.text;
+			if (button !== null && button !== undefined) button.title = title;
+			const titleInput = row.querySelector<HTMLInputElement>("[data-signal-title]");
+			if (titleInput !== null && document.activeElement !== titleInput) titleInput.value = title;
+			this.RenderPassages(signal, row);
 			this.editors.get(signal.id)?.SetMarkdown(signal.description);
+			if (this.selectedSignalId === signal.id) this.NotifyActiveSignal(signal.id, signal.selections);
 		}
 	}
 
@@ -273,6 +303,7 @@ export abstract class SignalViewPanel extends TabPanel
 		this.revealVersion += 1;
 		this.Root.removeEventListener("click", this.clickHandler);
 		this.Root.removeEventListener("input", this.inputHandler);
+		this.Root.removeEventListener("change", this.changeHandler);
 		this.Root.removeEventListener("dragstart", this.dragStartHandler);
 		this.divider.removeEventListener("pointerdown", this.resizeDownHandler);
 		this.divider.removeEventListener("pointermove", this.resizeMoveHandler);
@@ -299,7 +330,8 @@ export abstract class SignalViewPanel extends TabPanel
 		row.dataset.signalId = signal.id;
 		const header = document.createElement("div");
 		header.className = "signal-header";
-		header.innerHTML = `<button class="signal-row button-control" data-signal-toggle="${EscapeHtml(signal.id)}" data-signal-drag="${EscapeHtml(signal.id)}" draggable="true" type="button" aria-expanded="false" title="${EscapeHtml(signal.text)}"><span class="signal-row-icon" aria-hidden="true">${SignalIcon}</span><strong class="signal-heading">${EscapeHtml(signal.text)}</strong></button>`;
+		const title = this.GetSignalTitle(signal);
+		header.innerHTML = `<button class="signal-row button-control" data-signal-toggle="${EscapeHtml(signal.id)}" data-signal-drag="${EscapeHtml(signal.id)}" draggable="true" type="button" aria-expanded="false" title="${EscapeHtml(title)}"><span class="signal-row-icon" aria-hidden="true">${SignalIcon}</span><strong class="signal-heading">${EscapeHtml(title)}</strong></button>`;
 		this.navigation.set(signal.id, header);
 		const body = document.createElement("div");
 		body.className = "signal-detail-body";
@@ -386,31 +418,31 @@ export abstract class SignalViewPanel extends TabPanel
 		const row = this.rows.get(signalId);
 		const body = row?.querySelector<HTMLElement>(".signal-detail-body");
 
-		if (existing === undefined && signal !== undefined && body !== null && body !== undefined)
+		if (existing === undefined && signal !== undefined && row !== undefined && body !== null && body !== undefined)
 		{
+			const identity = document.createElement("section");
+			identity.className = "signal-identity";
+			identity.innerHTML = `<label class="signal-title-field"><span>Signal title</span><input data-signal-title="${EscapeHtml(signal.id)}" type="text" value="${EscapeHtml(this.GetSignalTitle(signal))}" aria-label="Signal title"></label><section class="signal-passages" aria-label="Signal passages"><strong>Passages</strong><div data-signal-passages="${EscapeHtml(signal.id)}"></div></section>`;
+			const actions = document.createElement("div");
+			actions.className = "signal-editor-actions";
+			this.AppendSignalActions(actions, signal.id);
+			const removeLabel = `Remove from ${this.GetAssociationOwner()}`;
+			const removeButton = document.createElement("button");
+			removeButton.type = "button";
+			removeButton.className = "signal-remove-association button-control";
+			removeButton.dataset.removeSignalAssociation = signal.id;
+			removeButton.title = removeLabel;
+			removeButton.setAttribute("aria-label", removeLabel);
+			removeButton.innerHTML = TrashIcon;
+			actions.append(removeButton);
+			identity.append(actions);
+			body.append(identity);
+			this.RenderPassages(signal, row);
 			const change = this.HandleDescriptionChange.bind(this, signal.id);
 			const editor = new MarkdownEditor(signal.description, "Signal description", change, this.errors);
 			editor.Root.classList.add("signal-markdown-editor");
 			editor.Root.dataset.signalDescription = signal.id;
 			this.editors.set(signal.id, editor);
-			const markdownToolbar = editor.Root.querySelector<HTMLElement>(".markdown-toolbar");
-
-			if (markdownToolbar !== null)
-			{
-				const actions = document.createElement("div");
-				actions.className = "signal-toolbar-actions";
-				this.AppendSignalActions(actions, signal.id);
-				const removeLabel = `Remove from ${this.GetAssociationOwner()}`;
-				const removeButton = document.createElement("button");
-				removeButton.type = "button";
-				removeButton.className = "signal-remove-association button-control";
-				removeButton.dataset.removeSignalAssociation = signal.id;
-				removeButton.title = removeLabel;
-				removeButton.setAttribute("aria-label", removeLabel);
-				removeButton.innerHTML = TrashIcon;
-				actions.append(removeButton);
-				markdownToolbar.append(actions);
-			}
 
 			const observation = document.createElement("section");
 			observation.className = "signal-observation";
@@ -424,6 +456,8 @@ export abstract class SignalViewPanel extends TabPanel
 	{
 		this.selectedSignalId = signalId;
 		this.RememberSignal(signalId);
+		const signal = this.records.find((candidate) => candidate.id === signalId);
+		this.NotifyActiveSignal(signalId, signal?.selections ?? []);
 
 		for (const [id, row] of this.rows)
 		{
@@ -488,14 +522,53 @@ export abstract class SignalViewPanel extends TabPanel
 		}
 	}
 
+	// Persists a committed title while restoring the current canonical value for an empty field.
+	private HandleChange(event: Event): void
+	{
+		const target = event.target as HTMLInputElement | null;
+		const signalId = target?.dataset.signalTitle;
+
+		if (signalId !== undefined && target !== null)
+		{
+			const signal = this.records.find((candidate) => candidate.id === signalId);
+			const title = target.value.trim();
+
+			if (title.length > 0)
+			{
+				target.value = title;
+				this.UpdateSignalTitle(signalId, title);
+			}
+			else if (signal !== undefined)
+			{
+				target.value = this.GetSignalTitle(signal);
+			}
+		}
+	}
+
 	// Routes Signal selection and removal commands.
 	private HandleClick(event: Event): void
 	{
 		const target = event.target as HTMLElement | null;
+		const passageButton = target?.closest<HTMLButtonElement>("[data-view-signal-passage]") ?? null;
+		const removePassageButton = target?.closest<HTMLButtonElement>("[data-remove-signal-passage]") ?? null;
 		const removeButton = target?.closest<HTMLButtonElement>("[data-remove-signal-association]") ?? null;
-		let handled = removeButton !== null;
+		let handled = removeButton !== null || passageButton !== null || removePassageButton !== null;
 
-		if (removeButton !== null)
+		if (passageButton !== null)
+		{
+			const signalId = passageButton.dataset.signalId;
+			const selectionIndex = Number.parseInt(passageButton.dataset.viewSignalPassage ?? "", 10);
+			const signal = this.records.find((candidate) => candidate.id === signalId);
+			const selection = signal?.selections[selectionIndex];
+			if (selection !== undefined) this.ViewSignalSelection(selection);
+		}
+		else if (removePassageButton !== null)
+		{
+			const signalId = removePassageButton.dataset.signalId;
+			const selectionIndex = Number.parseInt(removePassageButton.dataset.removeSignalPassage ?? "", 10);
+			if (signalId !== undefined && Number.isInteger(selectionIndex)) this.RemoveSignalSelection(signalId, selectionIndex);
+		}
+		else if (removeButton !== null)
 		{
 			const signalId = removeButton.dataset.removeSignalAssociation;
 			const signal = this.records.find(function FindSignal(candidate): boolean
@@ -509,7 +582,8 @@ export abstract class SignalViewPanel extends TabPanel
 					signal.text,
 					this.GetAssociationOwner(),
 					removeButton,
-					this.RemoveSignalAssociation.bind(this, signalId));
+					this.RemoveSignalAssociation.bind(this, signalId),
+					this.DeleteSignalEverywhereAsync.bind(this, signalId));
 			}
 		}
 		else
@@ -529,6 +603,42 @@ export abstract class SignalViewPanel extends TabPanel
 			{
 				void this.ShowSignalAsync(signalId, false);
 				void this.ViewSignalAsync(signalId);
+			}
+		}
+	}
+
+	// Returns the reader-facing Signal name, using source text until the reader supplies a title.
+	private GetSignalTitle(signal: SignalViewRecord): string
+	{
+		const title = signal.title?.trim() ?? "";
+		const value = title.length > 0 ? title : signal.text;
+
+		return value;
+	}
+
+	// Rebuilds exact passage rows from the current canonical selections.
+	private RenderPassages(signal: SignalViewRecord, row: HTMLElement): void
+	{
+		const host = row.querySelector<HTMLElement>("[data-signal-passages]");
+
+		if (host !== null)
+		{
+			host.replaceChildren();
+
+			for (const [index, selection] of signal.selections.entries())
+			{
+				const passage = document.createElement("div");
+				passage.className = "signal-passage";
+				const text = this.textDocument?.id === selection.documentId
+					? this.textDocument.ReconstructText(selection)
+					: index === 0
+						? signal.text
+						: `Passage ${index + 1}`;
+				const removePassage = signal.selections.length > 1
+					? `<button class="signal-passage-remove button-control" data-remove-signal-passage="${index}" data-signal-id="${EscapeHtml(signal.id)}" type="button" title="Remove passage" aria-label="Remove passage">${CloseIcon}</button>`
+					: "";
+				passage.innerHTML = `<span class="signal-passage-icon" aria-hidden="true">${TextQuoteIcon}</span><button class="signal-passage-text" data-view-signal-passage="${index}" data-signal-id="${EscapeHtml(signal.id)}" type="button" title="View passage in text">${EscapeHtml(text)}</button>${removePassage}`;
+				host.append(passage);
 			}
 		}
 	}

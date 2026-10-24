@@ -329,14 +329,14 @@ describe("Dream passage matching", function PassageTests()
 			id: "idea-signal",
 			workId: text.id,
 			sourceRef: "s3",
-			selection: {
+			selections: [{
 				documentId: text.id,
 				start: { segmentKey: "s3", offset: 1 },
 				end: { segmentKey: "s3", offset: 4 },
 				selectedText: "nop",
 				locatorStart: { scheme: "Stephanus", value: "340b" },
 				locatorEnd: { scheme: "Stephanus", value: "340b" }
-			},
+			}],
 			text: "nop",
 			description: "",
 			createdAt: "2026-09-07",

@@ -38,6 +38,14 @@ export interface DocumentDivisionSnapshot
 	readonly label: string;
 }
 
+// Identifies a semantic range within one canonical text segment.
+export interface TextAnnotationSnapshot
+{
+	readonly kind: "quotation" | "citation";
+	readonly start: number;
+	readonly end: number;
+}
+
 // Identifies a named structural division such as a book or chapter.
 export class DocumentDivision
 {
@@ -69,6 +77,7 @@ export interface TextSegmentSnapshot
 	readonly citation: CitationSnapshot | null;
 	readonly division?: DocumentDivisionSnapshot | null;
 	readonly text: string;
+	readonly annotations?: readonly TextAnnotationSnapshot[];
 }
 
 // Stores one ordered canonical chunk of a TextDocument.
@@ -78,6 +87,7 @@ export class TextSegment
 	public readonly citation: Citation | null;
 	public readonly division: DocumentDivision | null;
 	public readonly text: string;
+	public readonly annotations?: readonly TextAnnotationSnapshot[];
 
 	public constructor(snapshot: TextSegmentSnapshot)
 	{
@@ -85,6 +95,11 @@ export class TextSegment
 		this.citation = DecodeCitation(snapshot);
 		this.division = DecodeDivision(snapshot);
 		this.text = snapshot.text;
+		const annotations = DecodeAnnotations(snapshot);
+		if (annotations.length > 0)
+		{
+			this.annotations = annotations;
+		}
 	}
 
 	// Produces the explicit serialized representation of this segment.
@@ -94,11 +109,44 @@ export class TextSegment
 			key: this.key,
 			citation: this.citation?.ToSnapshot() ?? null,
 			division: this.division?.ToSnapshot() ?? null,
-			text: this.text
+			text: this.text,
+			...(this.annotations !== undefined ? { annotations: structuredClone(this.annotations) } : {})
 		};
 
 		return snapshot;
 	}
+
+}
+
+// Decodes and validates semantic ranges against their canonical segment text.
+function DecodeAnnotations(snapshot: TextSegmentSnapshot): readonly TextAnnotationSnapshot[]
+{
+	const annotations = snapshot.annotations ?? [];
+	const decoded: TextAnnotationSnapshot[] = [];
+
+	for (const annotation of annotations)
+	{
+		const validKind = annotation.kind === "quotation" || annotation.kind === "citation";
+		const validRange = Number.isInteger(annotation.start)
+			&& Number.isInteger(annotation.end)
+			&& annotation.start >= 0
+			&& annotation.start < annotation.end
+			&& annotation.end <= snapshot.text.length;
+
+		if (!validKind || !validRange)
+		{
+			throw new Error(`Invalid text annotation in segment ${snapshot.key}.`);
+		}
+
+		decoded.push(structuredClone(annotation));
+	}
+
+	decoded.sort(function CompareAnnotations(left, right): number
+	{
+		return left.start - right.start;
+	});
+
+	return decoded;
 }
 
 // Describes the edition metadata attached to a document.
@@ -169,7 +217,7 @@ export class TextDocument
 		});
 	}
 
-	// Hydrates current or legacy serialized document data.
+	// Hydrates serialized document data.
 	public static FromSnapshot(value: unknown): TextDocument
 	{
 		const snapshot = value as TextDocumentSnapshot;
@@ -297,6 +345,34 @@ export class TextDocument
 		return merged;
 	}
 
+	// Determines whether two selections meet at exactly one boundary without overlapping.
+	public AreSelectionsAdjacent(first: TextSelection, second: TextSelection): boolean
+	{
+		this.ValidateSelection(first);
+		this.ValidateSelection(second);
+		const firstBeforeSecond = this.DoesEndMeetStart(first.end, second.start);
+		const secondBeforeFirst = this.DoesEndMeetStart(second.end, first.start);
+		const adjacent = firstBeforeSecond || secondBeforeFirst;
+
+		return adjacent;
+	}
+
+	// Determines whether one ending position meets a following start within or across segments.
+	private DoesEndMeetStart(end: TextPosition, start: TextPosition): boolean
+	{
+		const samePosition = this.ComparePositions(end, start) === 0;
+		const endSegmentIndex = this.GetSegmentIndex(end.segmentKey);
+		const startSegmentIndex = this.GetSegmentIndex(start.segmentKey);
+		const endSegment = this.segments[endSegmentIndex];
+		const crossesSegmentBoundary = endSegment !== undefined
+			&& end.offset === endSegment.text.length
+			&& start.offset === 0
+			&& startSegmentIndex === endSegmentIndex + 1;
+		const meets = samePosition || crossesSegmentBoundary;
+
+		return meets;
+	}
+
 	// Resolves the citation at one exact position.
 	public ResolveCitation(position: TextPosition): Citation | null
 	{
@@ -396,42 +472,28 @@ export class TextDocument
 	}
 }
 
-// Decodes current citation fields and migrates legacy locator fields.
+// Decodes current citation fields.
 function DecodeCitation(snapshot: TextSegmentSnapshot): Citation | null
 {
-	const record = snapshot as TextSegmentSnapshot & {
-		locator?: { scheme?: string; value?: string } | null;
-	};
-	const citation = record.citation;
-	const legacy = record.locator;
+	const citation = snapshot.citation;
 	let decoded: Citation | null = null;
 
-	if (citation !== null && citation !== undefined)
+	if (citation !== null)
 	{
 		decoded = new Citation(citation.system, citation.value);
 	}
-	else if (legacy !== null && legacy !== undefined)
-	{
-		decoded = new Citation(legacy.scheme ?? "generic", legacy.value ?? "");
-	}
-
 	return decoded;
 }
 
-// Decodes current division fields and migrates legacy kind/value fields.
+// Decodes current division fields.
 function DecodeDivision(snapshot: TextSegmentSnapshot): DocumentDivision | null
 {
-	const record = snapshot as TextSegmentSnapshot & {
-		division?: (DocumentDivisionSnapshot & { kind?: string; value?: string }) | null;
-	};
-	const division = record.division;
+	const division = snapshot.division;
 	let decoded: DocumentDivision | null = null;
 
 	if (division !== null && division !== undefined)
 	{
-		const type = division.type ?? division.kind ?? "";
-		const label = division.label ?? division.value ?? "";
-		decoded = new DocumentDivision(type, label);
+		decoded = new DocumentDivision(division.type, division.label);
 	}
 
 	return decoded;

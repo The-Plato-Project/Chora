@@ -2,6 +2,8 @@ import type { ErrorManager } from "../core/diagnostics/RendererErrorManager.js";
 import { SignalController } from "../signals/SignalController.js";
 import { SignalViewPanel, type SignalViewRecord } from "../signals/SignalViewPanel.js";
 import { IdeaController } from "./IdeaController.js";
+import type { TextDocument } from "../../shared/text/TextDocument.js";
+import type { TextSelection } from "../../shared/text/TextSelection.js";
 
 // Provides selected-Signal state owned by the Idea editor.
 export interface IdeaSignalViewOwner
@@ -10,6 +12,10 @@ export interface IdeaSignalViewOwner
 	GetSelectedIdeaSignal(): string | null;
 	// Remembers the selected Signal for the active Idea editor.
 	RememberSelectedIdeaSignal(signalId: string | null): void;
+	// Publishes the active Signal for source-selection composition.
+	NotifyActiveIdeaSignal(signalId: string | null, selections: readonly TextSelection[]): void;
+	// Navigates to one exact passage inside the selected Signal.
+	ViewIdeaSignalSelection(selection: TextSelection): void;
 	// Opens the Idea's existing-Signal discovery workflow.
 	OpenIdeaSignalBrowser(): void;
 }
@@ -29,9 +35,9 @@ export class IdeaSignalsPanel extends SignalViewPanel
 	}
 
 	// Reconciles resolved Signals associated with the Idea.
-	public Update(signals: readonly SignalViewRecord[]): void
+	public Update(signals: readonly SignalViewRecord[], document: TextDocument | null): void
 	{
-		this.UpdateSignals(signals);
+		this.UpdateSignals(signals, document);
 
 		for (const signal of signals)
 		{
@@ -79,10 +85,22 @@ export class IdeaSignalsPanel extends SignalViewPanel
 		this.owner.RememberSelectedIdeaSignal(signalId);
 	}
 
+	// Publishes the active Signal for source-selection composition.
+	protected NotifyActiveSignal(signalId: string | null, selections: readonly TextSelection[]): void
+	{
+		this.owner.NotifyActiveIdeaSignal(signalId, selections);
+	}
+
 	// Navigates the reader to one Idea Signal.
 	protected async ViewSignalAsync(signalId: string): Promise<void>
 	{
 		await this.controller.ViewSignalAsync({ signalId });
+	}
+
+	// Navigates to one exact component without changing the selected Signal.
+	protected ViewSignalSelection(selection: TextSelection): void
+	{
+		this.owner.ViewIdeaSignalSelection(selection);
 	}
 
 	// Identifies the active Idea as the owner of these Signal associations.
@@ -97,6 +115,16 @@ export class IdeaSignalsPanel extends SignalViewPanel
 		this.controller.RemoveSignal({ signalId });
 	}
 
+	// Deletes one Signal from every Dream and Idea.
+	protected DeleteSignalEverywhereAsync(signalId: string): Promise<boolean>
+	{
+		const deletion = this.signals === null
+			? Promise.resolve(false)
+			: this.signals.DeleteEverywhereAsync(signalId);
+
+		return deletion;
+	}
+
 	// Saves one shared Signal description.
 	protected UpdateSignalDescription(signalId: string, description: string): void
 	{
@@ -105,6 +133,18 @@ export class IdeaSignalsPanel extends SignalViewPanel
 			const update = this.signals.UpdateDescriptionAsync(signalId, description);
 			void update;
 		}
+	}
+
+	// Saves one shared Signal title.
+	protected UpdateSignalTitle(signalId: string, title: string): void
+	{
+		void this.signals?.UpdateTitleAsync(signalId, title);
+	}
+
+	// Removes one exact passage from the shared Signal.
+	protected RemoveSignalSelection(signalId: string, selectionIndex: number): void
+	{
+		void this.signals?.RemoveSelectionAsync(signalId, selectionIndex);
 	}
 
 	// Opens the Idea's work-wide Signal browser.

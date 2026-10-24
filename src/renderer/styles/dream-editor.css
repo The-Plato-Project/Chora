@@ -304,11 +304,137 @@
 }
 
 :is(.dream-editor, .idea-editor) .signal-detail-body {
+	--signal-editor-inset: 16px;
+	--signal-editor-row-height: 24px;
+	--signal-editor-background: var(--dream-background);
+	--signal-editor-passage-background: var(--dream-raised);
+	--signal-editor-primary-text: var(--app-text);
+	--signal-editor-secondary-text: var(--muted-text);
+	--signal-editor-divider: var(--panel-border);
 	flex: 1;
 	min-height: 0;
 	overflow: auto;
-	padding: 0 0 16px;
+	padding: 0;
+	background: var(--signal-editor-background);
 	scrollbar-width: thin;
+}
+
+:is(.dream-editor, .idea-editor) .signal-identity {
+	position: relative;
+	display: grid;
+	gap: 0;
+	padding: 0 var(--signal-editor-inset);
+}
+
+:is(.dream-editor, .idea-editor) .signal-title-field {
+	display: grid;
+	gap: 6px;
+	padding: 12px 72px 12px 0;
+	border-bottom: 1px solid var(--signal-editor-divider);
+	color: var(--signal-editor-secondary-text);
+	font: 600 11px/1.35 var(--ui-font);
+}
+
+:is(.dream-editor, .idea-editor) .signal-title-field input {
+	box-sizing: border-box;
+	width: 100%;
+	padding: 0 0 2px;
+	border: 0;
+	border-bottom: 1px solid transparent;
+	border-radius: 0;
+	outline: 0;
+	background: transparent;
+	color: var(--signal-editor-primary-text);
+	font: 600 14px/1.25 var(--ui-font);
+}
+
+:is(.dream-editor, .idea-editor) .signal-title-field input:focus {
+	border-bottom-color: var(--signal-editor-secondary-text);
+}
+
+:is(.dream-editor, .idea-editor) .signal-passages {
+	display: grid;
+	gap: 6px;
+	padding: 12px 0;
+	border-bottom: 1px solid var(--signal-editor-divider);
+}
+
+:is(.dream-editor, .idea-editor) .signal-passages > strong {
+	color: var(--signal-editor-secondary-text);
+	font: 600 11px/1.35 var(--ui-font);
+}
+
+:is(.dream-editor, .idea-editor) [data-signal-passages] {
+	display: grid;
+	gap: 8px;
+}
+
+:is(.dream-editor, .idea-editor) .signal-passage {
+	display: grid;
+	grid-template-columns: 14px minmax(0, 1fr) 22px;
+	align-items: center;
+	gap: 6px;
+	min-height: var(--signal-editor-row-height);
+	padding: 0 6px;
+	background: var(--signal-editor-passage-background);
+}
+
+:is(.dream-editor, .idea-editor) .signal-passage-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--signal-editor-secondary-text);
+}
+
+:is(.dream-editor, .idea-editor) .signal-passage-icon svg {
+	width: 14px;
+	height: 14px;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.5;
+}
+
+:is(.dream-editor, .idea-editor) .signal-passage-text {
+	overflow: hidden;
+	min-width: 0;
+	height: var(--signal-editor-row-height);
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	color: var(--signal-editor-primary-text);
+	font: 13px/1.35 var(--ui-font);
+	text-align: left;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+:is(.dream-editor, .idea-editor) .signal-passage-text:hover,
+:is(.dream-editor, .idea-editor) .signal-passage-text:focus-visible {
+	background: transparent;
+	color: var(--signal-editor-primary-text);
+}
+
+:is(.dream-editor, .idea-editor) .signal-passage-remove {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	padding: 4px;
+	border: 0;
+	background: transparent;
+	color: var(--signal-editor-secondary-text);
+	opacity: 1;
+}
+
+:is(.dream-editor, .idea-editor) .signal-passage-remove svg {
+	width: 14px;
+	height: 14px;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2;
 }
 
 .idea-editor .idea-signal-rationale {
@@ -340,24 +466,63 @@
 	overflow: hidden;
 }
 
-.signal-toolbar-actions {
+:is(.dream-editor, .idea-editor) .signal-observation .signal-markdown-editor {
+	margin: 0;
+	background: var(--signal-editor-background);
+}
+
+:is(.dream-editor, .idea-editor) .signal-observation .signal-markdown-editor .markdown-content {
+	padding: 16px var(--signal-editor-inset);
+	background: transparent;
+	color: var(--signal-editor-primary-text);
+	line-height: 1.55;
+}
+
+.signal-editor-actions {
+	position: absolute;
+	top: 8px;
+	right: var(--signal-editor-inset);
 	display: flex;
 	align-items: center;
 	gap: 2px;
-	flex: none;
-	margin-left: 2px;
+	z-index: 2;
 }
 
-.signal-toolbar-actions .signal-ideas-menu > summary {
+.signal-editor-actions > button,
+.signal-editor-actions .signal-ideas-menu > summary {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	height: 24px;
+	padding: 4px;
+	border: 0;
 	border-radius: 3px;
+	background: transparent;
+	color: var(--signal-editor-secondary-text);
 }
 
-.signal-toolbar-actions .signal-ideas-menu > summary:hover {
+.signal-editor-actions > button {
+	width: 24px;
+}
+
+.signal-editor-actions .signal-ideas-menu > summary {
+	gap: 1px;
+	width: 34px;
+}
+
+.signal-editor-actions .signal-ideas-menu > summary svg,
+.signal-editor-actions > button svg {
+	width: 14px;
+	height: 14px;
+}
+
+.signal-editor-actions .signal-ideas-menu > summary:hover {
 	background: var(--dream-raised);
 	color: var(--accent);
 }
 
-.signal-toolbar-actions .signal-ideas-menu .action-menu-items {
+.signal-editor-actions .signal-ideas-menu .action-menu-items {
 	position: fixed;
 	right: auto;
 	box-sizing: border-box;
@@ -368,18 +533,18 @@
 	overscroll-behavior: contain;
 }
 
-.signal-toolbar-actions .signal-ideas-menu .action-menu-items button {
+.signal-editor-actions .signal-ideas-menu .action-menu-items button {
 	display: grid;
 	grid-template-columns: 18px minmax(0, 1fr);
 }
 
-.signal-toolbar-actions .signal-ideas-menu .action-menu-items button svg {
+.signal-editor-actions .signal-ideas-menu .action-menu-items button svg {
 	align-self: center;
 	justify-self: center;
 	flex: none;
 }
 
-.signal-toolbar-actions .signal-ideas-menu .action-menu-items button span {
+.signal-editor-actions .signal-ideas-menu .action-menu-items button span {
 	display: block;
 	min-width: 0;
 	overflow: hidden;
@@ -387,7 +552,13 @@
 	white-space: nowrap;
 }
 
-.signal-toolbar-actions .signal-ideas-empty {
+.signal-editor-actions .signal-ideas-create-divider {
+	height: 1px;
+	margin: 4px 6px;
+	background: var(--panel-border);
+}
+
+.signal-editor-actions .signal-ideas-empty {
 	margin: 0;
 	padding: 8px 10px;
 	color: var(--muted-text);
@@ -395,7 +566,7 @@
 	white-space: nowrap;
 }
 
-.signal-toolbar-actions .signal-ideas-section-label {
+.signal-editor-actions .signal-ideas-section-label {
 	margin: 0;
 	padding: 6px 10px 3px;
 	color: var(--muted-text);
@@ -404,12 +575,12 @@
 	text-transform: uppercase;
 }
 
-.signal-toolbar-actions .signal-ideas-section-label.separated {
+.signal-editor-actions .signal-ideas-section-label.separated {
 	margin-top: 4px;
 	border-top: 1px solid var(--panel-border);
 }
 
-.markdown-toolbar .signal-toolbar-actions .signal-remove-association {
+.signal-editor-actions .signal-remove-association {
 	color: var(--danger);
 }
 

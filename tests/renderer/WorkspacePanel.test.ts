@@ -38,7 +38,7 @@ function CreateDream(id: string, title: string): DreamView
 		source: {
 			documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 6 }
 		},
-		signals: [], reflection: "", synopticView: "", linkedDreamIds: [], createdAt: "2026-01-01", updatedAt: "2026-01-01"
+		signalIds: [], signals: [], reflection: "", synopticView: "", linkedDreamIds: [], createdAt: "2026-01-01", updatedAt: "2026-01-01"
 	};
 }
 
@@ -344,6 +344,15 @@ describe("WorkspacePanel", function WorkspacePanelTests()
 		expect(explorer.textContent).toContain("Descent (327a)");
 		const dreamRows = Array.from(explorer.querySelectorAll<HTMLElement>("[data-workspace-dream]"));
 		expect(dreamRows.map(function GetDreamTitle(row): string
+		{
+			return row.textContent?.trim() ?? "";
+		})).toEqual(["Return (326a)", "Descent (327a)"]);
+		dreamStore.SetPassageFilter({ workId: "republic", segmentKey: "s1", label: "Republic · 327a" });
+		const updateMarkup = explorer.innerHTML;
+		await events.PublishAsync("signal.deleted", { signalId: "deleted-signal", workId: "republic" });
+		expect(explorer.innerHTML).toBe(updateMarkup);
+		const rowsAfterSignalDeletion = Array.from(explorer.querySelectorAll<HTMLElement>("[data-workspace-dream]"));
+		expect(rowsAfterSignalDeletion.map(function GetDreamTitle(row): string
 		{
 			return row.textContent?.trim() ?? "";
 		})).toEqual(["Return (326a)", "Descent (327a)"]);

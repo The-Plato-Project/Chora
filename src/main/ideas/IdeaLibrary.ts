@@ -130,6 +130,40 @@ export class IdeaLibrary
 		for (const reference of references) await this.signals.DeleteIfOrphanedAsync(reference.signalId);
 	}
 
+	// Removes one Signal association from every persisted Idea.
+	public async RemoveSignalEverywhereAsync(signalId: string): Promise<void>
+	{
+		await this.EnsureLoadedAsync();
+
+		for (const [ideaId, idea] of this.ideas)
+		{
+			const record = idea.ToRecord();
+			const references = record.originSignal === null
+				? [...record.relatedSignals]
+				: [record.originSignal, ...record.relatedSignals];
+			const remaining = references.filter(function KeepReference(reference): boolean
+			{
+				return reference.signalId !== signalId;
+			});
+
+			if (remaining.length !== references.length)
+			{
+				const command: SaveIdeaCommand = {
+					ideaId,
+					workId: record.workId,
+					title: record.title,
+					content: record.content,
+					originSignal: remaining[0] ?? null,
+					relatedSignals: remaining.slice(1)
+				};
+				const updated = idea.Update(command, new Date().toISOString());
+				const updatedRecord = updated.ToRecord();
+				await this.repository.SaveAsync(updatedRecord);
+				this.ideas.set(ideaId, updated);
+			}
+		}
+	}
+
 	// Loads and validates persisted Idea aggregates once.
 	private async EnsureLoadedAsync(): Promise<void>
 	{

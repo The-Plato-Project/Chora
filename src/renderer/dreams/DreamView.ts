@@ -21,19 +21,13 @@ export interface DreamView
 // Creates one renderer projection from a serialized Dream and canonical Signal snapshots.
 export function CreateDreamView(snapshot: DreamSnapshot, signals: readonly SignalRecord[]): DreamView
 {
-	const legacy = snapshot as DreamSnapshot & { signals?: readonly SignalRecord[] };
-	const signalIds = snapshot.signalIds ?? legacy.signals?.map(function GetLegacySignalId(signal): string
+	const associated = signals.filter(function IsAssociated(signal): boolean
 	{
-		return signal.id;
-	}) ?? [];
-	const candidates = signals.length > 0 ? signals : legacy.signals ?? [];
-	const associated = candidates.filter(function IsAssociated(signal): boolean
-	{
-		return signalIds.includes(signal.id);
+		return snapshot.signalIds.includes(signal.id);
 	});
 	const view: DreamView = {
 		...structuredClone(snapshot),
-		signalIds: [...signalIds],
+		signalIds: [...snapshot.signalIds],
 		linkedDreamIds: [...snapshot.linkedDreamIds],
 		signals: structuredClone(associated)
 	};

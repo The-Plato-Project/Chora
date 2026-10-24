@@ -30,6 +30,12 @@ describe("Idea styles", function IdeaStyleTests()
 		expect(dreamCss).toMatch(/\.signal-header \.signal-row\s*\{[^}]*min-height:\s*24px;[^}]*padding:\s*1px 8px;/s);
 		expect(dreamCss).toMatch(/\.signal-heading\s*\{[^}]*font-size:\s*12px;[^}]*text-overflow:\s*ellipsis;[^}]*white-space:\s*nowrap;/s);
 		expect(dreamCss).toMatch(/\.dream-editor \.signal-markdown-editor \.markdown-content,[^{]*\{[^}]*resize:\s*none;/s);
+		expect(dreamCss).toMatch(/\.signal-title-field input\s*\{[^}]*border:\s*0;[^}]*border-bottom:\s*1px solid transparent;[^}]*background:\s*transparent;[^}]*font:\s*600 14px/s);
+		expect(dreamCss).toMatch(/\.signal-title-field input:focus\s*\{[^}]*border-bottom-color:\s*var\(--signal-editor-secondary-text\);/s);
+		expect(dreamCss).toMatch(/\.signal-detail-body\s*\{[^}]*--signal-editor-inset:\s*16px;[^}]*--signal-editor-row-height:\s*24px;/s);
+		expect(dreamCss).toMatch(/\.signal-passage\s*\{[^}]*grid-template-columns:\s*14px minmax\(0, 1fr\) 22px;[^}]*min-height:\s*var\(--signal-editor-row-height\);[^}]*background:\s*var\(--signal-editor-passage-background\);/s);
+		expect(dreamCss).toMatch(/\.signal-passage-remove\s*\{[^}]*width:\s*22px;[^}]*height:\s*22px;[^}]*opacity:\s*1;/s);
+		expect(dreamCss).toMatch(/\.signal-observation \.signal-markdown-editor \.markdown-content\s*\{[^}]*padding:\s*16px var\(--signal-editor-inset\);[^}]*background:\s*transparent;/s);
 		expect(dreamCss).toMatch(/:is\(\.dream-editor, \.idea-editor\) \[hidden\]\s*\{[^}]*display:\s*none;/s);
 		expect(dreamCss).toMatch(/\.dream-editor \.dream-reflections-markdown,[^{]*\{[^}]*height:\s*100%;[^}]*overflow:\s*hidden;[^}]*border:\s*1px solid var\(--panel-border\);/s);
 	});

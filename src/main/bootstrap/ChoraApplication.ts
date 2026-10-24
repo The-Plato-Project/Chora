@@ -32,6 +32,10 @@ export class ChoraApplication
 		this.signals = new SignalModule(documentsPath, this.library.GetService());
 		this.dreams = new DreamModule(documentsPath, this.signals.GetLibrary());
 		this.ideas = new IdeaModule(documentsPath, this.signals.GetLibrary());
+		this.signals.GetLibrary().SetAssociationRemovers([
+			this.dreams.GetService(),
+			this.ideas.GetLibrary()
+		]);
 	}
 
 	// Loads configuration, starts modules, opens the window, and builds the application menu.

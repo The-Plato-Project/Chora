@@ -8,14 +8,14 @@ function CreateSignal(description: string): SignalRecord
 	return {
 		id: "signal-1",
 		workId: "republic",
-		selection: {
+		selections: [{
 			documentId: "republic",
 			start: { segmentKey: "s1", offset: 0 },
 			end: { segmentKey: "s1", offset: 3 },
 			selectedText: "abc",
 			locatorStart: null,
 			locatorEnd: null
-		},
+		}],
 		text: "abc",
 		description,
 		createdAt: "2026-01-01",

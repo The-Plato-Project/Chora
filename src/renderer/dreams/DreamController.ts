@@ -1,7 +1,7 @@
 import { CreateDreamSnapshot, CreateDreamView, type DreamView } from "./DreamView.js";
 import type { TextDocument } from "../../shared/library/LibraryTypes.js";
 import type { TextSelection } from "../../shared/text/TextSelection.js";
-import { IsValidSignalSelection } from "../../shared/signals/SignalSelection.js";
+import { GetSignalAnchor, HasSignalSelection, IsValidSignalSelection } from "../../shared/signals/SignalSelection.js";
 import type { SignalRecord } from "../../shared/signals/SignalTypes.js";
 import type { SignalStore } from "../signals/SignalStore.js";
 import { SignalDescriptionSaveQueue } from "../signals/SignalDescriptionSaveQueue.js";
@@ -60,6 +60,7 @@ export class DreamController
 		this.events.Subscribe("dream.passage-filter-requested", this.HandlePassageFilterRequestedAsync.bind(this));
 		this.events.Subscribe("library.text-opened", this.HandleFilterTextOpened.bind(this));
 		this.events.Subscribe("signal.changed", this.HandleSignalChangedAsync.bind(this));
+		this.events.Subscribe("signal.deleted", this.HandleSignalDeletedAsync.bind(this));
 	}
 
 	// Resolves a clicked passage against the current work before applying its source filter.
@@ -279,7 +280,7 @@ export class DreamController
 
 		if (signal !== null)
 		{
-			await this.events.PublishAsync("library.jump-requested", { selection: signal.selection, target: "signal" });
+			await this.events.PublishAsync("library.jump-requested", { selections: signal.selections, target: "signal" });
 		}
 	}
 
@@ -622,7 +623,9 @@ export class DreamController
 		{
 			this.errors.Report("DreamController", new Error("No active Dream."), "Open a Dream before adding a Signal.");
 		}
-		else if (document === null || signal.workId !== dream.workId || !document.Contains(signal.selection, dream.source))
+		else if (document === null
+			|| signal.workId !== dream.workId
+			|| !signal.selections.every((selection) => document.Contains(selection, dream.source)))
 		{
 			this.errors.Report("DreamController", new Error("Selection outside the Dream's source passage."), "Select text within the Dream's passage to add a Signal.");
 		}
@@ -632,6 +635,7 @@ export class DreamController
 			const signals = [...dream.signals, associated];
 			signals.sort(this.CompareSignalsBySelection.bind(this, document));
 			const change = this.store.ReplaceSignals(signals);
+			this.store.SetSelectedSignal(dream.id, associated.id);
 			this.HandleDreamChange(change);
 
 			if (change !== null)
@@ -671,6 +675,17 @@ export class DreamController
 		}
 	}
 
+	// Removes a globally deleted Signal from every renderer Dream projection.
+	private async HandleSignalDeletedAsync(event: ChoraEvents["signal.deleted"]): Promise<void>
+	{
+		const dreamIds = this.store.RemoveSignalEverywhere(event.signalId);
+
+		for (const dreamId of dreamIds)
+		{
+			await this.events.PublishAsync("dream.structure-changed", { dreamId });
+		}
+	}
+
 	// Extends the active DreamView's source passage to include the given selection.
 	public async ExtendSourceAsync(selection: TextSelection): Promise<void>
 	{
@@ -684,6 +699,10 @@ export class DreamController
 		else if (document === null || selection.documentId !== dream.workId || document.id !== dream.workId)
 		{
 			this.errors.Report("DreamController", new Error("Selection outside the Dream's text."), "Select text in the Dream's own text to extend its passage.");
+		}
+		else if (!document.AreSelectionsAdjacent(selection, dream.source))
+		{
+			this.errors.Report("DreamController", new Error("Selection is not adjacent to the Dream source."), "Select text immediately before or after the Dream source.");
 		}
 		else
 		{
@@ -749,9 +768,24 @@ export class DreamController
 	// Shows the source-passage context menu and performs the reader's chosen action.
 	public async HandleTextSelectionAsync(selection: TextSelection): Promise<void>
 	{
-		const action = await this.gateway.ShowSourceContextMenuAsync();
-		if (action === "add-dream-source-signal") await this.events.PublishAsync("dream.signal-add-requested", { selection });
+		const dream = this.store.GetActiveDream();
+		const selectedSignalId = dream === null ? null : this.store.GetSelectedSignal(dream.id);
+		const selectedSignal = selectedSignalId === null
+			? null
+			: this.signals?.GetSignal(selectedSignalId)
+				?? dream?.signals.find((candidate) => candidate.id === selectedSignalId)
+				?? null;
 		const document = this.library.GetText();
+		const canAddToSelectedSignal = selectedSignal !== null
+			&& document !== null
+			&& selectedSignal.workId === selection.documentId
+			&& !selectedSignal.selections.some((candidate) => document.Contains(selection, candidate));
+		const action = await this.gateway.ShowSourceContextMenuAsync(canAddToSelectedSignal);
+		if (action === "add-dream-source-signal") await this.events.PublishAsync("dream.signal-add-requested", { selection });
+		if (action === "add-to-selected-signal" && selectedSignal !== null && canAddToSelectedSignal)
+		{
+			await this.events.PublishAsync("signal.selection-add-requested", { signalId: selectedSignal.id, selection });
+		}
 		const selectedText = document?.id === selection.documentId
 			? document.ReconstructText(selection)
 			: "";
@@ -1084,10 +1118,7 @@ export class DreamController
 
 		for (const signal of signals)
 		{
-			const matchesStart = signal.selection.start.segmentKey === selection.start.segmentKey && signal.selection.start.offset === selection.start.offset;
-			const matchesEnd = signal.selection.end.segmentKey === selection.end.segmentKey && signal.selection.end.offset === selection.end.offset;
-
-			if (matchesStart && matchesEnd)
+			if (HasSignalSelection(signal, selection))
 			{
 				isDuplicate = true;
 				break;
@@ -1100,7 +1131,7 @@ export class DreamController
 	// Orders two signals by their position within the source document.
 	private CompareSignalsBySelection(document: TextDocument, first: SignalRecord, second: SignalRecord): number
 	{
-		const comparison = document.CompareSelections(first.selection, second.selection);
+		const comparison = document.CompareSelections(GetSignalAnchor(first), GetSignalAnchor(second));
 
 		return comparison;
 	}

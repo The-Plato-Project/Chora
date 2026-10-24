@@ -15,6 +15,7 @@ export class IdeaController
 		private readonly store: IdeaStore,
 		private readonly gateway: IdeaGateway)
 	{
+		this.events.Subscribe("signal.deleted", this.HandleSignalDeletedAsync.bind(this));
 	}
 
 	// Loads durable Ideas belonging to the active work.
@@ -446,6 +447,13 @@ export class IdeaController
 		const publication = this.events.PublishAsync("ideas.changed", {});
 
 		return publication;
+	}
+
+	// Removes a globally deleted Signal from every renderer Idea projection.
+	private async HandleSignalDeletedAsync(event: ChoraEvents["signal.deleted"]): Promise<void>
+	{
+		this.store.RemoveSignalEverywhere(event.signalId);
+		await this.PublishChangedAsync();
 	}
 
 	// Reports an Idea workflow failure through the shared error owner.

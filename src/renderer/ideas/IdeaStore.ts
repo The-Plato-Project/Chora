@@ -37,6 +37,25 @@ interface IdeaTabsSnapshot
 	readonly activeKey: string | null;
 }
 
+// Removes one Signal reference from one Idea draft and promotes the next reference.
+function RemoveSignalFromDraft(draft: IdeaDraft, signalId: string): IdeaDraft
+{
+	const references = draft.originSignal === null
+		? [...draft.relatedSignals]
+		: [draft.originSignal, ...draft.relatedSignals];
+	const remaining = references.filter(function KeepReference(reference): boolean
+	{
+		return reference.signalId !== signalId;
+	});
+	const updated: IdeaDraft = {
+		...draft,
+		originSignal: remaining[0] ?? null,
+		relatedSignals: remaining.slice(1)
+	};
+
+	return updated;
+}
+
 // Owns all renderer-side Idea state and returns immutable snapshots.
 export class IdeaStore
 {
@@ -445,6 +464,38 @@ export class IdeaStore
 			this.CaptureActiveTab();
 			this.PersistTabs();
 		}
+	}
+
+	// Removes one deleted Signal from durable Ideas, open drafts, and transient discovery state.
+	public RemoveSignalEverywhere(signalId: string): void
+	{
+		this.ideas = this.ideas.map(function RemoveFromIdea(idea): IdeaRecord
+		{
+			const references = idea.originSignal === null
+				? [...idea.relatedSignals]
+				: [idea.originSignal, ...idea.relatedSignals];
+			const remaining = references.filter(function KeepReference(reference): boolean
+			{
+				return reference.signalId !== signalId;
+			});
+
+			return {
+				...idea,
+				originSignal: remaining[0] ?? null,
+				relatedSignals: remaining.slice(1)
+			};
+		});
+		this.openTabs = this.openTabs.map(function RemoveFromDraft(draft): IdeaDraft
+		{
+			return RemoveSignalFromDraft(draft, signalId);
+		});
+		if (this.draft !== null) this.draft = RemoveSignalFromDraft(this.draft, signalId);
+		if (this.pendingAddReference?.signalId === signalId) this.pendingAddReference = null;
+		this.suggestions = this.suggestions.filter(function KeepSuggestion(suggestion): boolean
+		{
+			return suggestion.reference.signalId !== signalId;
+		});
+		this.PersistTabs();
 	}
 
 	// Begins the workflow for attaching one Signal through the normal Ideas catalogue.

@@ -1,5 +1,6 @@
 import type { TextSelection } from "../../shared/text/TextSelection.js";
 import type { SignalRecord } from "../../shared/signals/SignalTypes.js";
+import { HasSignalSelection } from "../../shared/signals/SignalSelection.js";
 
 // Owns renderer-side work-owned Signal records.
 export class SignalStore
@@ -39,11 +40,7 @@ export class SignalStore
 
 		for (const signal of this.signals)
 		{
-			const isMatch = signal.selection.documentId === selection.documentId
-				&& signal.selection.start.segmentKey === selection.start.segmentKey
-				&& signal.selection.start.offset === selection.start.offset
-				&& signal.selection.end.segmentKey === selection.end.segmentKey
-				&& signal.selection.end.offset === selection.end.offset;
+			const isMatch = HasSignalSelection(signal, selection);
 			if (isMatch) matches.push(signal);
 		}
 
@@ -54,13 +51,31 @@ export class SignalStore
 	public Replace(signal: SignalRecord): void
 	{
 		const records: SignalRecord[] = [];
+		let replaced = false;
 
 		for (const candidate of this.signals)
 		{
-			if (candidate.id !== signal.id) records.push(structuredClone(candidate));
+			if (candidate.id === signal.id)
+			{
+				records.push(structuredClone(signal));
+				replaced = true;
+			}
+			else
+			{
+				records.push(structuredClone(candidate));
+			}
 		}
-		records.push(structuredClone(signal));
+
+		if (!replaced) records.push(structuredClone(signal));
 		this.signals = records;
 	}
 
+	// Removes one authoritative Signal snapshot.
+	public Remove(signalId: string): void
+	{
+		this.signals = this.signals.filter(function KeepSignal(signal): boolean
+		{
+			return signal.id !== signalId;
+		});
+	}
 }

@@ -61,7 +61,11 @@ vi.mock("../../src/main/ideas/IdeaModule.js", function MockIdeaModule()
 	return {
 		IdeaModule: vi.fn(function IdeaModule()
 		{
-			return { Start: applicationMocks.ideasStart, Stop: applicationMocks.ideasStop };
+			return {
+				GetLibrary: function GetLibrary(): object { return {}; },
+				Start: applicationMocks.ideasStart,
+				Stop: applicationMocks.ideasStop
+			};
 		})
 	};
 });
@@ -72,7 +76,10 @@ vi.mock("../../src/main/signals/SignalModule.js", function MockSignalModule()
 		SignalModule: vi.fn(function SignalModule()
 		{
 			return {
-				GetLibrary: function GetLibrary(): object { return {}; },
+				GetLibrary: function GetLibrary(): object
+				{
+					return { SetAssociationRemovers: vi.fn() };
+				},
 				Start: applicationMocks.signalsStart,
 				Stop: applicationMocks.signalsStop
 			};
@@ -121,7 +128,13 @@ vi.mock("../../src/main/library/LookupIpcController.js", function MockLookupIpcC
 
 describe("Application menu", function ApplicationMenuTests(): void
 {
-	it.each(["Bold", "Italic", "dismiss"])("returns the formatting choice %s and preserves clipboard commands", async function FormattingChoiceAsync(choice): Promise<void>
+	it.each([
+		["Bold", "bold"],
+		["Italic", "italic"],
+		["Quotation", "blockquote"],
+		["Add link", "link"],
+		["dismiss", null]
+	])("returns the formatting choice %s and preserves clipboard commands", async function FormattingChoiceAsync(choice, expected): Promise<void>
 	{
 		const window = {} as BrowserWindow;
 		let template: MenuItemConstructorOptions[] = [];
@@ -137,10 +150,35 @@ describe("Application menu", function ApplicationMenuTests(): void
 			template = items;
 			return { popup } as unknown as ReturnType<typeof Menu.buildFromTemplate>;
 		});
-		const params = { misspelledWord: "", dictionarySuggestions: [], editFlags: { canCut: true, canCopy: true, canPaste: true, canSelectAll: true } } as ContextMenuParams;
+		const params = { misspelledWord: "", dictionarySuggestions: [], selectionText: "selected", editFlags: { canCut: true, canCopy: true, canPaste: true, canSelectAll: true } } as ContextMenuParams;
 		const action = await ShowFormattingContextMenu(window, params);
-		expect(action).toBe(choice === "dismiss" ? null : choice.toLowerCase());
+		expect(action).toBe(expected);
 		expect(template.map(function Role(item): string | undefined { return item.role; })).toEqual(expect.arrayContaining(["cut", "copy", "paste", "selectAll"]));
+	});
+
+	it.each([
+		["Bulleted list", "bullet_list"],
+		["Numbered list", "ordered_list"]
+	])("returns the nested list choice %s", async function ListChoiceAsync(choice, expected): Promise<void>
+	{
+		const window = {} as BrowserWindow;
+		let template: MenuItemConstructorOptions[] = [];
+		const popup = vi.fn(function Open(options): void
+		{
+			const lists = template.find(function FindLists(item): boolean { return item.label === "Lists"; });
+			const submenu = lists?.submenu as MenuItemConstructorOptions[] | undefined;
+			const command = submenu?.find(function Matches(item): boolean { return item.label === choice; });
+			command?.click?.({} as never, window, {} as never);
+			options.callback();
+		});
+		vi.mocked(Menu.buildFromTemplate).mockImplementationOnce(function Build(items): ReturnType<typeof Menu.buildFromTemplate>
+		{
+			template = items;
+			return { popup } as unknown as ReturnType<typeof Menu.buildFromTemplate>;
+		});
+		const params = { misspelledWord: "", dictionarySuggestions: [], selectionText: "selected", editFlags: { canCut: true, canCopy: true, canPaste: true, canSelectAll: true } } as ContextMenuParams;
+		const action = await ShowFormattingContextMenu(window, params);
+		expect(action).toBe(expected);
 	});
 
 	it.each(["spelling", "Add to dictionary", "dismiss"])("offers spelling suggestions and handles %s", async function SpellingChoiceAsync(choice): Promise<void>
@@ -160,7 +198,7 @@ describe("Application menu", function ApplicationMenuTests(): void
 			template = items;
 			return { popup } as unknown as ReturnType<typeof Menu.buildFromTemplate>;
 		});
-		const params = { misspelledWord: "speling", dictionarySuggestions: ["spelling"], editFlags: { canCut: true, canCopy: true, canPaste: true, canSelectAll: true } } as ContextMenuParams;
+		const params = { misspelledWord: "speling", dictionarySuggestions: ["spelling"], selectionText: "", editFlags: { canCut: true, canCopy: true, canPaste: true, canSelectAll: true } } as ContextMenuParams;
 		const action = await ShowFormattingContextMenu(window, params);
 		expect(action).toBeNull();
 		expect(replaceMisspelling).toHaveBeenCalledTimes(choice === "spelling" ? 1 : 0);
@@ -173,7 +211,7 @@ describe("Application menu", function ApplicationMenuTests(): void
 	it.each([false, true])("retains dictionary actions without suggestions in formatting mode %s", async function NoSuggestionsAsync(formatting): Promise<void>
 	{
 		const window = { webContents: { session: {} } } as unknown as BrowserWindow;
-		const params = { misspelledWord: "unrecognizedword", dictionarySuggestions: [], editFlags: { canCut: false, canCopy: false, canPaste: true, canSelectAll: true } } as ContextMenuParams;
+		const params = { misspelledWord: "unrecognizedword", dictionarySuggestions: [], selectionText: "", editFlags: { canCut: false, canCopy: false, canPaste: true, canSelectAll: true } } as ContextMenuParams;
 		const popup = vi.fn(function Open(options): void { options.callback?.(); });
 		vi.mocked(Menu.buildFromTemplate).mockReturnValueOnce({ popup } as unknown as ReturnType<typeof Menu.buildFromTemplate>);
 		if (formatting) await ShowFormattingContextMenu(window, params);

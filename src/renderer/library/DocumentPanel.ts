@@ -1,4 +1,4 @@
-import type { TextDocument, SourceNotice } from "../../shared/library/LibraryTypes.js";
+import type { TextDocument, TextSegment, SourceNotice } from "../../shared/library/LibraryTypes.js";
 import type { TextSelection } from "../../shared/text/TextSelection.js";
 import type { ChoraEvents } from "../core/events/ChoraEvents.js";
 import { ChoraEventBus, type Unsubscribe } from "../core/events/ChoraEventBus.js";
@@ -68,7 +68,8 @@ export class DocumentPanel
 	// Routes a jump-requested application event to the scroll workflow.
 	private HandleJumpRequested(event: ChoraEvents["library.jump-requested"]): void
 	{
-		this.JumpToSelection(event.selection, event.target ?? "source");
+		const selections = event.selections ?? (event.selection === undefined ? [] : [event.selection]);
+		this.JumpToSelections(selections, event.target ?? "source");
 	}
 
 	// Renders the full reading pane for a newly opened text.
@@ -102,10 +103,59 @@ export class DocumentPanel
 			const locatorClass = startsLocator ? "has-locator" : "";
 			const locatorTarget = startsLocator ? ` data-locator="${EscapeHtml(locatorValue)}"` : "";
 			previousLocator = locatorValue;
-			const segmentMarkup = `<p class="text-segment ${locatorClass}" data-segment-key="${EscapeHtml(segment.key)}"${bookTarget}${locatorTarget}>${locatorMarkup}<span class="segment-text">${EscapeHtml(segment.text)}</span></p>`;
+			const segmentText = this.RenderSegmentText(segment);
+			const segmentMarkup = `<p class="text-segment ${locatorClass}" data-segment-key="${EscapeHtml(segment.key)}"${bookTarget}${locatorTarget}>${locatorMarkup}<span class="segment-text">${segmentText}</span></p>`;
 			return `${heading}${segmentMarkup}`;
 		}).join("");
 		return segments;
+	}
+
+	// Renders semantic quotation ranges without changing the segment's canonical text content.
+	private RenderSegmentText(segment: TextSegment): string
+	{
+		let markup = "";
+		let offset = 0;
+		const annotations = segment.annotations ?? [];
+
+		for (let index = 0; index < annotations.length; index += 1)
+		{
+			const annotation = annotations[index];
+			if (annotation === undefined || annotation.start < offset)
+			{
+				continue;
+			}
+
+			markup += EscapeHtml(segment.text.slice(offset, annotation.start));
+
+			if (annotation.kind === "quotation")
+			{
+				markup += `<span class="source-quotation" role="blockquote"><span class="source-quotation-text">${EscapeHtml(segment.text.slice(annotation.start, annotation.end))}</span>`;
+				offset = annotation.end;
+				const citation = annotations[index + 1];
+
+				if (citation !== undefined
+					&& citation.kind === "citation"
+					&& citation.start >= offset
+					&& segment.text.slice(offset, citation.start).trim().length === 0)
+				{
+					markup += EscapeHtml(segment.text.slice(offset, citation.start));
+					markup += `<cite class="source-quotation-citation">${EscapeHtml(segment.text.slice(citation.start, citation.end))}</cite>`;
+					offset = citation.end;
+					index += 1;
+				}
+
+				markup += "</span>";
+			}
+			else
+			{
+				markup += `<cite class="source-quotation-citation">${EscapeHtml(segment.text.slice(annotation.start, annotation.end))}</cite>`;
+				offset = annotation.end;
+			}
+		}
+
+		markup += EscapeHtml(segment.text.slice(offset));
+
+		return markup;
 	}
 
 	// Renders the compact text, passage, search, and reading-settings toolbar.
@@ -461,45 +511,48 @@ export class DocumentPanel
 		}
 	}
 
-	// Scrolls a requested selection into view and clears the browser's native selection.
-	private JumpToSelection(selection: TextSelection, navigationTarget: "source" | "signal"): void
+	// Scrolls requested components into view and clears the browser's native selection.
+	private JumpToSelections(selections: readonly TextSelection[], navigationTarget: "source" | "signal"): void
 	{
-		const segmentKey = selection.start.segmentKey;
 		const document = this.library.GetText();
 		const renderedSegments = Array.from(this.root.querySelectorAll<HTMLElement>("[data-segment-key]"));
-		let startIndex = renderedSegments.findIndex(function FindStart(candidate): boolean
-		{
-			return candidate.dataset.segmentKey === selection.start.segmentKey;
-		});
-		let endIndex = renderedSegments.findIndex(function FindEnd(candidate): boolean
-		{
-			return candidate.dataset.segmentKey === selection.end.segmentKey;
-		});
-		let targets: HTMLElement[] = [];
-		let segment: HTMLElement | null = null;
+		let firstSegment: HTMLElement | null = null;
 
 		this.ClearFindHighlights();
 		this.ClearSignalHighlights();
 		if (navigationTarget === "source") this.ClearSourceHighlights();
 
-		if (document !== null && startIndex >= 0 && endIndex >= startIndex)
+		for (const selection of selections)
 		{
-			targets = renderedSegments.slice(startIndex, endIndex + 1);
-			segment = targets[0] ?? null;
-			for (const [targetIndex, target] of targets.entries())
+			const startIndex = renderedSegments.findIndex(function FindStart(candidate): boolean
 			{
-				const sourceSegmentIndex = startIndex + targetIndex;
-				const sourceSegment = document.segments[sourceSegmentIndex];
-				if (sourceSegment === undefined) continue;
-				const from = sourceSegmentIndex === startIndex ? selection.start.offset : 0;
-				const to = sourceSegmentIndex === endIndex ? selection.end.offset : sourceSegment.text.length;
-				if (navigationTarget === "source") this.HighlightSourceText(target, sourceSegment.text, from, to);
-				else this.HighlightSignalText(target, from, to);
+				return candidate.dataset.segmentKey === selection.start.segmentKey;
+			});
+			const endIndex = renderedSegments.findIndex(function FindEnd(candidate): boolean
+			{
+				return candidate.dataset.segmentKey === selection.end.segmentKey;
+			});
+
+			if (document !== null && startIndex >= 0 && endIndex >= startIndex)
+			{
+				const targets = renderedSegments.slice(startIndex, endIndex + 1);
+				firstSegment ??= targets[0] ?? null;
+				for (const [targetIndex, target] of targets.entries())
+				{
+					const sourceSegmentIndex = startIndex + targetIndex;
+					const sourceSegment = document.segments[sourceSegmentIndex];
+					if (sourceSegment === undefined) continue;
+					const from = sourceSegmentIndex === startIndex ? selection.start.offset : 0;
+					const to = sourceSegmentIndex === endIndex ? selection.end.offset : sourceSegment.text.length;
+					if (navigationTarget === "source") this.HighlightSourceText(target, sourceSegment.text, from, to);
+					else this.HighlightSignalText(target, from, to);
+				}
 			}
 		}
 
-		segment?.scrollIntoView({ behavior: "smooth", block: "center" });
-		if (segment !== null) this.controller.SetFocusSegment(segment.dataset.segmentKey ?? segmentKey);
+		const firstSelection = selections[0];
+		firstSegment?.scrollIntoView({ behavior: "smooth", block: "center" });
+		if (firstSegment !== null && firstSelection !== undefined) this.controller.SetFocusSegment(firstSelection.start.segmentKey);
 		ClearBrowserSelection();
 	}
 

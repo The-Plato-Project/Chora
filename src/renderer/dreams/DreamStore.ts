@@ -26,10 +26,10 @@ interface DreamSessionSnapshot
 	dream: DreamView;
 	// Whether the active DreamView had unsaved changes at the time of the snapshot.
 	isDirty: boolean;
-	revision?: number;
-	saveState?: DreamSaveState;
-	selectedSignalId?: string | null;
-	editorTabId?: string;
+	revision: number;
+	saveState: DreamSaveState;
+	selectedSignalId: string | null;
+	editorTabId: string;
 }
 
 // Persisted collection of open DreamView tabs and their active identity.
@@ -101,21 +101,13 @@ export class DreamStore
 	// Restores the active DreamView editing session from a prior application run.
 	public constructor(private readonly sessions: SessionStore)
 	{
-		const snapshot = this.sessions.Load<DreamSessionSnapshot | DreamTabsSnapshot>(DreamStore.SessionKey);
+		const snapshot = this.sessions.Load<DreamTabsSnapshot>(DreamStore.SessionKey);
 
 		if (snapshot !== null)
 		{
-			if ("tabs" in snapshot)
-			{
-				this.openTabs = structuredClone(snapshot.tabs);
-				const active = this.openTabs.find(function FindActive(tab): boolean { return tab.dream.id === snapshot.activeDreamId; }) ?? this.openTabs[0] ?? null;
-				if (active !== null) this.RestoreTab(active);
-			}
-			else
-			{
-				this.openTabs = [structuredClone(snapshot)];
-				this.RestoreTab(snapshot);
-			}
+			this.openTabs = structuredClone(snapshot.tabs);
+			const active = this.openTabs.find(function FindActive(tab): boolean { return tab.dream.id === snapshot.activeDreamId; }) ?? this.openTabs[0] ?? null;
+			if (active !== null) this.RestoreTab(active);
 		}
 	}
 
@@ -190,6 +182,22 @@ export class DreamStore
 	// Returns Dreams matching the given search query, ordered by their position in the source text.
 	public GetVisibleCatalogue(searchText: string, document: TextDocument | null = null): DreamView[]
 	{
+		const matches = this.GetMatchingCatalogue(searchText, document, this.passageFilter);
+
+		return matches;
+	}
+
+	// Returns the complete work catalogue for the Explorer without applying the Dream pane's passage filter.
+	public GetWorkspaceCatalogue(searchText: string, document: TextDocument | null = null): DreamView[]
+	{
+		const matches = this.GetMatchingCatalogue(searchText, document, null);
+
+		return matches;
+	}
+
+	// Applies work, text-search, ordering, and an optional source-passage restriction.
+	private GetMatchingCatalogue(searchText: string, document: TextDocument | null, passageFilter: DreamPassageFilter | null): DreamView[]
+	{
 		if (document !== null)
 		{
 			document = TextDocument.FromSnapshot(document);
@@ -198,13 +206,13 @@ export class DreamStore
 		const matches: DreamView[] = [];
 		let candidates: readonly DreamView[] = this.catalogue;
 
-		if (this.passageFilter !== null)
+		if (passageFilter !== null)
 		{
 			candidates = [];
-			if (document !== null && document.id === this.passageFilter.workId)
+			if (document !== null && document.id === passageFilter.workId)
 			{
 				const passages = this.BuildPassageCatalogue(document);
-				candidates = passages.get(this.passageFilter.segmentKey) ?? [];
+				candidates = passages.get(passageFilter.segmentKey) ?? [];
 			}
 		}
 
@@ -302,7 +310,7 @@ export class DreamStore
 	// Replaces the visible DreamView catalogue with a freshly loaded snapshot.
 	public SetCatalogue(catalogue: DreamView[]): void
 	{
-		this.catalogue = catalogue.map(this.NormalizeDream);
+		this.catalogue = structuredClone(catalogue);
 	}
 
 	// Refreshes canonical Signal fields in every DreamView projection without marking Dreams dirty.
@@ -322,6 +330,34 @@ export class DreamStore
 		}
 
 		return activeDreamId;
+	}
+
+	// Removes one deleted Signal from every Dream projection and reports the affected Dream identities.
+	public RemoveSignalEverywhere(signalId: string): readonly string[]
+	{
+		const changedDreamIds = new Set<string>();
+		for (const dream of this.catalogue)
+		{
+			if (this.RemoveSignalFromDream(dream, signalId)) changedDreamIds.add(dream.id);
+		}
+		for (const tab of this.openTabs)
+		{
+			if (this.RemoveSignalFromDream(tab.dream, signalId)) changedDreamIds.add(tab.dream.id);
+		}
+		const changedActive = this.activeDream === null
+			? false
+			: this.RemoveSignalFromDream(this.activeDream, signalId);
+
+		if (this.selectedSignalId === signalId) this.selectedSignalId = null;
+		if (changedActive)
+		{
+			const activeDreamId = this.activeDream?.id;
+			if (activeDreamId !== undefined) changedDreamIds.add(activeDreamId);
+			this.CaptureActiveTab();
+			this.Persist();
+		}
+
+		return [...changedDreamIds];
 	}
 
 	// Opens a DreamView for editing and records whether it starts with unsaved changes.
@@ -510,7 +546,7 @@ export class DreamStore
 	// Sole assignment point for the active DreamView, so every write path is traceable to one place.
 	private SetActiveDream(dream: DreamView | null): void
 	{
-		this.activeDream = dream === null ? null : this.NormalizeDream(dream);
+		this.activeDream = dream === null ? null : structuredClone(dream);
 	}
 
 	// Applies one canonical Signal snapshot to a DreamView projection.
@@ -527,6 +563,28 @@ export class DreamStore
 				dream.signals[index] = structuredClone(signal);
 				changed = true;
 			}
+		}
+
+		return changed;
+	}
+
+	// Removes one Signal identity and resolved record from one Dream projection.
+	private RemoveSignalFromDream(dream: DreamView, signalId: string): boolean
+	{
+		const signalIds = dream.signalIds.filter(function KeepSignal(candidate): boolean
+		{
+			return candidate !== signalId;
+		});
+		const signals = dream.signals.filter(function KeepSignal(candidate): boolean
+		{
+			return candidate.id !== signalId;
+		});
+		const changed = signalIds.length !== dream.signalIds.length || signals.length !== dream.signals.length;
+
+		if (changed)
+		{
+			dream.signalIds = signalIds;
+			dream.signals = signals;
 		}
 
 		return changed;
@@ -557,10 +615,10 @@ export class DreamStore
 	{
 		this.SetActiveDream(structuredClone(snapshot.dream));
 		this.isDirty = snapshot.isDirty;
-		this.revision = snapshot.revision ?? 0;
-		this.saveState = snapshot.saveState ?? "idle";
-		this.selectedSignalId = snapshot.selectedSignalId ?? null;
-		this.editorTabId = snapshot.editorTabId === "exegesis" || snapshot.editorTabId === "reflections" ? "reflections" : snapshot.editorTabId === "explorations" || snapshot.editorTabId === "synoptic-view" ? "synoptic-view" : "signals";
+		this.revision = snapshot.revision;
+		this.saveState = snapshot.saveState;
+		this.selectedSignalId = snapshot.selectedSignalId;
+		this.editorTabId = snapshot.editorTabId;
 	}
 
 	// Clears every active field after the final DreamView tab closes.
@@ -572,19 +630,6 @@ export class DreamStore
 		this.saveState = "idle";
 		this.selectedSignalId = null;
 		this.editorTabId = "signals";
-	}
-
-	private NormalizeDream(dream: DreamView): DreamView
-	{
-		const legacy = dream as DreamView & { exploration?: string };
-		const normalized = structuredClone(legacy);
-		const synopticView = normalized.synopticView ?? normalized.exploration ?? "";
-		const signalIds = normalized.signalIds ?? normalized.signals.map(function GetSignalId(signal): string
-		{
-			return signal.id;
-		});
-		delete normalized.exploration;
-		return { ...normalized, signalIds, synopticView };
 	}
 
 	// Returns whether the given DreamView matches the reader's normalized search query.

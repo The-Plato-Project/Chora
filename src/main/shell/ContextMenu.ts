@@ -28,6 +28,16 @@ export async function ShowFormattingContextMenu(window: BrowserWindow, params: C
 		template.push(
 			{ label: "Bold", click: function Bold(): void { resolve("bold"); } },
 			{ label: "Italic", click: function Italic(): void { resolve("italic"); } },
+			{
+				label: "Lists",
+				submenu: [
+					{ label: "Bulleted list", click: function BulletedList(): void { resolve("bullet_list"); } },
+					{ label: "Numbered list", click: function NumberedList(): void { resolve("ordered_list"); } }
+				]
+			},
+			{ label: "Quotation", click: function Quotation(): void { resolve("blockquote"); } },
+			{ type: "separator" },
+			{ label: "Add link", enabled: params.selectionText.length > 0, click: function AddLink(): void { resolve("link"); } },
 			{ type: "separator" },
 			{ role: "cut", enabled: params.editFlags.canCut },
 			{ role: "copy", enabled: params.editFlags.canCopy },
@@ -69,7 +79,7 @@ export function ShowEditContextMenu(window: BrowserWindow, params: ContextMenuPa
 	menu.popup({ window });
 }
 
-export async function ShowSelectionContextMenu(canAddSignal: boolean): Promise<SelectionAction>
+export async function ShowSelectionContextMenu(canAddSignal: boolean, canAddToDreamSource: boolean, canAddToCurrentSignal: boolean): Promise<SelectionAction>
 {
 	const result = await new Promise<SelectionAction>((resolve) =>
 	{
@@ -82,18 +92,27 @@ export async function ShowSelectionContextMenu(canAddSignal: boolean): Promise<S
 				}
 			},
 			{
-				label: "Add to Dream",
+				label: "Add to Dream Source",
+				enabled: canAddToDreamSource,
 				click: () =>
 				{
 					resolve("add-to-dream");
 				}
 			},
 			{
-				label: "Add Signal",
+				label: "Create Signal",
 				enabled: canAddSignal,
 				click: () =>
 				{
 					resolve("add-signal");
+				}
+			},
+			{
+				label: "Add to Selected Signal",
+				enabled: canAddToCurrentSignal,
+				click: () =>
+				{
+					resolve("add-to-selected-signal");
 				}
 			},
 			{ type: "separator" },
@@ -123,13 +142,14 @@ export async function ShowSelectionContextMenu(canAddSignal: boolean): Promise<S
 	return result;
 }
 
-export async function ShowDreamSourceContextMenu(): Promise<SelectionAction>
+export async function ShowDreamSourceContextMenu(canAddToSelectedSignal: boolean): Promise<SelectionAction>
 {
 	const result = await new Promise<SelectionAction>((resolve) =>
 	{
 		const menu = Menu.buildFromTemplate([
 			{ label: "Copy", click: () => resolve("copy-dream-source") },
-			{ label: "Add Signal", click: () => resolve("add-dream-source-signal") },
+			{ label: "Create Signal", click: () => resolve("add-dream-source-signal") },
+			{ label: "Add to Selected Signal", enabled: canAddToSelectedSignal, click: () => resolve("add-to-selected-signal") },
 			{ label: "Look up", click: () => resolve("lookup") }
 		]);
 		menu.popup({ callback: () => resolve(null) });

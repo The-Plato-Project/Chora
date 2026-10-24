@@ -55,7 +55,7 @@ export class MarkdownEditor
 		this.Root.className = "markdown-editor";
 		this.Root.setAttribute("aria-busy", "true");
 		this.toolbar.className = "markdown-toolbar";
-		this.toolbar.hidden = readOnly;
+		this.toolbar.hidden = true;
 		this.toolbar.setAttribute("role", "group");
 		this.toolbar.setAttribute("aria-label", `${label} formatting`);
 		this.AddButton("bold", "Bold", Bold);
@@ -357,8 +357,12 @@ export class MarkdownEditor
 				if (command !== null && !this.disposed && original.eq(view.state.doc))
 				{
 					this.SelectContextWord(view, event);
-					this.RunCommand(command, view);
-					view.focus();
+					if (command === "link") this.OpenLinkForm(view);
+					else
+					{
+						this.RunCommand(command, view);
+						view.focus();
+					}
 				}
 			}
 			catch (error)

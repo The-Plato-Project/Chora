@@ -10,10 +10,14 @@ export interface ChoraEvents
 	"library.text-open-requested": { textId: string };
 	"library.focus-changed": { textId: string; segmentKey: string };
 	"library.selection-changed": Record<string, never>;
-	"library.jump-requested": { selection: TextSelection; target?: "source" | "signal" };
+	"library.jump-requested": { selection?: TextSelection; selections?: readonly TextSelection[]; target?: "source" | "signal" };
 	"signal.add-requested": { selection: TextSelection };
 	// Announces an authoritative change to one work-owned Signal.
 	"signal.changed": { signal: SignalRecord };
+	// Announces complete deletion of one work-owned Signal.
+	"signal.deleted": { signalId: string; workId: string };
+	"signal.active-changed": { signalId: string | null; selections: readonly TextSelection[] };
+	"signal.selection-add-requested": { signalId: string; selection: TextSelection };
 	// Requests focus on the Dreams Explorer without opening a Dream.
 	"workspace.dreams-focus-requested": Record<string, never>;
 	"workspace.document-selected": { kind: "dream" | "idea" | null };

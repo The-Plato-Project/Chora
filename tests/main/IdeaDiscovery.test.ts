@@ -11,11 +11,11 @@ function CreateSignal(id: string, description: string): SignalRecord
 		id,
 		workId: "republic",
 		sourceRef: `source-${id}`,
-		selection: {
+		selections: [{
 			documentId: "republic",
 			start: { segmentKey: id, offset: 0 },
 			end: { segmentKey: id, offset: id.length }
-		},
+		}],
 		text: id,
 		description,
 		createdAt: "2026-01-01",

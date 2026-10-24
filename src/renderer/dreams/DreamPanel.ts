@@ -17,7 +17,9 @@ import type { SignalRecord } from "../../shared/signals/SignalTypes.js";
 import { SignalDocumentPanel } from "../signals/SignalDocumentPanel.js";
 import type { SignalController } from "../signals/SignalController.js";
 import type { SignalStore } from "../signals/SignalStore.js";
+import type { IdeaController } from "../ideas/IdeaController.js";
 import { LayoutSettings } from "../core/settings/LayoutSettingsStore.js";
+import type { TextSelection } from "../../shared/text/TextSelection.js";
 
 // Which view of the DreamView feature this panel instance renders.
 type DreamPanelMode = "catalogue" | "editor";
@@ -66,7 +68,8 @@ export class DreamPanel extends SignalDocumentPanel
 		private readonly mode: DreamPanelMode,
 		private readonly ideas: IdeaStore | null = null,
 		signals: SignalStore | null = null,
-		signalController: SignalController | null = null)
+		signalController: SignalController | null = null,
+		private readonly ideaController: IdeaController | null = null)
 	{
 		super(root, events, signals, signalController);
 		this.errors = new ErrorManager(events);
@@ -158,7 +161,9 @@ export class DreamPanel extends SignalDocumentPanel
 					this.controller,
 					this.events,
 					this.ideas,
-					this.errors);
+					this.signalController,
+					this.errors,
+					this.ideaController);
 				this.reflectionsPanel = new DreamReflectionsPanel(this.controller, dream.reflection, this.errors);
 				this.synopticViewPanel = new DreamSynopticViewPanel(this.controller, dream, this.errors);
 				const rememberedTab = this.controller.GetEditorTab(dream.id);
@@ -172,7 +177,7 @@ export class DreamPanel extends SignalDocumentPanel
 				host?.append(this.tabs.Root);
 				this.mountedDreamId = dream.id;
 			}
-			this.signalsPanel?.Update(dream);
+			this.signalsPanel?.Update(dream, this.library.GetText());
 			this.reflectionsPanel?.Update(dream.reflection);
 			this.synopticViewPanel?.Update(dream);
 			const source = this.root.querySelector<HTMLElement>("[data-dream-source]");
@@ -596,28 +601,37 @@ export class DreamPanel extends SignalDocumentPanel
 	// Shows the source-passage context menu when the reader right-clicks a selection within it.
 	private async HandleContextMenuAsync(event: Event): Promise<void>
 	{
+		const selection = this.CaptureSourceSelection();
+
+		if (selection !== null)
+		{
+			event.preventDefault();
+			await this.controller.HandleTextSelectionAsync(selection);
+		}
+	}
+
+	// Converts the current browser range inside the Dream source into a canonical text selection.
+	private CaptureSourceSelection(): TextSelection | null
+	{
 		const source = this.root.querySelector<HTMLElement>("[data-dream-source]");
 		const browserSelection = window.getSelection();
 		const range = browserSelection !== null && browserSelection.rangeCount > 0 ? browserSelection.getRangeAt(0) : null;
 		const isInsideSource = source !== null && range !== null && !range.collapsed && source.contains(range.commonAncestorContainer);
+		const dream = this.store.GetActiveDream();
+		const document = this.library.GetText();
+		let selection: TextSelection | null = null;
 
-		if (source !== null && range !== null && isInsideSource)
+		if (source !== null && range !== null && isInsideSource && dream !== null && document !== null)
 		{
-			event.preventDefault();
 			const prefix = range.cloneRange();
 			prefix.selectNodeContents(source);
 			prefix.setEnd(range.startContainer, range.startOffset);
 			const startOffset = prefix.toString().length;
 			const endOffset = startOffset + range.toString().length;
-			const dream = this.store.GetActiveDream();
-			const document = this.library.GetText();
-
-			if (dream !== null && document !== null)
-			{
-				const selection = this.controller.CreateTextSelection(document, dream.source, startOffset, endOffset);
-				if (selection !== null) await this.controller.HandleTextSelectionAsync(selection);
-			}
+			selection = this.controller.CreateTextSelection(document, dream.source, startOffset, endOffset);
 		}
+
+		return selection;
 	}
 
 	// Refreshes the status line and disables the save buttons while a save is in flight.
@@ -694,9 +708,12 @@ export class DreamPanel extends SignalDocumentPanel
 	}
 
 	// Re-renders the view when the active DreamView's structure changes.
-	private HandleStructureChanged(): void
+	private HandleStructureChanged(event: ChoraEvents["dream.structure-changed"]): void
 	{
-		this.Update();
+		if (this.store.GetActiveDream()?.id === event.dreamId)
+		{
+			this.Update();
+		}
 	}
 
 	// Re-renders and scrolls to a newly added signal.

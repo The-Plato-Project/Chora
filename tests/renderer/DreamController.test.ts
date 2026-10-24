@@ -78,12 +78,13 @@ describe("DreamController", function DreamControllerTests()
 				SaveSignal: vi.fn(async (command) =>
 				{
 					nextId += 1;
+					const selection = command.selections[0];
 					return {
 						id: command.signalId ?? `id-${nextId}`,
 						workId: command.workId,
-						sourceRef: command.selection.start.segmentKey,
-						selection: command.selection,
-						text: document.ReconstructText(command.selection),
+						sourceRef: selection.start.segmentKey,
+						selections: command.selections,
+						text: command.selections.map((item) => document.ReconstructText(item)).join(" … "),
 						description: command.description,
 						createdAt: "2026-01-01",
 						updatedAt: "2026-01-01"
@@ -112,8 +113,40 @@ describe("DreamController", function DreamControllerTests()
 	it("looks up only the selected source-passage text", async function LooksUpTextSelectionAsync()
 	{
 		await controller.HandleTextSelectionAsync({ documentId: "republic", start: { segmentKey: "s1", offset: 2 }, end: { segmentKey: "s1", offset: 4 }, selectedText: "cd", locatorStart: null, locatorEnd: null });
-		expect(window.chora.ShowDreamSourceContextMenu).toHaveBeenCalledOnce();
+		expect(window.chora.ShowDreamSourceContextMenu).toHaveBeenCalledExactlyOnceWith(false);
 		expect(window.chora.LookUpWord).toHaveBeenCalledExactlyOnceWith("cd");
+	});
+
+	it("adds different Dream source text to the selected Signal", async function AddsSourceToSelectedSignalAsync()
+	{
+		await controller.Create({ documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 6 } });
+		const existing = { documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 2 } };
+		await controller.AddSignal(existing);
+		const signal = store.GetActiveDream()?.signals[0];
+		const added = { documentId: "republic", start: { segmentKey: "s1", offset: 3 }, end: { segmentKey: "s1", offset: 5 } };
+		vi.mocked(window.chora.ShowDreamSourceContextMenu).mockResolvedValueOnce("add-to-selected-signal");
+		let request: ChoraEvents["signal.selection-add-requested"] | null = null;
+		events.Subscribe("signal.selection-add-requested", function CaptureRequest(event): void
+		{
+			request = event;
+		});
+
+		await controller.HandleTextSelectionAsync(added);
+
+		expect(window.chora.ShowDreamSourceContextMenu).toHaveBeenLastCalledWith(true);
+		expect(request).toEqual({ signalId: signal?.id, selection: added });
+	});
+
+	it("disables adding the selected Signal text to itself from the Dream source", async function RejectsDuplicateSourceComponentAsync()
+	{
+		await controller.Create({ documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 6 } });
+		const existing = { documentId: "republic", start: { segmentKey: "s1", offset: 1 }, end: { segmentKey: "s1", offset: 3 } };
+		await controller.AddSignal(existing);
+		const contained = { documentId: "republic", start: { segmentKey: "s1", offset: 1 }, end: { segmentKey: "s1", offset: 2 } };
+
+		await controller.HandleTextSelectionAsync(contained);
+
+		expect(window.chora.ShowDreamSourceContextMenu).toHaveBeenLastCalledWith(false);
 	});
 
 	it("creates an empty Dream and orders manually-added signals by source", async function CreatesAndOrdersSignals()
@@ -136,14 +169,14 @@ describe("DreamController", function DreamControllerTests()
 			id: "signal-1",
 			workId: "republic",
 			sourceRef: "s1",
-			selection: {
+			selections: [{
 				documentId: "republic",
 				start: { segmentKey: "s1", offset: 2 },
 				end: { segmentKey: "s1", offset: 4 },
 				selectedText: "cd",
 				locatorStart: null,
 				locatorEnd: null
-			},
+			}],
 			text: "cd",
 			description: "",
 			createdAt: "2026-01-01",
@@ -163,6 +196,7 @@ describe("DreamController", function DreamControllerTests()
 		await controller.AssociateSignalAsync(signal);
 
 		expect(store.GetActiveDream()?.signals.map((candidate) => candidate.id)).toContain(signal.id);
+		expect(controller.GetSelectedSignal("id-1")).toBe(signal.id);
 		expect(addedSignalId).toBe(signal.id);
 		unsubscribe();
 	});
@@ -196,14 +230,14 @@ describe("DreamController", function DreamControllerTests()
 			id: "signal-1",
 			workId: "republic",
 			sourceRef: "s1",
-			selection: {
+			selections: [{
 				documentId: "republic",
 				start: { segmentKey: "s1", offset: 0 },
 				end: { segmentKey: "s1", offset: 3 },
 				selectedText: "abc",
 				locatorStart: null,
 				locatorEnd: null
-			},
+			}],
 			text: "abc",
 			description: "A canonical Signal",
 			createdAt: "2026-01-01",
@@ -246,6 +280,73 @@ describe("DreamController", function DreamControllerTests()
 		})).toEqual(["signal-1"]);
 	});
 
+	it("updates only affected Dream structures when a Signal is deleted", async function DeletesSignalWithoutRefreshingCatalogueAsync()
+	{
+		const signal: SignalRecord = {
+			id: "signal-1",
+			workId: "republic",
+			sourceRef: "s1",
+			selections: [{
+				documentId: "republic",
+				start: { segmentKey: "s1", offset: 0 },
+				end: { segmentKey: "s1", offset: 3 }
+			}],
+			text: "abc",
+			description: "",
+			createdAt: "2026-01-01",
+			updatedAt: "2026-01-01"
+		};
+		const associated: DreamView = {
+			id: "associated",
+			workId: "republic",
+			dialogue: "Republic",
+			title: "Associated",
+			source: {
+				documentId: "republic",
+				start: { segmentKey: "s1", offset: 0 },
+				end: { segmentKey: "s1", offset: 6 }
+			},
+			signalIds: [signal.id],
+			signals: [signal],
+			reflection: "",
+			synopticView: "",
+			linkedDreamIds: [],
+			createdAt: "2026-01-01",
+			updatedAt: "2026-01-01"
+		};
+		const unrelated: DreamView = {
+			...structuredClone(associated),
+			id: "unrelated",
+			title: "Unrelated",
+			signalIds: [],
+			signals: []
+		};
+		store.SetCatalogue([associated, unrelated]);
+		store.Open(associated, false);
+		const changedDreamIds: string[] = [];
+		let catalogueChanges = 0;
+		events.Subscribe("dream.structure-changed", function CaptureStructureChange(event): void
+		{
+			changedDreamIds.push(event.dreamId);
+		});
+		events.Subscribe("dream.catalogue-changed", function CountCatalogueChange(): void
+		{
+			catalogueChanges += 1;
+		});
+
+		await events.PublishAsync("signal.deleted", { signalId: signal.id, workId: signal.workId });
+
+		expect(changedDreamIds).toEqual(["associated"]);
+		expect(catalogueChanges).toBe(0);
+		expect(store.GetCatalogue().map(function SelectDream(dream): Pick<DreamView, "id" | "signalIds">
+		{
+			return { id: dream.id, signalIds: dream.signalIds };
+		})).toEqual([
+			{ id: "associated", signalIds: [] },
+			{ id: "unrelated", signalIds: [] }
+		]);
+	});
+
 	it("jumps the reader to a selected Signal", async function ViewsSignalAsync()
 	{
 		await controller.Create({ documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 6 }, selectedText: "abcdef", locatorStart: null, locatorEnd: null });
@@ -254,7 +355,7 @@ describe("DreamController", function DreamControllerTests()
 		let selectedText = "";
 		events.Subscribe("library.jump-requested", function CaptureJump(event): void
 		{
-			selectedText = document.ReconstructText(event.selection);
+			selectedText = (event.selections ?? []).map((selection) => document.ReconstructText(selection)).join(" … ");
 		});
 
 		if (signal !== undefined) await controller.ViewSignalAsync(signal.id);
@@ -410,15 +511,27 @@ describe("DreamController", function DreamControllerTests()
 			if (event.target === "source") highlightedSource = document.ReconstructText(event.selection);
 		});
 
-		await controller.ExtendSourceAsync({ documentId: "republic", start: { segmentKey: "s2", offset: 1 }, end: { segmentKey: "s2", offset: 4 }, selectedText: "hij", locatorStart: null, locatorEnd: null });
+		await controller.ExtendSourceAsync({ documentId: "republic", start: { segmentKey: "s1", offset: 3 }, end: { segmentKey: "s1", offset: 6 }, selectedText: "def", locatorStart: null, locatorEnd: null });
 
 		const source = store.GetActiveDream()?.source;
 		expect(source?.start).toEqual({ segmentKey: "s1", offset: 1 });
-		expect(source?.end).toEqual({ segmentKey: "s2", offset: 4 });
-		expect(source === undefined ? "" : document.ReconstructText(source)).toBe("bcdef\nghij");
+		expect(source?.end).toEqual({ segmentKey: "s1", offset: 6 });
+		expect(source === undefined ? "" : document.ReconstructText(source)).toBe("bcdef");
 		expect(source?.start.segmentKey).toBe("s1");
-		expect(source?.end.segmentKey).toBe("s2");
-		expect(highlightedSource).toBe("bcdef\nghij");
+		expect(source?.end.segmentKey).toBe("s1");
+		expect(highlightedSource).toBe("bcdef");
+	});
+
+	it("rejects a non-adjacent Dream source extension", async function RejectsSeparatedSourceAsync()
+	{
+		await controller.Create({ documentId: "republic", start: { segmentKey: "s1", offset: 1 }, end: { segmentKey: "s1", offset: 3 }, selectedText: "bc", locatorStart: null, locatorEnd: null });
+
+		await controller.ExtendSourceAsync({ documentId: "republic", start: { segmentKey: "s2", offset: 1 }, end: { segmentKey: "s2", offset: 4 }, selectedText: "hij", locatorStart: null, locatorEnd: null });
+
+		expect(store.GetActiveDream()?.source).toEqual(expect.objectContaining({
+			start: { segmentKey: "s1", offset: 1 },
+			end: { segmentKey: "s1", offset: 3 }
+		}));
 	});
 
 	it("debounces Dream draft persistence while preserving recovery", async function RestoresDraft()

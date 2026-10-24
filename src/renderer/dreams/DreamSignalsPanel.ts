@@ -8,6 +8,10 @@ import { SignalViewPanel } from "../signals/SignalViewPanel.js";
 import { EscapeHtml } from "../ui/Html.js";
 import { AddIcon, IdeaIcon } from "../ui/Icons.js";
 import { DreamController } from "./DreamController.js";
+import type { TextDocument } from "../../shared/text/TextDocument.js";
+import type { TextSelection } from "../../shared/text/TextSelection.js";
+import type { SignalController } from "../signals/SignalController.js";
+import type { IdeaController } from "../ideas/IdeaController.js";
 
 // Adapts the shared Signal view to DreamView-owned associations.
 export class DreamSignalsPanel extends SignalViewPanel
@@ -20,17 +24,19 @@ export class DreamSignalsPanel extends SignalViewPanel
 		private readonly controller: DreamController,
 		private readonly events: ChoraEventBus<ChoraEvents>,
 		private readonly ideas: IdeaStore | null,
-		errors: ErrorManager)
+		private readonly signals: SignalController | null,
+		errors: ErrorManager,
+		private readonly ideaController: IdeaController | null = null)
 	{
 		super(errors, false, false);
 		this.Root.classList.add("dream-signals-panel");
 	}
 
 	// Reconciles the active DreamView's Signal associations.
-	public Update(dream: DreamView): void
+	public Update(dream: DreamView, document: TextDocument | null): void
 	{
 		this.dreamId = dream.id;
-		this.UpdateSignals(dream.signals);
+		this.UpdateSignals(dream.signals, document);
 	}
 
 	// Returns the DreamView session's remembered Signal.
@@ -49,10 +55,22 @@ export class DreamSignalsPanel extends SignalViewPanel
 		if (this.dreamId !== null) this.controller.RememberSelectedSignal(this.dreamId, signalId);
 	}
 
+	// Publishes the active Signal for source-selection composition.
+	protected NotifyActiveSignal(signalId: string | null, selections: readonly TextSelection[]): void
+	{
+		void this.events.PublishAsync("signal.active-changed", { signalId, selections });
+	}
+
 	// Navigates the reader to one DreamView Signal.
 	protected async ViewSignalAsync(signalId: string): Promise<void>
 	{
 		await this.controller.ViewSignalAsync(signalId);
+	}
+
+	// Navigates to one exact component without changing the selected Signal.
+	protected ViewSignalSelection(selection: TextSelection): void
+	{
+		void this.events.PublishAsync("library.jump-requested", { selection, target: "signal" });
 	}
 
 	// Identifies the active DreamView as the owner of these Signal associations.
@@ -67,10 +85,32 @@ export class DreamSignalsPanel extends SignalViewPanel
 		this.controller.RemoveSignal(signalId);
 	}
 
+	// Deletes one Signal from every Dream and Idea.
+	protected DeleteSignalEverywhereAsync(signalId: string): Promise<boolean>
+	{
+		const deletion = this.signals === null
+			? Promise.resolve(false)
+			: this.signals.DeleteEverywhereAsync(signalId);
+
+		return deletion;
+	}
+
 	// Saves one shared Signal description.
 	protected UpdateSignalDescription(signalId: string, description: string): void
 	{
 		this.controller.UpdateSignal(signalId, description);
+	}
+
+	// Saves one shared Signal title.
+	protected UpdateSignalTitle(signalId: string, title: string): void
+	{
+		void this.signals?.UpdateTitleAsync(signalId, title);
+	}
+
+	// Removes one exact passage from the shared Signal.
+	protected RemoveSignalSelection(signalId: string, selectionIndex: number): void
+	{
+		void this.signals?.RemoveSelectionAsync(signalId, selectionIndex);
 	}
 
 	// Adds the explicit Add to Idea command to a DreamView Signal.
@@ -78,7 +118,7 @@ export class DreamSignalsPanel extends SignalViewPanel
 	{
 		const ideasMenu = document.createElement("details");
 		ideasMenu.className = "action-menu signal-ideas-menu";
-		ideasMenu.innerHTML = `<summary data-signal-ideas-menu="${EscapeHtml(signalId)}" title="Add to Idea" aria-label="Add to Idea">${AddIcon}</summary><div class="action-menu-items" data-signal-ideas-list="${EscapeHtml(signalId)}"></div>`;
+		ideasMenu.innerHTML = `<summary data-signal-ideas-menu="${EscapeHtml(signalId)}" title="Add to Idea" aria-label="Add to Idea">${AddIcon}${IdeaIcon}</summary><div class="action-menu-items" data-signal-ideas-list="${EscapeHtml(signalId)}"></div>`;
 		ideasMenu.addEventListener("toggle", this.HandleIdeasMenuToggle.bind(this, ideasMenu));
 		actions.append(ideasMenu);
 		this.PopulateIdeasMenu(signalId, ideasMenu);
@@ -92,9 +132,23 @@ export class DreamSignalsPanel extends SignalViewPanel
 		const addChoice = target?.closest<HTMLElement>("[data-add-signal-to-idea]");
 		const addSignalId = addChoice?.dataset.addSignalToIdea;
 		const addIdeaId = addChoice?.dataset.ideaId;
-		const handled = menuSummary !== null || openIdeaId !== undefined || addSignalId !== undefined;
+		const createSignalId = target?.closest<HTMLElement>("[data-create-idea-from-signal]")?.dataset.createIdeaFromSignal;
+		const handled = menuSummary !== null || openIdeaId !== undefined || addSignalId !== undefined || createSignalId !== undefined;
 
-		if (addSignalId !== undefined && addIdeaId !== undefined)
+		if (createSignalId !== undefined)
+		{
+			const menu = target?.closest<HTMLDetailsElement>(".signal-ideas-menu") ?? null;
+			if (menu !== null) menu.open = false;
+			if (this.ideaController !== null)
+			{
+				const creation = this.ideaController.CreateFromSignalAsync({ signalId: createSignalId });
+				void creation.then(async () =>
+				{
+					await this.events.PublishAsync("workspace.document-selected", { kind: "idea" });
+				});
+			}
+		}
+		else if (addSignalId !== undefined && addIdeaId !== undefined)
 		{
 			const menu = target?.closest<HTMLDetailsElement>(".signal-ideas-menu") ?? null;
 			if (menu !== null) menu.open = false;
@@ -136,7 +190,7 @@ export class DreamSignalsPanel extends SignalViewPanel
 		{
 			return !matchingIds.has(idea.id);
 		});
-		let markup = "";
+		let markup = `<button class="signal-idea-create" data-create-idea-from-signal="${EscapeHtml(signalId)}" type="button" title="Create new Idea">${AddIcon}<span>Create new Idea</span></button><div class="signal-ideas-create-divider" role="separator"></div>`;
 
 		if (matchingIdeas.length > 0)
 		{
@@ -157,8 +211,6 @@ export class DreamSignalsPanel extends SignalViewPanel
 				markup += `<button data-add-signal-to-idea="${EscapeHtml(signalId)}" data-idea-id="${EscapeHtml(idea.id)}" type="button" title="${EscapeHtml(title)}">${AddIcon}<span>${EscapeHtml(title)}</span></button>`;
 			}
 		}
-
-		if (markup.length === 0) markup = `<p class="signal-ideas-empty">No Ideas yet.</p>`;
 
 		if (list !== null) list.innerHTML = markup;
 	}

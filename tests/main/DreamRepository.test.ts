@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { Dream } from "../../src/main/dreams/Dream.js";
 import { DreamLibrary } from "../../src/main/dreams/DreamLibrary.js";
-import { ParseDreamMarkdownWithLegacy, SerializeDreamMarkdown } from "../../src/main/dreams/DreamMarkdownCodec.js";
+import { ParseDreamMarkdown, SerializeDreamMarkdown } from "../../src/main/dreams/DreamMarkdownCodec.js";
 import { DreamRepository, type DreamPersistenceRecord } from "../../src/main/dreams/DreamRepository.js";
 import type { DreamSnapshot } from "../../src/shared/dreams/DreamTypes.js";
 
@@ -37,7 +37,6 @@ async function CreateLibraryAsync(): Promise<DreamLibrary>
 	directories.push(directory);
 	const repository = new DreamRepository(directory, path.join(directory, "Trash", "Dreams"));
 	const signals = {
-		ImportAsync: async function ImportSignalsAsync(): Promise<void> { await Promise.resolve(); },
 		DeleteIfOrphanedAsync: async function DeleteSignalAsync(): Promise<void>
 		{
 			await Promise.resolve();
@@ -77,26 +76,11 @@ describe("Dream library", function DreamLibraryTests()
 	{
 		const dream = CreateDream("greek", "Πρόσοψις");
 		const associated = { ...dream, signalIds: ["signal"] };
-		const parsed = ParseDreamMarkdownWithLegacy(SerializeDreamMarkdown(associated))?.snapshot;
+		const parsed = ParseDreamMarkdown(SerializeDreamMarkdown(associated));
 
 		expect(parsed).toEqual({
 			...associated
 		});
-	});
-
-	it("loads legacy Exegesis and exploration fields without data loss", () =>
-	{
-		const dream = CreateDream("legacy", "Legacy");
-		dream.reflection = "An inherited reflection.";
-		dream.synopticView = "An inherited view.";
-		const legacy = SerializeDreamMarkdown(dream)
-			.replace(/^synopticView:/mu, "exploration:")
-			.replace("## Reflections", "## Exegesis");
-
-		const parsed = ParseDreamMarkdownWithLegacy(legacy)?.snapshot;
-
-		expect(parsed?.reflection).toBe("An inherited reflection.");
-		expect(parsed?.synopticView).toBe("An inherited view.");
 	});
 
 	it("rejects identifiers that could escape the primary Dream library", async () =>
@@ -193,6 +177,44 @@ describe("Dream library", function DreamLibraryTests()
 		expect(deletedFiles[0]).toMatch(/^first--one--deleted-[0-9a-f-]+\.md$/u);
 		const deletedContent = await readFile(path.join(directory, "Trash", "Dreams", "republic", deletedFiles[0] ?? ""), "utf8");
 		expect(deletedContent).toContain("# First");
+	});
+
+	it("removes a Signal association without deleting or rewriting unrelated Dreams", async function RemovesSignalAssociationAsync()
+	{
+		const library = await CreateLibraryAsync();
+		const first = CreateDream("one", "First");
+		first.signalIds = ["deleted-signal", "retained-signal"];
+		const second = CreateDream("two", "Second");
+		second.signalIds = ["retained-signal"];
+		const third = CreateDream("three", "Third");
+		await library.SaveAsync(first);
+		await library.SaveAsync(second);
+		await library.SaveAsync(third);
+		const directory = directories[0];
+		if (directory === undefined)
+		{
+			throw new Error("Test directory was not created.");
+		}
+		const workPath = path.join(directory, "republic");
+		const secondPath = path.join(workPath, "second--two.md");
+		const thirdPath = path.join(workPath, "third--three.md");
+		const secondBefore = await readFile(secondPath, "utf8");
+		const thirdBefore = await readFile(thirdPath, "utf8");
+
+		await library.RemoveSignalEverywhereAsync("deleted-signal");
+
+		const records = await library.ListAsync();
+		expect(records.map(function SelectId(dream): string
+		{
+			return dream.id;
+		})).toEqual(["one", "two", "three"]);
+		expect(records.find(function FindFirst(dream): boolean
+		{
+			return dream.id === "one";
+		})?.signalIds).toEqual(["retained-signal"]);
+		expect(await readdir(workPath)).toEqual(["first--one.md", "second--two.md", "third--three.md"]);
+		expect(await readFile(secondPath, "utf8")).toBe(secondBefore);
+		expect(await readFile(thirdPath, "utf8")).toBe(thirdBefore);
 	});
 
 	it("reloads persisted records on repeated loads", async function ReloadsRepositoryRecords()

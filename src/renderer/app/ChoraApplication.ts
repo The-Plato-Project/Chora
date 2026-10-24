@@ -3,6 +3,7 @@ import { ErrorManager } from "../core/diagnostics/RendererErrorManager.js";
 import { ChoraEventBus } from "../core/events/ChoraEventBus.js";
 import type { ChoraEvents, ErrorRecord } from "../core/events/ChoraEvents.js";
 import type { TextDocument } from "../../shared/library/LibraryTypes.js";
+import type { TextSelection } from "../../shared/text/TextSelection.js";
 import { LibraryController } from "../library/LibraryController.js";
 import { LibraryGateway } from "../library/LibraryGateway.js";
 import { LibraryStore } from "../library/LibraryStore.js";
@@ -22,6 +23,7 @@ import { SignalGateway } from "../signals/SignalGateway.js";
 import { SignalStore } from "../signals/SignalStore.js";
 import { SignalPlacementController } from "../signals/SignalPlacementController.js";
 import { SignalPlacementPanel } from "../signals/SignalPlacementPanel.js";
+import { GetSignalAnchor } from "../../shared/signals/SignalSelection.js";
 import { ReadingSettingsStore, type ReadingFont } from "../core/settings/ReadingSettingsStore.js";
 import { LayoutSettings } from "../core/settings/LayoutSettingsStore.js";
 import { LookupStore } from "../library/lookup/LookupStore.js";
@@ -70,15 +72,21 @@ export class ChoraApplication
 	private readonly errors = new ErrorManager(this.events);
 	// Owns persisted session storage shared by Dream and Idea state.
 	private readonly sessions = new SessionStore();
+	// Owns Dream state used by the Library's source-extension eligibility query.
+	private readonly dreamStore = new DreamStore(this.sessions);
 	// Library: catalogue/active-text state, IPC client, and workflow coordinator.
 	private readonly libraryStore = new LibraryStore();
 	private readonly libraryGateway = new LibraryGateway();
-	private readonly library = new LibraryController(this.events, this.errors, this.libraryStore, this.libraryGateway);
+	private readonly library = new LibraryController(
+		this.events,
+		this.errors,
+		this.libraryStore,
+		this.libraryGateway,
+		this.GetActiveDreamSource.bind(this));
 	private readonly signalStore = new SignalStore();
 	private readonly signalGateway = new SignalGateway();
 	private readonly signals = new SignalController(this.errors, this.signalStore, this.signalGateway, this.events);
 	// Dreams: catalogue/active-Dream state, IPC client, and workflow coordinator.
-	private readonly dreamStore = new DreamStore(this.sessions);
 	private readonly dreamGateway = new DreamGateway();
 	private readonly dreams = new DreamController(this.events, this.errors, this.libraryStore, this.dreamStore, this.dreamGateway, this.signalStore);
 	// Owns renderer-side Idea state.
@@ -137,13 +145,13 @@ export class ChoraApplication
 			const ideaEditorRoot = this.RequireElement("[data-idea-editor-panel]");
 			const lookupRoot = this.RequireElement("[data-lookup-panel]");
 			this.disposables.push(new LookupPanel(lookupRoot, this.events, this.lookupStore, this.lookup));
-			const ideaEditor = new IdeaPanel(ideaEditorRoot, this.events, this.ideaStore, this.ideas, this.dreamStore, "editor", this.signalStore, this.signals);
+			const ideaEditor = new IdeaPanel(ideaEditorRoot, this.events, this.ideaStore, this.ideas, this.dreamStore, "editor", this.signalStore, this.signals, this.libraryStore);
 			this.disposables.push(ideaEditor);
 			this.disposables.push(new SignalPlacementPanel(this.events, this.signalPlacement));
 			this.disposables.push(new DocumentPanel(documentRoot, this.events, this.libraryStore, this.library, this.settings));
 			const passagePanel = new DreamPassagePanel(documentRoot, this.events, this.libraryStore, this.dreams, this.ideaStore, this.signalStore);
 			this.disposables.push(passagePanel);
-			this.dreamEditorPanel = new DreamPanel(dreamRoot, this.events, this.dreamStore, this.dreams, this.libraryStore, "editor", this.ideaStore, this.signalStore, this.signals);
+			this.dreamEditorPanel = new DreamPanel(dreamRoot, this.events, this.dreamStore, this.dreams, this.libraryStore, "editor", this.ideaStore, this.signalStore, this.signals, this.ideas);
 			this.disposables.push(this.dreamEditorPanel);
 			this.workspacePanel = new WorkspacePanel(explorerRoot, tabsRoot, this.events, this.dreamStore, this.dreams, this.ideaStore, this.ideas, this.libraryStore);
 			this.disposables.push(this.workspacePanel);
@@ -339,11 +347,12 @@ export class ChoraApplication
 
 		if (signal !== null)
 		{
-			if (this.libraryStore.GetText()?.id !== signal.selection.documentId)
+			const selection = GetSignalAnchor(signal);
+			if (this.libraryStore.GetText()?.id !== selection.documentId)
 			{
-				await this.library.OpenAsync(signal.selection.documentId);
+				await this.library.OpenAsync(selection.documentId);
 			}
-			await this.events.PublishAsync("library.jump-requested", { selection: signal.selection });
+			await this.events.PublishAsync("library.jump-requested", { selections: signal.selections });
 		}
 		else
 		{
@@ -372,6 +381,14 @@ export class ChoraApplication
 	private HandleWorkspaceDocumentSelected(event: ChoraEvents["workspace.document-selected"]): void
 	{
 		this.ShowEditorPanel(event.kind);
+	}
+
+	// Returns the active Dream source used to enable exact source extension.
+	private GetActiveDreamSource(): TextSelection | null
+	{
+		const source = this.dreamStore.GetActiveDream()?.source ?? null;
+
+		return source;
 	}
 
 	// Opens a text selected in the main process's application menu or dock.

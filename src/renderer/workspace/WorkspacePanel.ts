@@ -314,7 +314,7 @@ export class WorkspacePanel
 		const query = this.Normalize(this.searchText);
 		const groups = new Map<string, DreamView[]>();
 		const document = this.library.GetText();
-		const catalogue = this.dreams.GetVisibleCatalogue(this.searchText, document);
+		const catalogue = this.dreams.GetWorkspaceCatalogue(this.searchText, document);
 		for (const dream of catalogue)
 		{
 			if (workId !== null && dream.workId !== workId) continue;

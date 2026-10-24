@@ -24,7 +24,7 @@ export class LayoutSettingsStore
 	private static readonly StorageKey = "chora:layout-settings";
 	// Lowest accepted persisted dimension prevents unusable restored surfaces.
 	private static readonly MinimumDimension = 40;
-	// Highest accepted persisted dimension rejects corrupt or obsolete values.
+	// Highest accepted persisted dimension rejects corrupt or unsupported values.
 	private static readonly MaximumDimension = 4000;
 	// Current preferences loaded once for consistent updates.
 	private readonly preferences: LayoutPreferences = this.Load();

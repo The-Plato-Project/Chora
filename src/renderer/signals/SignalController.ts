@@ -20,6 +20,7 @@ export class SignalController
 		private readonly gateway: SignalGateway,
 		private readonly events: ChoraEventBus<ChoraEvents> | null = null)
 	{
+		this.events?.Subscribe("signal.selection-add-requested", this.HandleSelectionAddRequestedAsync.bind(this));
 	}
 
 	// Loads the active work's Signals.
@@ -55,7 +56,7 @@ export class SignalController
 				signal = await this.gateway.SaveAsync({
 					signalId: null,
 					workId: selection.documentId,
-					selection,
+					selections: [selection],
 					description: ""
 				});
 				this.store.Replace(signal);
@@ -80,13 +81,149 @@ export class SignalController
 			const saveAsync = this.gateway.SaveAsync.bind(this.gateway, {
 					signalId: existing.id,
 					workId: existing.workId,
-					selection: existing.selection,
+					selections: existing.selections,
 					description
 				});
 			const applyAsync = this.ApplySavedDescriptionAsync.bind(this);
 			const report = this.ReportDescriptionSaveError.bind(this);
 			await this.descriptionSaves.RequestAsync(signalId, description, saveAsync, applyAsync, report);
 		}
+	}
+
+	// Persists the reader-authored title for one Signal.
+	public async UpdateTitleAsync(signalId: string, title: string): Promise<void>
+	{
+		const existing = this.store.GetSignal(signalId);
+		const normalized = title.trim();
+
+		if (existing !== null && normalized.length > 0)
+		{
+			try
+			{
+				const saved = await this.gateway.SaveAsync({
+					signalId: existing.id,
+					workId: existing.workId,
+					title: normalized,
+					selections: existing.selections,
+					description: existing.description
+				});
+				this.store.Replace(saved);
+				await this.events?.PublishAsync("signal.changed", { signal: saved });
+			}
+			catch (error)
+			{
+				this.errors.Report("SignalController", error, "Unable to rename this Signal.");
+			}
+		}
+	}
+
+	// Removes one exact passage while preserving the requirement that every Signal remains anchored.
+	public async RemoveSelectionAsync(signalId: string, selectionIndex: number): Promise<void>
+	{
+		const existing = this.store.GetSignal(signalId);
+
+		if (existing === null)
+		{
+			this.errors.Report("SignalController", new Error(`Signal does not exist: ${signalId}`), "Unable to remove this passage.");
+		}
+		else if (existing.selections.length <= 1)
+		{
+			this.errors.Report("SignalController", new Error("A Signal must retain at least one passage."), "The final passage cannot be removed.");
+		}
+		else if (selectionIndex < 0 || selectionIndex >= existing.selections.length)
+		{
+			this.errors.Report("SignalController", new Error(`Signal passage does not exist: ${selectionIndex}`), "Unable to remove this passage.");
+		}
+		else
+		{
+			try
+			{
+				const selections = existing.selections.filter((_selection, index) => index !== selectionIndex);
+				const title = existing.title === undefined ? {} : { title: existing.title };
+				const saved = await this.gateway.SaveAsync({
+					signalId: existing.id,
+					workId: existing.workId,
+					...title,
+					selections,
+					description: existing.description
+				});
+				this.store.Replace(saved);
+				await this.events?.PublishAsync("signal.changed", { signal: saved });
+				await this.events?.PublishAsync("library.jump-requested", { selections: saved.selections, target: "signal" });
+			}
+			catch (error)
+			{
+				this.errors.Report("SignalController", error, "Unable to remove this passage.");
+			}
+		}
+	}
+
+	// Adds another exact source component to one existing Signal.
+	public async AddSelectionAsync(signalId: string, selection: TextSelection): Promise<void>
+	{
+		const existing = this.store.GetSignal(signalId);
+
+		if (existing === null)
+		{
+			this.errors.Report("SignalController", new Error(`Signal does not exist: ${signalId}`), "Unable to add this selection to the Signal.");
+		}
+		else if (selection.documentId !== existing.workId || !IsValidSignalSelection(selection))
+		{
+			this.errors.Report("SignalController", new Error("Signal component belongs to another work or is empty."), "Select text from the Signal's work.");
+		}
+		else
+		{
+			try
+			{
+				const saved = await this.gateway.SaveAsync({
+					signalId: existing.id,
+					workId: existing.workId,
+					selections: [...existing.selections, selection],
+					description: existing.description
+				});
+				this.store.Replace(saved);
+				await this.events?.PublishAsync("signal.changed", { signal: saved });
+				await this.events?.PublishAsync("library.jump-requested", { selections: saved.selections, target: "signal" });
+			}
+			catch (error)
+			{
+				this.errors.Report("SignalController", error, "Unable to add this selection to the Signal.");
+			}
+		}
+	}
+
+	// Deletes one Signal from every Dream and Idea that references it.
+	public async DeleteEverywhereAsync(signalId: string): Promise<boolean>
+	{
+		const existing = this.store.GetSignal(signalId);
+		let deleted = false;
+
+		if (existing === null)
+		{
+			this.errors.Report("SignalController", new Error(`Signal does not exist: ${signalId}`), "Unable to delete this Signal.");
+		}
+		else
+		{
+			try
+			{
+				await this.gateway.DeleteAsync({ signalId, workId: existing.workId });
+				this.store.Remove(signalId);
+				await this.events?.PublishAsync("signal.deleted", { signalId, workId: existing.workId });
+				deleted = true;
+			}
+			catch (error)
+			{
+				this.errors.Report("SignalController", error, "Unable to delete this Signal everywhere.");
+			}
+		}
+
+		return deleted;
+	}
+
+	// Routes composition requests from the reader context menu.
+	private async HandleSelectionAddRequestedAsync(event: ChoraEvents["signal.selection-add-requested"]): Promise<void>
+	{
+		await this.AddSelectionAsync(event.signalId, event.selection);
 	}
 
 	// Applies only the newest canonical description returned by the serialized writer.

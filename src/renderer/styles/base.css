@@ -503,6 +503,26 @@ mark.find-hit.active {
 	white-space: pre-wrap;
 }
 
+.source-quotation {
+	display: block;
+	margin: 0.8em 1.5em;
+	padding-left: 1em;
+	border-left: 2px solid color-mix(in srgb, var(--reader-foreground) 24%, transparent);
+}
+
+.source-quotation-text,
+.source-quotation-citation {
+	display: block;
+}
+
+.source-quotation-citation {
+	margin-top: 0.45em;
+	color: color-mix(in srgb, var(--reader-foreground) 58%, var(--reader-background));
+	font-family: var(--ui-font);
+	font-size: 0.72em;
+	font-style: normal;
+}
+
 .dream-panel {
 	box-sizing: border-box;
 	display: flex;

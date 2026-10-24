@@ -3,23 +3,21 @@ import { IdeaMarkdownCodec } from "../../src/main/ideas/IdeaMarkdownCodec.js";
 
 describe("IdeaMarkdownCodec", function IdeaMarkdownCodecTests()
 {
-	it("migrates ordered Signal references into an origin and related Signals", function MigratesFlatReferences()
+	it("loads current origin and related Signal references", function LoadsSignalReferences()
 	{
 		const codec = new IdeaMarkdownCodec();
 		const markdown = `---
 id: idea-1
 workId: republic
-references:
-  - dreamId: dream-1
-    signalId: origin
-  - dreamId: dream-2
-    signalId: related-1
-  - dreamId: dream-3
-    signalId: related-2
+originSignal:
+  signalId: origin
+relatedSignals:
+  - signalId: related-1
+  - signalId: related-2
 createdAt: "2026-01-01T00:00:00.000Z"
 updatedAt: "2026-01-01T00:00:00.000Z"
 ---
-# Migrated Idea
+# Idea
 
 An interpretation.
 `;
@@ -32,27 +30,27 @@ An interpretation.
 		]);
 	});
 
-	it("rejects legacy Dream and passage references explicitly", function RejectsLegacyReferences()
+	it("rejects invalid Signal references explicitly", function RejectsInvalidReferences()
 	{
 		const codec = new IdeaMarkdownCodec();
 		const markdown = `---
 id: idea-1
 workId: republic
-references:
-  - kind: dream
-    dreamId: dream-1
+originSignal:
+  dreamId: dream-1
+relatedSignals: []
 createdAt: 2026-01-01T00:00:00.000Z
 updatedAt: 2026-01-01T00:00:00.000Z
 ---
-# Legacy Idea
+# Invalid Idea
 `;
 
-		function ParseLegacyIdea(): void
+		function ParseInvalidIdea(): void
 		{
 			codec.Parse(markdown);
 		}
 
-		expect(ParseLegacyIdea).toThrow("Ideas must reference Signals");
+		expect(ParseInvalidIdea).toThrow("Idea Markdown contains an invalid Signal reference");
 	});
 
 	it("round-trips Idea-owned Signal rationales without changing the shared Signal", function PersistsRationale()

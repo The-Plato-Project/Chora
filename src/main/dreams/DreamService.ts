@@ -34,6 +34,14 @@ export class DreamService
 		return deletion;
 	}
 
+	// Removes one Signal association from every Dream.
+	public RemoveSignalEverywhereAsync(signalId: string): Promise<void>
+	{
+		const removal = this.library.RemoveSignalEverywhereAsync(signalId);
+
+		return removal;
+	}
+
 	// Allocates a new canonical identifier owned by the main process, for a Dream or Dream signal.
 	public AllocateIdAsync(): Promise<string>
 	{

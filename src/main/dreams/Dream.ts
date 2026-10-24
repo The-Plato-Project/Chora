@@ -29,7 +29,7 @@ export class Dream extends TextAnnotation
 		super({ id: snapshot.id, workId: snapshot.workId, selection: snapshot.source });
 		this.dialogue = snapshot.dialogue;
 		this.title = snapshot.title.trim();
-		this.signalIds = this.NormalizeSignalIds(snapshot.signalIds ?? []);
+		this.signalIds = this.NormalizeSignalIds(snapshot.signalIds);
 		this.reflection = snapshot.reflection;
 		this.synopticView = snapshot.synopticView;
 		this.linkedDreamIds = this.NormalizeLinks(snapshot.linkedDreamIds);

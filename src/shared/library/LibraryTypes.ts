@@ -3,6 +3,7 @@ export { TextDocument, TextSegment } from "../text/TextDocument.js";
 export type {
 	CitationSnapshot,
 	DocumentDivisionSnapshot,
+	TextAnnotationSnapshot,
 	TextDocumentSnapshot,
 	TextSegmentSnapshot
 } from "../text/TextDocument.js";

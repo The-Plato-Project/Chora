@@ -1,4 +1,4 @@
-import type { SaveSignalCommand, SignalRecord } from "../../shared/signals/SignalTypes.js";
+import type { DeleteSignalCommand, SaveSignalCommand, SignalRecord } from "../../shared/signals/SignalTypes.js";
 
 // Stateless IPC client for work-owned Signals.
 export class SignalGateway
@@ -13,5 +13,11 @@ export class SignalGateway
 	public SaveAsync(command: SaveSignalCommand): Promise<SignalRecord>
 	{
 		return window.chora.SaveSignal(command);
+	}
+
+	// Deletes one Signal from every owning document.
+	public DeleteAsync(command: DeleteSignalCommand): Promise<void>
+	{
+		return window.chora.DeleteSignal(command);
 	}
 }

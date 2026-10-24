@@ -12,6 +12,8 @@ import type { SignalLibrary } from "../signals/SignalLibrary.js";
 // Composes the main-process Idea feature and controls its IPC lifetime.
 export class IdeaModule extends ApplicationModule
 {
+	// Owns authoritative Idea persistence and associations.
+	private readonly library: IdeaLibrary;
 	// Owns the Idea IPC registrations for this module.
 	private readonly ipcController: IdeaIpcController;
 
@@ -22,11 +24,17 @@ export class IdeaModule extends ApplicationModule
 		const rootPath = path.join(documentsPath, "Chora");
 		const codec = new IdeaMarkdownCodec();
 		const repository = new IdeaRepository(rootPath, codec);
-		const library = new IdeaLibrary(repository, signals);
+		this.library = new IdeaLibrary(repository, signals);
 		const prompts = new PromptLoader();
 		const model = CreateModelProvider();
 		const discovery = new IdeaDiscovery(signals, prompts, model);
-		this.ipcController = new IdeaIpcController(library, discovery);
+		this.ipcController = new IdeaIpcController(this.library, discovery);
+	}
+
+	// Exposes authoritative Idea associations to Signal deletion.
+	public GetLibrary(): IdeaLibrary
+	{
+		return this.library;
 	}
 
 	// Registers the Idea IPC boundary.

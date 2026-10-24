@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from "electron";
 import type { SelectionAction } from "../shared/text/TextSelection.js";
 import type { TextDocument, LibraryTextSummary, SourceNotice } from "../shared/library/LibraryTypes.js";
 import type { DreamSnapshot, DreamSynopticViewRequest } from "../shared/dreams/DreamTypes.js";
-import type { SaveSignalCommand, SignalRecord } from "../shared/signals/SignalTypes.js";
+import type { DeleteSignalCommand, SaveSignalCommand, SignalRecord } from "../shared/signals/SignalTypes.js";
 import type { DeleteIdeaCommand, IdeaDiscoveryRequest, IdeaDiscoverySuggestion, IdeaRecord, SaveIdeaCommand } from "../shared/ideas/IdeaTypes.js";
 import { IPC_CHANNELS } from "../shared/contracts/IpcChannels.js";
 import type { ApiSubscription, ChoraApi, FormattingAction } from "../shared/contracts/ChoraApi.js";
@@ -40,15 +40,15 @@ function SubscribeExternalTextLoaded(callback: (work: TextDocument) => void): Ap
 	return () => ipcRenderer.removeListener(IPC_CHANNELS.externalTextLoaded, listener);
 }
 
-async function ShowSelectionContextMenu(canAddSignal: boolean): Promise<SelectionAction>
+async function ShowSelectionContextMenu(canAddSignal: boolean, canAddToDreamSource: boolean, canAddToCurrentSignal: boolean): Promise<SelectionAction>
 {
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.showSelectionContextMenu, canAddSignal);
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.showSelectionContextMenu, canAddSignal, canAddToDreamSource, canAddToCurrentSignal);
 	return result as SelectionAction;
 }
 
-async function ShowDreamSourceContextMenu(): Promise<SelectionAction>
+async function ShowDreamSourceContextMenu(canAddToSelectedSignal: boolean): Promise<SelectionAction>
 {
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.showDreamSourceContextMenu);
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.showDreamSourceContextMenu, canAddToSelectedSignal);
 	return result as SelectionAction;
 }
 
@@ -126,6 +126,11 @@ async function SaveSignal(command: SaveSignalCommand): Promise<SignalRecord>
 	const result = await ipcRenderer.invoke(IPC_CHANNELS.saveSignal, command);
 
 	return result as SignalRecord;
+}
+
+async function DeleteSignal(command: DeleteSignalCommand): Promise<void>
+{
+	await ipcRenderer.invoke(IPC_CHANNELS.deleteSignal, command);
 }
 
 // Lists durable Ideas through the isolated renderer bridge.
@@ -213,6 +218,7 @@ const api: ChoraApi = {
 	GetSourceNotice,
 	ListSignals,
 	SaveSignal,
+	DeleteSignal,
 	ListIdeas,
 	DiscoverIdeaSignals,
 	SaveIdea,

@@ -21,11 +21,11 @@ function CreateSignal(id: string, text: string, description: string): SignalReco
 		id,
 		workId: "republic",
 		sourceRef: `source-${id}`,
-		selection: {
+		selections: [{
 			documentId: "republic",
 			start: { segmentKey: id, offset: 0 },
 			end: { segmentKey: id, offset: text.length }
-		},
+		}],
 		text,
 		description,
 		createdAt: "2026-01-01",
@@ -43,12 +43,7 @@ function CreateDream(signals: readonly SignalRecord[]): DreamView
 		workId: "republic",
 		dialogue: "Republic",
 		title: "Descent",
-		source: {
-			...signals[0]!.selection,
-			sourceRefs: ["source-1"],
-			startSourceRef: "source-1",
-			endSourceRef: "source-1"
-		},
+		source: signals[0]!.selections[0]!,
 		signalIds: signals.map(function GetSignalId(signal): string
 		{
 			return signal.id;
@@ -345,11 +340,12 @@ describe("IdeaPanel", function IdeaPanelTests()
 		expect(root.querySelectorAll(".idea-signals-section .signal-item")).toHaveLength(1);
 		expect(root.querySelector("[data-delete-idea]")).toBeNull();
 		const remove = root.querySelector<HTMLButtonElement>("[data-remove-signal-association]")!;
-		const actions = remove.closest(".signal-toolbar-actions");
-		expect(actions?.parentElement?.classList.contains("markdown-toolbar")).toBe(true);
+		const actions = remove.closest(".signal-editor-actions");
+		expect(actions?.parentElement?.classList.contains("signal-identity")).toBe(true);
 		expect(actions?.nextElementSibling).toBeNull();
 		expect(remove.textContent).toBe("");
 		expect(remove.title).toBe("Remove from Idea");
+		expect(root.querySelector("[data-remove-signal-passage]")).toBeNull();
 		remove.click();
 		const prompt = document.querySelector<HTMLElement>("[data-signal-remove-confirm]")?.closest<HTMLElement>(".popup-overlay");
 		const cancel = prompt?.querySelector<HTMLButtonElement>("[data-signal-remove-cancel]");

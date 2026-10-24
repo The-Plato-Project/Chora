@@ -47,7 +47,7 @@ function CreateSignal(): SignalRecord
 		id: "signal-1",
 		workId: text.id,
 		sourceRef: "s1",
-		selection,
+		selections: [selection],
 		text: selection.selectedText,
 		description: "A signal",
 		createdAt: "2026-09-08",

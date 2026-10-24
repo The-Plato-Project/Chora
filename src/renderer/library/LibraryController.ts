@@ -12,16 +12,20 @@ export class LibraryController
 	// Local storage key for the reader's last-opened work.
 	private static readonly LastWorkKey = "chora:last-work";
 	private activeDocumentKind: "dream" | "idea" | null = null;
+	private activeSignalId: string | null = null;
+	private activeSignalSelections: readonly TextSelection[] = [];
 
 	// Creates the controller and subscribes to the application events it coordinates.
 	public constructor(
 		private readonly events: ChoraEventBus<ChoraEvents>,
 		private readonly errors: ErrorManager,
 		private readonly store: LibraryStore,
-		private readonly gateway: LibraryGateway)
+		private readonly gateway: LibraryGateway,
+		private readonly getActiveDreamSource: () => TextSelection | null = function NoActiveDreamSource(): null { return null; })
 	{
 		this.events.Subscribe("library.text-open-requested", this.HandleTextOpenRequested.bind(this));
 		this.events.Subscribe("workspace.document-selected", this.HandleDocumentSelected.bind(this));
+		this.events.Subscribe("signal.active-changed", this.HandleActiveSignalChanged.bind(this));
 	}
 
 	// Loads the Library catalogue and opens the reader's preferred work.
@@ -119,11 +123,30 @@ export class LibraryController
 	// Shows the selection context menu and routes the reader's choice to its workflow.
 	public async HandleSelectionActionAsync(selection: TextSelection): Promise<void>
 	{
-		const action = await this.gateway.ShowSelectionContextMenuAsync(this.activeDocumentKind !== null);
-		if (action === "create-dream") await this.events.PublishAsync("dream.create-requested", { selection });
-		if (action === "add-to-dream") await this.events.PublishAsync("dream.source-extend-requested", { selection });
-		if (action === "add-signal") await this.events.PublishAsync("signal.add-requested", { selection });
 		const document = this.store.GetText();
+		const activeDreamSource = this.activeDocumentKind === "dream" ? this.getActiveDreamSource() : null;
+		const canAddToDreamSource = document !== null
+			&& activeDreamSource !== null
+			&& selection.documentId === activeDreamSource.documentId
+			&& document.AreSelectionsAdjacent(selection, activeDreamSource);
+		const canAddSignal = this.activeDocumentKind === "idea"
+			|| (this.activeDocumentKind === "dream"
+				&& document !== null
+				&& activeDreamSource !== null
+				&& document.Contains(selection, activeDreamSource));
+		const canAddToSelectedSignal = this.activeSignalId !== null
+			&& document !== null
+			&& canAddSignal
+			&& this.activeSignalSelections.some((candidate) => candidate.documentId === selection.documentId)
+			&& !this.activeSignalSelections.some((candidate) => document.Contains(selection, candidate));
+		const action = await this.gateway.ShowSelectionContextMenuAsync(canAddSignal, canAddToDreamSource, canAddToSelectedSignal);
+		if (action === "create-dream") await this.events.PublishAsync("dream.create-requested", { selection });
+		if (action === "add-to-dream" && canAddToDreamSource) await this.events.PublishAsync("dream.source-extend-requested", { selection });
+		if (action === "add-signal" && canAddSignal) await this.events.PublishAsync("signal.add-requested", { selection });
+		if (action === "add-to-selected-signal" && this.activeSignalId !== null && canAddToSelectedSignal)
+		{
+			await this.events.PublishAsync("signal.selection-add-requested", { signalId: this.activeSignalId, selection });
+		}
 		const selectedText = document?.id === selection.documentId
 			? document.ReconstructText(selection)
 			: "";
@@ -135,6 +158,18 @@ export class LibraryController
 	private HandleDocumentSelected(event: ChoraEvents["workspace.document-selected"]): void
 	{
 		this.activeDocumentKind = event.kind;
+		if (event.kind === null)
+		{
+			this.activeSignalId = null;
+			this.activeSignalSelections = [];
+		}
+	}
+
+	// Tracks the selected Signal that may receive another exact component.
+	private HandleActiveSignalChanged(event: ChoraEvents["signal.active-changed"]): void
+	{
+		this.activeSignalId = event.signalId;
+		this.activeSignalSelections = structuredClone(event.selections);
 	}
 
 	// Routes a text-open-requested application event to the open workflow.

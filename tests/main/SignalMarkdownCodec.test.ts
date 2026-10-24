@@ -11,11 +11,12 @@ describe("SignalMarkdownCodec", function SignalMarkdownCodecTests()
 			id: "signal-1",
 			workId: "republic",
 			sourceRef: "327a",
-			selection: {
+			title: "Descent",
+			selections: [{
 				documentId: "republic",
 				start: { segmentKey: "327a", offset: 0 },
 				end: { segmentKey: "327a", offset: 8 }
-			},
+			}],
 			text: "κατέβην",
 			description: "A movement downward.",
 			createdAt: "2026-01-01",
@@ -28,5 +29,26 @@ describe("SignalMarkdownCodec", function SignalMarkdownCodecTests()
 			...signal,
 			text: ""
 		});
+	});
+
+	it("rejects Signal metadata without canonical selections", function RejectsMissingSelections(): void
+	{
+		const codec = new SignalMarkdownCodec();
+		const content = `---
+id: signal-1
+workId: republic
+sourceRef: 327a
+createdAt: 2026-01-01
+updatedAt: 2026-01-02
+---
+Observation.
+`;
+
+		function ParseInvalidSignal(): void
+		{
+			codec.Parse(content);
+		}
+
+		expect(ParseInvalidSignal).toThrow("Signal Markdown is missing required metadata");
 	});
 });

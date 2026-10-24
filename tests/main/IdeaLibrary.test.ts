@@ -19,11 +19,11 @@ function CreateSignal(id: string): SignalRecord
 		id,
 		workId: "republic",
 		sourceRef: `source-${id}`,
-		selection: {
+		selections: [{
 			documentId: "republic",
 			start: { segmentKey: id, offset: 0 },
 			end: { segmentKey: id, offset: 3 }
-		},
+		}],
 		text: id,
 		description: `Description ${id}`,
 		createdAt: "2026-01-01",
@@ -36,7 +36,7 @@ function CreateSignal(id: string): SignalRecord
 // Creates one complete DreamView fixture with the requested Signals.
 function CreateDream(id: string, workId: string, signalIds: readonly string[]): DreamView
 {
-	const source = CreateSignal("source").selection;
+	const source = CreateSignal("source").selections[0]!;
 	const signals: SignalRecord[] = [];
 
 	for (const signalId of signalIds)
@@ -50,12 +50,8 @@ function CreateDream(id: string, workId: string, signalIds: readonly string[]): 
 		workId,
 		dialogue: "Republic",
 		title: `Dream ${id}`,
-		source: {
-			...source,
-			sourceRefs: ["source"],
-			startSourceRef: "source",
-			endSourceRef: "source"
-		},
+		source,
+		signalIds: [...signalIds],
 		signals,
 		reflection: "",
 		synopticView: "",

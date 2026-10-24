@@ -1,58 +1,51 @@
 import matter from "gray-matter";
 import type { DreamSnapshot } from "../../shared/dreams/DreamTypes.js";
-import type { SignalRecord } from "../../shared/signals/SignalTypes.js";
 import { DecodeTextSelection } from "../../shared/text/TextSelection.js";
 
 // Frontmatter shape parsed from a Dream Markdown file.
-type LegacyDreamData = Partial<DreamSnapshot> & { exploration?: string; signals?: SignalRecord[] };
-
-// Parsed persistence state, including embedded Signals accepted only for one-way migration.
-export interface ParsedDreamSnapshot
-{
-	readonly snapshot: DreamSnapshot;
-	readonly legacySignals: readonly SignalRecord[];
-}
+type DreamData = Partial<DreamSnapshot>;
+type ParsedDreamData = DreamData & Pick<DreamSnapshot, "title" | "reflection">;
 
 // Builds a Dream snapshot from parsed Markdown data, or null when required fields are missing.
-function BuildDreamSnapshot(record: LegacyDreamData): ParsedDreamSnapshot | null
+function BuildDreamSnapshot(record: ParsedDreamData): DreamSnapshot | null
 {
 	const source = record.source;
-	let parsed: ParsedDreamSnapshot | null = null;
+	const hasRequiredFields = source !== undefined
+		&& record.id !== undefined
+		&& record.workId !== undefined
+		&& record.dialogue !== undefined
+		&& Array.isArray(record.signalIds)
+		&& typeof record.synopticView === "string"
+		&& Array.isArray(record.linkedDreamIds)
+		&& typeof record.createdAt === "string"
+		&& typeof record.updatedAt === "string";
+	let snapshot: DreamSnapshot | null = null;
 
-	if (source !== undefined && record.id !== undefined && record.workId !== undefined)
+	if (hasRequiredFields)
 	{
-		const legacySignals = (record.signals ?? []).map(function NormalizeLegacySignal(signal): SignalRecord
-		{
-			return { ...signal, description: signal.description ?? "" };
-		});
-		const signalIds = record.signalIds ?? legacySignals.map(function GetSignalId(signal): string
-		{
-			return signal.id;
-		});
-		const snapshot: DreamSnapshot = {
+		snapshot = {
 			id: record.id,
 			workId: record.workId,
-			dialogue: record.dialogue ?? null,
+			dialogue: record.dialogue,
 			title: record.title?.trim() ?? "",
 			source: DecodeTextSelection(source),
-			signalIds,
-			reflection: record.reflection ?? "",
-			synopticView: record.synopticView ?? record.exploration ?? "",
-			linkedDreamIds: Array.from(new Set(record.linkedDreamIds ?? [])),
-			createdAt: record.createdAt ?? new Date().toISOString(),
-			updatedAt: record.updatedAt ?? new Date().toISOString()
+			signalIds: [...record.signalIds],
+			reflection: record.reflection,
+			synopticView: record.synopticView,
+			linkedDreamIds: Array.from(new Set(record.linkedDreamIds)),
+			createdAt: record.createdAt,
+			updatedAt: record.updatedAt
 		};
-		parsed = { snapshot, legacySignals };
 	}
 
-	return parsed;
+	return snapshot;
 }
 
-function ReadSections(content: string): { title: string; reflections: string }
+function ReadSections(content: string): { title: string; reflections: string } | null
 {
-	const current = /^#\s+(.+?)\s*\r?\n\r?\n## (?:Exegesis|Reflections)\r?\n\r?\n([\s\S]*?)\s*$/u.exec(content);
-	const titleless = /^## (?:Exegesis|Reflections)\r?\n\r?\n([\s\S]*?)\s*$/u.exec(content);
-	let sections = { title: "", reflections: content.trim() };
+	const current = /^#\s+(.+?)\s*\r?\n\r?\n## Reflections\r?\n\r?\n([\s\S]*?)\s*$/u.exec(content);
+	const titleless = /^## Reflections\r?\n\r?\n([\s\S]*?)\s*$/u.exec(content);
+	let sections: { title: string; reflections: string } | null = null;
 
 	if (current !== null) sections = { title: current[1] ?? "", reflections: current[2] ?? "" };
 	else if (titleless !== null) sections = { title: "", reflections: titleless[1] ?? "" };
@@ -60,13 +53,15 @@ function ReadSections(content: string): { title: string; reflections: string }
 	return sections;
 }
 
-// Parses persistence data and exposes legacy embedded Signals only to the repository migration boundary.
-export function ParseDreamMarkdownWithLegacy(content: string): ParsedDreamSnapshot | null
+// Parses the current Dream persistence format.
+export function ParseDreamMarkdown(content: string): DreamSnapshot | null
 {
 	const parsed = matter(content);
-	const data = parsed.data as LegacyDreamData;
+	const data = parsed.data as DreamData;
 	const sections = ReadSections(parsed.content);
-	const parsedDream = BuildDreamSnapshot({ ...data, title: sections.title || data.title || "", reflection: sections.reflections });
+	const parsedDream = sections === null
+		? null
+		: BuildDreamSnapshot({ ...data, title: sections.title, reflection: sections.reflections });
 	return parsedDream;
 }
 
@@ -80,7 +75,7 @@ export function SerializeDreamMarkdown(dream: DreamSnapshot): string
 		workId: dream.workId,
 		dialogue: dream.dialogue,
 		source: dream.source,
-		signalIds: dream.signalIds ?? [],
+		signalIds: dream.signalIds,
 		synopticView: dream.synopticView,
 		linkedDreamIds: dream.linkedDreamIds,
 		createdAt: dream.createdAt,

@@ -3,9 +3,8 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { DreamSnapshot } from "../../shared/dreams/DreamTypes.js";
-import type { SignalRecord } from "../../shared/signals/SignalTypes.js";
 import { Errors } from "../diagnostics/MainErrorManager.js";
-import { ParseDreamMarkdownWithLegacy, SerializeDreamMarkdown } from "./DreamMarkdownCodec.js";
+import { ParseDreamMarkdown, SerializeDreamMarkdown } from "./DreamMarkdownCodec.js";
 
 // A parsed Dream record together with its persistence path.
 export interface DreamPersistenceRecord
@@ -14,8 +13,6 @@ export interface DreamPersistenceRecord
 	readonly dream: DreamSnapshot;
 	// Absolute path to the persisted Markdown record.
 	readonly filePath: string;
-	// Legacy embedded Signals imported by DreamLibrary before the canonical snapshot is retained.
-	readonly legacySignals: readonly SignalRecord[];
 }
 
 // Loads and saves serialized Dream records without applying domain decisions.
@@ -96,18 +93,17 @@ export class DreamRepository
 		try
 		{
 			const content = await readFile(filePath, "utf8");
-			const parsed = ParseDreamMarkdownWithLegacy(content);
+			const parsed = ParseDreamMarkdown(content);
 			const hasDream = parsed !== null;
-			const isNew = hasDream && parsed !== null && !records.has(parsed.snapshot.id);
+			const isNew = hasDream && parsed !== null && !records.has(parsed.id);
 
 			if (isNew && parsed !== null)
 			{
 				const record: DreamPersistenceRecord = {
-					dream: parsed.snapshot,
-					filePath,
-					legacySignals: parsed.legacySignals
+					dream: parsed,
+					filePath
 				};
-				records.set(parsed.snapshot.id, record);
+				records.set(parsed.id, record);
 			}
 		}
 		catch (error)

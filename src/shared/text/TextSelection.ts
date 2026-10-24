@@ -14,9 +14,9 @@ export interface TextSelection
 }
 
 // Identifies the reader action selected from a text-selection context menu.
-export type SelectionAction = "copy" | "lookup" | "create-dream" | "add-to-dream" | "add-signal" | "copy-dream-source" | "add-dream-source-signal" | null;
+export type SelectionAction = "copy" | "lookup" | "create-dream" | "add-to-dream" | "add-signal" | "add-to-selected-signal" | "copy-dream-source" | "add-dream-source-signal" | null;
 
-// Decodes current and legacy persisted selections into the canonical exact-range shape.
+// Decodes a persisted selection into the canonical exact-range shape.
 export function DecodeTextSelection(value: unknown): TextSelection
 {
 	if (!IsSelectionRecord(value))

@@ -14,22 +14,24 @@ import type { ChoraEvents } from "../../src/renderer/core/events/ChoraEvents.js"
 import type { DreamView } from "../../src/renderer/dreams/DreamView.js";
 import type { IdeaRecord } from "../../src/shared/ideas/IdeaTypes.js";
 import { IdeaStore } from "../../src/renderer/ideas/IdeaStore.js";
-import { AddIcon } from "../../src/renderer/ui/Icons.js";
+import { IdeaController } from "../../src/renderer/ideas/IdeaController.js";
+import { IdeaGateway } from "../../src/renderer/ideas/IdeaGateway.js";
+import { AddIcon, IdeaIcon } from "../../src/renderer/ui/Icons.js";
 
 // Creates a small persisted DreamView with two independently editable signals.
 function CreateDream(): DreamView
 {
 	const selection = {
 		documentId: "republic", start: { segmentKey: "s1", offset: 0 },
-		end: { segmentKey: "s1", offset: 6 }, selectedText: "abcdef",
-		locatorStart: null, locatorEnd: null
+		end: { segmentKey: "s1", offset: 6 }
 	};
 	const dream: DreamView = {
 		id: "dream-1", workId: "republic", dialogue: "Republic", title: "A long Dream title",
-		source: { ...selection, sourceRefs: ["s1"], startSourceRef: "s1", endSourceRef: "s1" },
+		source: selection,
+		signalIds: ["signal-1", "signal-2"],
 		signals: [
-			{ id: "signal-1", text: "abc", description: "First description", sourceRef: "s1", selection },
-			{ id: "signal-2", text: "def", description: "Second description", sourceRef: "s1", selection }
+			{ id: "signal-1", workId: "republic", text: "abc", description: "First description", sourceRef: "s1", selections: [selection], createdAt: "2026-09-06", updatedAt: "2026-09-06" },
+			{ id: "signal-2", workId: "republic", text: "def", description: "Second description", sourceRef: "s1", selections: [selection], createdAt: "2026-09-06", updatedAt: "2026-09-06" }
 		],
 		reflection: "Initial Reflections", synopticView: "", linkedDreamIds: [], createdAt: "2026-09-06", updatedAt: "2026-09-06"
 	};
@@ -108,6 +110,7 @@ describe("DreamPanel", function DreamPanelTests()
 	let controller: DreamController;
 	let library: LibraryStore;
 	let ideas: IdeaStore;
+	let ideaController: IdeaController;
 	let auxiliaryPanels: DreamPanel[];
 
 	beforeEach(async function SetupAsync()
@@ -153,8 +156,9 @@ describe("DreamPanel", function DreamPanelTests()
 		ideas.SetWork("republic", CreateIdeas());
 		auxiliaryPanels = [];
 		const errors = new ErrorManager(events);
+		ideaController = new IdeaController(events, errors, ideas, new IdeaGateway());
 		controller = new DreamController(events, errors, library, store, gateway);
-		panel = new DreamPanel(root, events, store, controller, library, "editor", ideas);
+		panel = new DreamPanel(root, events, store, controller, library, "editor", ideas, null, null, ideaController);
 		await vi.waitFor(function EditorsReady(): void
 		{
 			expect(root.querySelectorAll('[aria-busy="true"]')).toHaveLength(0);
@@ -346,8 +350,7 @@ describe("DreamPanel", function DreamPanelTests()
 			const selectors = [".dream-source", ".signal-markdown-editor .ProseMirror p", ".dream-reflections-markdown .ProseMirror p"];
 			const formattingToolbar = root.querySelector<HTMLElement>(".signal-markdown-editor .markdown-toolbar")!;
 			expect(getComputedStyle(root.querySelector<HTMLElement>(".signal-heading")!).fontSize).toBe("12px");
-			expect(getComputedStyle(formattingToolbar).position).toBe("sticky");
-			expect(getComputedStyle(formattingToolbar).top).toBe("0px");
+			expect(getComputedStyle(formattingToolbar).display).toBe("none");
 			for (const delta of [0, 2, -1])
 			{
 				settings.ChangeFontSize(delta);
@@ -444,24 +447,64 @@ describe("DreamPanel", function DreamPanelTests()
 		expect(window.localStorage.getItem("chora:layout-settings")).toContain('"signalNavigationWidth":256');
 	});
 
-	it("does not show Add Signal in the Dream Signal rail", function OmitsAddSignal()
+	it("creates a Signal only through selected Dream source text", async function CreatesSignalFromSourceSelectionAsync()
 	{
 		expect(root.querySelector("[data-signal-view-add]")).toBeNull();
 		expect(root.querySelector(".dream-signals-panel .signal-view-header")).toBeNull();
+		const source = root.querySelector<HTMLElement>("[data-dream-source]")!;
+		const textNode = source.firstChild;
+		if (textNode === null)
+		{
+			throw new Error("Dream source text was not rendered.");
+		}
+		const range = document.createRange();
+		range.setStart(textNode, 1);
+		range.setEnd(textNode, 3);
+		const selection = window.getSelection();
+		selection?.removeAllRanges();
+		selection?.addRange(range);
+		const sourceMenu = vi.spyOn(gateway, "ShowSourceContextMenuAsync").mockResolvedValue("add-dream-source-signal");
+		const createSignal = vi.spyOn(gateway, "CreateSignalAsync").mockResolvedValue({
+			id: "signal-created",
+			workId: "republic",
+			sourceRef: "s1",
+			selections: [{ documentId: "republic", start: { segmentKey: "s1", offset: 1 }, end: { segmentKey: "s1", offset: 3 } }],
+			text: "bc",
+			description: "",
+			createdAt: "2026-01-01",
+			updatedAt: "2026-01-01"
+		});
+
+		source.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+
+		await vi.waitFor(function SignalCreated(): void
+		{
+			expect(sourceMenu).toHaveBeenCalledWith(false);
+			expect(createSignal).toHaveBeenCalledWith(expect.objectContaining({
+				documentId: "republic",
+				start: { segmentKey: "s1", offset: 1 },
+				end: { segmentKey: "s1", offset: 3 }
+			}));
+			expect(store.GetActiveDream()?.signalIds).toContain("signal-created");
+		});
 	});
 
 	it("lists connected Ideas before available Ideas in the Add to Idea menu", async function OpensConnectedIdeaAsync()
 	{
 		const ideasMenu = root.querySelector<HTMLDetailsElement>(".signal-ideas-menu")!;
 		const remove = root.querySelector<HTMLButtonElement>("[data-remove-signal-association]")!;
-		const actions = ideasMenu.closest(".signal-toolbar-actions");
+		const actions = ideasMenu.closest(".signal-editor-actions");
 		expect(actions).not.toBeNull();
-		expect(actions?.parentElement?.classList.contains("markdown-toolbar")).toBe(true);
+		expect(actions?.parentElement?.classList.contains("signal-identity")).toBe(true);
 		expect(actions?.nextElementSibling).toBeNull();
 		expect(Array.from(actions?.children ?? [])).toEqual([ideasMenu, remove]);
 		const summary = ideasMenu.querySelector<HTMLElement>("[data-signal-ideas-menu]")!;
 		expect(summary.textContent).toBe("");
 		expect(summary.title).toBe("Add to Idea");
+		expect(Array.from(summary.querySelectorAll("svg"), function GetIcon(icon): string
+		{
+			return icon.outerHTML;
+		})).toEqual([AddIcon, IdeaIcon]);
 		vi.spyOn(summary, "getBoundingClientRect").mockReturnValue(new DOMRect(700, 700, 28, 28));
 		summary.click();
 		const menuList = ideasMenu.querySelector<HTMLElement>(".action-menu-items")!;
@@ -469,6 +512,10 @@ describe("DreamPanel", function DreamPanelTests()
 		expect(menuList.style.top).not.toBe("");
 		expect(menuList.style.width).not.toBe("");
 		expect(menuList.style.maxHeight).not.toBe("");
+		const createButton = ideasMenu.querySelector<HTMLButtonElement>("[data-create-idea-from-signal]")!;
+		expect(createButton.textContent).toBe("Create new Idea");
+		expect(createButton.nextElementSibling?.classList.contains("signal-ideas-create-divider")).toBe(true);
+		expect(createButton.nextElementSibling?.getAttribute("role")).toBe("separator");
 		const ideaButtons = ideasMenu.querySelectorAll<HTMLButtonElement>("[data-open-signal-idea]");
 		expect(Array.from(ideaButtons, function GetIdeaTitle(button): string | null
 		{
@@ -487,7 +534,14 @@ describe("DreamPanel", function DreamPanelTests()
 		{
 			openedIdeaId = event.ideaId;
 		});
-		ideaButtons[1]?.click();
+		createButton.click();
+		await vi.waitFor(function IdeaCreationStarted(): void
+		{
+			expect(ideas.GetDraft()?.originSignal).toEqual({ signalId: "signal-1" });
+		});
+		expect(ideasMenu.open).toBe(false);
+		summary.click();
+		ideasMenu.querySelectorAll<HTMLButtonElement>("[data-open-signal-idea]")[1]?.click();
 		await vi.waitFor(function IdeaOpened(): void
 		{
 			expect(openedIdeaId).toBe("idea-related");
@@ -500,6 +554,7 @@ describe("DreamPanel", function DreamPanelTests()
 		const remove = root.querySelector<HTMLButtonElement>("[data-remove-signal-association]")!;
 		expect(remove.textContent).toBe("");
 		expect(remove.title).toBe("Remove from Dream");
+		expect(root.querySelector('[data-signal-id="signal-1"][data-remove-signal-passage]')).toBeNull();
 
 		remove.click();
 		const prompt = document.querySelector<HTMLElement>("[data-signal-remove-confirm]")?.closest<HTMLElement>(".popup-overlay");
@@ -552,7 +607,7 @@ describe("DreamPanel", function DreamPanelTests()
 		expect(summary.title).toBe("Add to Idea");
 		summary.click();
 		const addToIdea = activeSignal.querySelector<HTMLButtonElement>("[data-add-signal-to-idea]")!;
-		expect(addToIdea.closest(".signal-toolbar-actions")?.parentElement?.classList.contains("markdown-toolbar")).toBe(true);
+		expect(addToIdea.closest(".signal-editor-actions")?.parentElement?.classList.contains("signal-identity")).toBe(true);
 		expect(addToIdea.textContent).toBe("Justice");
 		const addition = vi.fn();
 		const unsubscribeAddition = events.Subscribe("idea.add-signal-requested", addition);
@@ -616,7 +671,16 @@ describe("DreamPanel", function DreamPanelTests()
 		reflectionsTab.click();
 		reflectionsTab.focus();
 		const active = store.GetActiveDream()!;
-		const added = { ...active.signals[0]!, id: "new-signal", description: "" };
+		const added = {
+			...active.signals[0]!,
+			id: "new-signal",
+			title: "A named Signal",
+			selections: [
+				{ documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 3 } },
+				{ documentId: "republic", start: { segmentKey: "s1", offset: 4 }, end: { segmentKey: "s1", offset: 6 } }
+			],
+			description: ""
+		};
 		store.ReplaceSignals([added, ...active.signals]);
 		const scroll = vi.spyOn(HTMLElement.prototype, "scrollIntoView");
 		await events.PublishAsync("dream.signal-added", { dreamId: "dream-1", signalId: "new-signal" });
@@ -625,6 +689,10 @@ describe("DreamPanel", function DreamPanelTests()
 		const header = root.querySelector<HTMLElement>('[data-signal-toggle="new-signal"]')?.parentElement;
 		expect(header?.querySelector('[data-signal-toggle="new-signal"]')?.getAttribute("aria-current")).toBe("true");
 		expect(row.querySelector<HTMLElement>("[data-signal-description]")?.hidden).toBe(false);
+		expect(row.querySelector<HTMLInputElement>("[data-signal-title]")?.value).toBe("A named Signal");
+		expect(row.querySelectorAll(".signal-passage")).toHaveLength(2);
+		expect(Array.from(row.querySelectorAll(".signal-passage-text")).map((item) => item.textContent)).toEqual(["abc", "ef"]);
+		expect(row.querySelectorAll<HTMLButtonElement>("[data-remove-signal-passage]:disabled")).toHaveLength(0);
 		await vi.waitFor(function NewSignalRevealed(): void
 		{
 			expect(scroll).toHaveBeenCalledTimes(2);
@@ -637,6 +705,7 @@ describe("DreamPanel", function DreamPanelTests()
 			expect(content).not.toBeNull();
 			expect(document.activeElement).toBe(content);
 		});
+
 		const oldEditor = root.querySelector("[data-dream-reflections]");
 		const dream = CreateDream();
 		dream.id = "dream-2";
@@ -648,5 +717,30 @@ describe("DreamPanel", function DreamPanelTests()
 		{
 			expect(root.querySelector("[data-dream-reflections] [contenteditable=true]")?.textContent).toBe("Another Dream");
 		});
+	});
+
+	it("refreshes visible passages when an existing Signal changes", async function RefreshesSignalPassagesAsync()
+	{
+		const active = store.GetActiveDream()!;
+		const signal = active.signals[0]!;
+		const updated = {
+			...signal,
+			title: "Expanded Signal",
+			selections: [
+				signal.selections[0]!,
+				{ documentId: "republic", start: { segmentKey: "s1", offset: 4 }, end: { segmentKey: "s1", offset: 6 } }
+			],
+			text: "abc … ef"
+		};
+
+		await events.PublishAsync("signal.changed", { signal: updated });
+
+		const row = root.querySelector<HTMLElement>(`[data-signal-id="${signal.id}"]`)!;
+		expect(row.querySelector<HTMLInputElement>("[data-signal-title]")?.value).toBe("Expanded Signal");
+		expect(Array.from(row.querySelectorAll(".signal-passage-text"), function GetPassageText(item): string | null
+		{
+			return item.textContent;
+		})).toEqual(["abcdef", "ef"]);
+		expect(row.querySelectorAll("[data-remove-signal-passage]")).toHaveLength(2);
 	});
 });

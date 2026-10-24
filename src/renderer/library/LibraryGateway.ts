@@ -27,9 +27,9 @@ export class LibraryGateway
 	}
 
 	// Shows the native context menu for a passage selection.
-	public ShowSelectionContextMenuAsync(canAddSignal: boolean): Promise<SelectionAction>
+	public ShowSelectionContextMenuAsync(canAddSignal: boolean, canAddToDreamSource: boolean, canAddToCurrentSignal: boolean): Promise<SelectionAction>
 	{
-		return window.chora.ShowSelectionContextMenu(canAddSignal);
+		return window.chora.ShowSelectionContextMenu(canAddSignal, canAddToDreamSource, canAddToCurrentSignal);
 	}
 
 	// Copies the given text to the operating system clipboard.

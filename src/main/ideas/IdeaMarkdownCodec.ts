@@ -4,7 +4,7 @@ import type { IdeaRecord, IdeaSignalReference } from "../../shared/ideas/IdeaTyp
 // Serializes and hydrates the Markdown representation owned by Idea persistence.
 export class IdeaMarkdownCodec
 {
-	// Hydrates one persisted Idea record and rejects unsupported legacy evidence.
+	// Hydrates one persisted Idea record.
 	public Parse(content: string): IdeaRecord
 	{
 		const parsed = matter(content);
@@ -15,7 +15,7 @@ export class IdeaMarkdownCodec
 		const createdAt = this.RequireString(data.createdAt, "Idea creation timestamp");
 		const updatedAt = this.RequireString(data.updatedAt, "Idea update timestamp");
 		const heading = /^#\s+(.+?)\s*(?:\r?\n|$)/u.exec(parsed.content);
-		const title = this.ParseTitle(heading, data.title);
+		const title = this.ParseTitle(heading);
 		let body = parsed.content.trim();
 
 		if (heading !== null)
@@ -59,34 +59,24 @@ export class IdeaMarkdownCodec
 		return markdown;
 	}
 
-	// Parses current origin-first evidence or migrates the previous ordered reference list.
+	// Parses current origin-first evidence.
 	private ParseEvidence(data: Record<string, unknown>): {
 		originSignal: IdeaSignalReference | null;
 		relatedSignals: IdeaSignalReference[];
 	}
 	{
-		let originSignal: IdeaSignalReference | null;
-		let relatedSignals: IdeaSignalReference[];
-
-		if (data.originSignal !== undefined)
+		if (data.originSignal === undefined)
 		{
-			originSignal = data.originSignal === null ? null : this.ParseReference(data.originSignal);
-			relatedSignals = this.ParseReferences(data.relatedSignals);
+			throw new Error("Idea Markdown is missing origin Signal metadata");
 		}
-		else
-		{
-			const references = this.ParseReferences(data.references);
-			const firstReference = references[0];
-
-			originSignal = firstReference ?? null;
-			relatedSignals = references.slice(1);
-		}
+		const originSignal = data.originSignal === null ? null : this.ParseReference(data.originSignal);
+		const relatedSignals = this.ParseReferences(data.relatedSignals);
 
 		return { originSignal, relatedSignals };
 	}
 
-	// Parses a title from the Markdown heading or legacy front matter.
-	private ParseTitle(heading: RegExpExecArray | null, value: unknown): string
+	// Parses a title from the Markdown heading.
+	private ParseTitle(heading: RegExpExecArray | null): string
 	{
 		let title = "";
 
@@ -95,11 +85,6 @@ export class IdeaMarkdownCodec
 			const headingText = heading[1] ?? "";
 			title = headingText.trim();
 		}
-		else if (typeof value === "string")
-		{
-			title = value.trim();
-		}
-
 		return title;
 	}
 
@@ -122,7 +107,7 @@ export class IdeaMarkdownCodec
 		return references;
 	}
 
-	// Parses one persisted Signal reference and rejects legacy Dream or passage evidence.
+	// Parses one persisted Signal reference.
 	private ParseReference(value: unknown): IdeaSignalReference
 	{
 		let reference: IdeaSignalReference | null = null;
@@ -130,10 +115,9 @@ export class IdeaMarkdownCodec
 		if (typeof value === "object" && value !== null)
 		{
 			const candidate = value as Record<string, unknown>;
-			const isSignal = candidate.kind === undefined || candidate.kind === "signal";
 			const hasSignalId = typeof candidate.signalId === "string";
 
-			if (isSignal && hasSignalId)
+			if (hasSignalId)
 			{
 				const rationale = this.ParseRationale(candidate.rationale);
 				const signalId = candidate.signalId as string;
@@ -145,13 +129,13 @@ export class IdeaMarkdownCodec
 
 		if (reference === null)
 		{
-			throw new Error("Idea Markdown contains unsupported references; Ideas must reference Signals");
+			throw new Error("Idea Markdown contains an invalid Signal reference");
 		}
 
 		return reference;
 	}
 
-	// Parses optional Idea-owned relationship context while preserving older rationale-free files.
+	// Parses optional Idea-owned relationship context.
 	private ParseRationale(value: unknown): string | null
 	{
 		let rationale: string | null = null;

@@ -2,6 +2,17 @@ import { DOMParser, type Document as XmlDocument, type Element as XmlElement, ty
 
 const ElementNodeType = 1;
 const TextNodeType = 3;
+const QuotationStartMarker = "\uE000";
+const QuotationEndMarker = "\uE001";
+const CitationStartMarker = "\uE002";
+const CitationEndMarker = "\uE003";
+
+export interface ParsedTeiAnnotation
+{
+	kind: "quotation" | "citation";
+	start: number;
+	end: number;
+}
 
 export interface ParsedTeiSegment
 {
@@ -15,6 +26,7 @@ export interface ParsedTeiSegment
 		label: string;
 	} | null;
 	text: string;
+	annotations?: ParsedTeiAnnotation[];
 }
 
 export interface ParsedTeiWork
@@ -37,6 +49,7 @@ class SegmentCollector
 	private currentDivision: ParsedTeiSegment["division"] = null;
 	private currentText = "";
 	private segmentIndex = 0;
+	private quotationLineCount = 0;
 
 	public constructor(sourceFile: string)
 	{
@@ -92,11 +105,71 @@ class SegmentCollector
 				this.AppendBreak();
 			}
 
-			if (elementName !== "milestone" && elementName !== "lb")
+			if (elementName === "quote")
+			{
+				if (HasAncestor(element, "cit"))
+				{
+					this.ParseQuotation(element);
+				}
+				else
+				{
+					this.ParseChildren(element);
+				}
+			}
+
+			if (elementName === "bibl")
+			{
+				if (HasAncestor(element, "cit"))
+				{
+					this.ParseAnnotation(element, CitationStartMarker, CitationEndMarker);
+				}
+				else
+				{
+					this.ParseChildren(element);
+				}
+			}
+
+			if (elementName === "l")
+			{
+				this.ParseQuotationLine(element);
+			}
+
+			if (elementName !== "milestone"
+				&& elementName !== "lb"
+				&& elementName !== "quote"
+				&& elementName !== "bibl"
+				&& elementName !== "l")
 			{
 				this.ParseChildren(element);
 			}
 		}
+	}
+
+	private ParseQuotation(element: XmlElement): void
+	{
+		const previousLineCount = this.quotationLineCount;
+		this.quotationLineCount = 0;
+		this.currentText += QuotationStartMarker;
+		this.ParseChildren(element);
+		this.currentText += QuotationEndMarker;
+		this.quotationLineCount = previousLineCount;
+	}
+
+	private ParseQuotationLine(element: XmlElement): void
+	{
+		if (this.quotationLineCount > 0)
+		{
+			this.AppendBreak();
+		}
+		this.quotationLineCount += 1;
+		this.ParseChildren(element);
+	}
+
+	private ParseAnnotation(element: XmlElement, startMarker: string, endMarker: string): void
+	{
+		this.currentText += startMarker;
+		this.ParseChildren(element);
+		this.currentText += endMarker;
 	}
 
 	private ReadMilestone(element: XmlElement): void
@@ -132,7 +205,8 @@ class SegmentCollector
 
 	private FlushSegment(): void
 	{
-		const text = NormalizeText(this.currentText);
+		const parsed = ParseStructuredText(this.currentText);
+		const text = parsed.text;
 
 		if (text.length > 0)
 		{
@@ -141,10 +215,65 @@ class SegmentCollector
 				key,
 				citation: this.currentCitation,
 				division: this.currentDivision,
-				text
+				text,
+				...(parsed.annotations.length > 0 ? { annotations: parsed.annotations } : {})
 			};
 			this.segments.push(segment);
 			this.segmentIndex += 1;
+		}
+
+		function ParseStructuredText(value: string): { text: string; annotations: ParsedTeiAnnotation[] }
+		{
+			let normalized = NormalizeText(value);
+			normalized = normalized.replace(new RegExp(` *${QuotationStartMarker} *`, "gu"), `\n${QuotationStartMarker}`);
+			normalized = normalized.replace(new RegExp(` *${QuotationEndMarker} *`, "gu"), `${QuotationEndMarker}\n`);
+			normalized = normalized.replace(new RegExp(` *${CitationStartMarker} *`, "gu"), CitationStartMarker);
+			normalized = normalized.replace(new RegExp(` *${CitationEndMarker} *`, "gu"), `${CitationEndMarker}\n`);
+			const annotations: ParsedTeiAnnotation[] = [];
+			const starts = new Map<string, number>();
+			let text = "";
+
+			for (const character of normalized)
+			{
+				if (character === QuotationStartMarker || character === CitationStartMarker)
+				{
+					starts.set(character, text.length);
+				}
+				else if (character === QuotationEndMarker || character === CitationEndMarker)
+				{
+					const startMarker = character === QuotationEndMarker ? QuotationStartMarker : CitationStartMarker;
+					const start = starts.get(startMarker);
+					if (start !== undefined && start < text.length)
+					{
+						annotations.push({
+							kind: character === QuotationEndMarker ? "quotation" : "citation",
+							start,
+							end: text.length
+						});
+					}
+					starts.delete(startMarker);
+				}
+				else
+				{
+					text += character;
+				}
+			}
+
+			const leadingWhitespace = text.length - text.trimStart().length;
+			const trimmedText = text.trim();
+			const adjusted = annotations.map(function AdjustAnnotation(annotation): ParsedTeiAnnotation
+			{
+				return {
+					...annotation,
+					start: Math.max(0, annotation.start - leadingWhitespace),
+					end: Math.min(trimmedText.length, annotation.end - leadingWhitespace)
+				};
+			}).filter(function HasContent(annotation): boolean
+			{
+				return annotation.start < annotation.end;
+			});
+
+			return { text: trimmedText, annotations: adjusted };
 		}
 
 		this.currentText = "";
@@ -168,12 +297,31 @@ function ReadDivision(element: XmlElement): ParsedTeiSegment["division"]
 			{
 				division = { type: "book", label: value };
 			}
+
 		}
 
 		ancestor = ancestor.parentNode;
 	}
 
 	return division;
+}
+
+function HasAncestor(element: XmlElement, ancestorName: string): boolean
+{
+	let ancestor = element.parentNode;
+	let matches = false;
+
+	while (ancestor !== null && !matches)
+	{
+		if (ancestor.nodeType === ElementNodeType)
+		{
+			matches = (ancestor as XmlElement).localName === ancestorName;
+		}
+
+		ancestor = ancestor.parentNode;
+	}
+
+	return matches;
 }
 
 function NormalizeText(value: string): string

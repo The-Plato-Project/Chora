@@ -6,44 +6,19 @@ import matter from "gray-matter";
 import type { SignalRecord } from "../../shared/signals/SignalTypes.js";
 import { SignalMarkdownCodec } from "./SignalMarkdownCodec.js";
 
-// Reads the former denormalized selection text only while importing legacy files.
-function ReadLegacySelectedText(selection: SignalRecord["selection"]): string
-{
-	const legacy = selection as SignalRecord["selection"] & { selectedText?: unknown };
-	const text = typeof legacy.selectedText === "string" ? legacy.selectedText : "";
-
-	return text;
-}
-
-// Owns canonical Signal files and imports legacy Dream-embedded Signals.
+// Owns canonical Signal files.
 export class SignalRepository
 {
 	public constructor(
 		private readonly rootPath: string,
-		private readonly legacyDreamPath: string,
 		private readonly codec: SignalMarkdownCodec)
 	{
 	}
 
-	// Loads canonical Signals and any legacy Dream-embedded Signals not yet migrated.
+	// Loads canonical Signals.
 	public async LoadAsync(): Promise<SignalRecord[]>
 	{
 		const records = await this.LoadCanonicalAsync();
-		const knownIds = new Set(records.map(function SelectId(signal): string
-		{
-			return signal.id;
-		}));
-		const legacy = await this.LoadLegacyAsync();
-
-		for (const signal of legacy)
-		{
-			if (!knownIds.has(signal.id))
-			{
-				knownIds.add(signal.id);
-				records.push(signal);
-				await this.SaveAsync(signal);
-			}
-		}
 
 		return records;
 	}
@@ -135,43 +110,6 @@ export class SignalRepository
 		return records;
 	}
 
-	// Imports Signals embedded in the previous Dream persistence format.
-	private async LoadLegacyAsync(): Promise<SignalRecord[]>
-	{
-		const records: SignalRecord[] = [];
-		const workEntries = await this.ReadEntriesAsync(this.legacyDreamPath);
-
-		for (const workEntry of workEntries)
-		{
-			if (workEntry.isDirectory())
-			{
-				const dreamPath = path.join(this.legacyDreamPath, workEntry.name);
-				const entries = await this.ReadEntriesAsync(dreamPath);
-
-				for (const entry of entries)
-				{
-					if (entry.isFile() && entry.name.toLocaleLowerCase().endsWith(".md"))
-					{
-						const content = await readFile(path.join(dreamPath, entry.name), "utf8");
-						const data = matter(content).data as Record<string, unknown>;
-						const workId = typeof data.workId === "string" ? data.workId : workEntry.name;
-						const timestamp = typeof data.updatedAt === "string" ? data.updatedAt : new Date().toISOString();
-						const signals = Array.isArray(data.signals) ? data.signals : [];
-
-						for (const candidate of signals)
-						{
-							const signal = this.ParseLegacySignal(candidate, workId, timestamp);
-							if (signal !== null) records.push(signal);
-						}
-
-					}
-				}
-			}
-		}
-
-		return records;
-	}
-
 	// Recursively collects persisted Markdown documents under Chora's data root.
 	private async CollectMarkdownFilesAsync(directoryPath: string): Promise<string[]>
 	{
@@ -196,14 +134,12 @@ export class SignalRepository
 		return files;
 	}
 
-	// Recognizes current and legacy Signal association metadata.
+	// Recognizes current Signal association metadata.
 	private ContainsSignal(data: Record<string, unknown>, signalId: string): boolean
 	{
 		const signalIds = Array.isArray(data.signalIds) ? data.signalIds : [];
-		const legacySignals = Array.isArray(data.signals) ? data.signals : [];
 		const relatedSignals = Array.isArray(data.relatedSignals) ? data.relatedSignals : [];
-		const references = Array.isArray(data.references) ? data.references : [];
-		const candidates = [data.originSignal, ...relatedSignals, ...references, ...legacySignals];
+		const candidates = [data.originSignal, ...relatedSignals];
 		let contains = false;
 
 		for (const candidate of signalIds)
@@ -217,44 +153,9 @@ export class SignalRepository
 			{
 				contains = true;
 			}
-			if (typeof candidate === "object" && candidate !== null && (candidate as Record<string, unknown>).id === signalId)
-			{
-				contains = true;
-			}
 		}
 
 		return contains;
-	}
-
-	// Converts one legacy embedded Signal when its required fields are intact.
-	private ParseLegacySignal(candidate: unknown, workId: string, timestamp: string): SignalRecord | null
-	{
-		let signal: SignalRecord | null = null;
-
-		if (typeof candidate === "object" && candidate !== null)
-		{
-			const value = candidate as Record<string, unknown>;
-			const selection = value.selection;
-
-			if (typeof value.id === "string" && typeof selection === "object" && selection !== null)
-			{
-				const typedSelection = selection as SignalRecord["selection"];
-				signal = {
-					id: value.id,
-					workId,
-					sourceRef: typeof value.sourceRef === "string" ? value.sourceRef : typedSelection.start.segmentKey,
-					selection: typedSelection,
-					text: typeof value.text === "string"
-						? value.text
-						: ReadLegacySelectedText(typedSelection),
-					description: typeof value.description === "string" ? value.description : "",
-					createdAt: timestamp,
-					updatedAt: timestamp
-				};
-			}
-		}
-
-		return signal;
 	}
 
 	// Reads one optional directory.

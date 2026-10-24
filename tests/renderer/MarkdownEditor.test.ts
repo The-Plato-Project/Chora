@@ -6,7 +6,7 @@ import { EditorView } from "@milkdown/kit/prose/view";
 import { ErrorManager } from "../../src/renderer/core/diagnostics/RendererErrorManager.js";
 import { ChoraEventBus } from "../../src/renderer/core/events/ChoraEventBus.js";
 import type { ChoraEvents } from "../../src/renderer/core/events/ChoraEvents.js";
-import { ParseDreamMarkdownWithLegacy, SerializeDreamMarkdown } from "../../src/main/dreams/DreamMarkdownCodec.js";
+import { ParseDreamMarkdown, SerializeDreamMarkdown } from "../../src/main/dreams/DreamMarkdownCodec.js";
 import type { DreamView } from "../../src/renderer/dreams/DreamView.js";
 import { SignalMarkdownDocument } from "../../src/shared/dreams/SignalMarkdownDocument.js";
 import { SignalMarkdownCodec } from "../../src/main/signals/SignalMarkdownCodec.js";
@@ -53,11 +53,21 @@ describe("MarkdownEditor", function MarkdownEditorTests()
 {
 	it("serializes a complete Signal", function SerializesSignalMarkdown()
 	{
-		const selection = { documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 7 }, selectedText: "κατέβην", locatorStart: null, locatorEnd: null };
+		const selection = { documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 7 } };
 		const dream: DreamView = {
 			id: "dream", workId: "republic", dialogue: "Republic", title: "Descent",
-			source: { ...selection, sourceRefs: ["s1"], startSourceRef: "s1", endSourceRef: "s1" },
-			signals: [{ id: "signal", sourceRef: "s1", text: "κατέβην", selection, description: "An observation" }],
+			source: selection,
+			signalIds: ["signal"],
+			signals: [{
+				id: "signal",
+				workId: "republic",
+				sourceRef: "s1",
+				text: "κατέβην",
+				selections: [selection],
+				description: "An observation",
+				createdAt: "2026-01-01",
+				updatedAt: "2026-01-01"
+			}],
 			reflection: "A reflection", synopticView: "", linkedDreamIds: ["another"], createdAt: "2026-01-01", updatedAt: "2026-01-01"
 		};
 		const signal = dream.signals[0]!;
@@ -79,6 +89,14 @@ describe("MarkdownEditor", function MarkdownEditorTests()
 		editor.SetMarkdown("# Updated Dream\n\n**New observation**");
 		expect(editor.Root.querySelector("strong")?.textContent).toBe("New observation");
 		expect(change).not.toHaveBeenCalled();
+	});
+
+	it("uses the context menu instead of a permanent toolbar for editable Markdown", async function HidesEditableToolbarAsync()
+	{
+		const editor = await CreateEditorAsync("Editable");
+
+		expect(editor.Root.querySelector<HTMLElement>(".markdown-toolbar")?.hidden).toBe(true);
+		expect(editor.Root.querySelector<HTMLElement>("[contenteditable=true]")).not.toBeNull();
 	});
 
 	it("replaces external content without publishing changes or retaining stale undo history", async function ReplacesDocumentAsync()
@@ -243,11 +261,21 @@ describe("MarkdownEditor", function MarkdownEditorTests()
 		SelectContent(editor);
 		editor.Root.querySelector<HTMLButtonElement>('[data-markdown-command="bold"]')!.click();
 		const markdown = editor.GetMarkdown();
-		const selection = { documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 7 }, selectedText: "κατέβην", locatorStart: null, locatorEnd: null };
+		const selection = { documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 7 } };
 		const dream: DreamView = {
 			id: "formatted", workId: "republic", dialogue: "Republic", title: "Formatting",
-			source: { ...selection, sourceRefs: ["s1"], startSourceRef: "s1", endSourceRef: "s1" },
-			signals: [{ id: "one", sourceRef: "s1", selection, text: "κατέβην", description: markdown }],
+			source: selection,
+			signalIds: ["one"],
+			signals: [{
+				id: "one",
+				workId: "republic",
+				sourceRef: "s1",
+				selections: [selection],
+				text: "κατέβην",
+				description: markdown,
+				createdAt: "2026-09-06",
+				updatedAt: "2026-09-06"
+			}],
 			reflection: markdown, synopticView: "", linkedDreamIds: [], createdAt: "2026-09-06", updatedAt: "2026-09-06"
 		};
 		const signal: SignalRecord = {
@@ -257,7 +285,7 @@ describe("MarkdownEditor", function MarkdownEditorTests()
 			updatedAt: dream.updatedAt
 		};
 		const serialized = SerializeDreamMarkdown(dream);
-		const restored = ParseDreamMarkdownWithLegacy(serialized)!.snapshot;
+		const restored = ParseDreamMarkdown(serialized)!;
 		const signalCodec = new SignalMarkdownCodec();
 		const restoredSignal = signalCodec.Parse(signalCodec.Serialize(signal));
 		expect(restoredSignal.description).toBe(markdown.trim());

@@ -15,6 +15,7 @@ export const IPC_CHANNELS = {
 	getSourceNotice: "chora:get-source-notice",
 	listSignals: "chora:list-signals",
 	saveSignal: "chora:save-signal",
+	deleteSignal: "chora:delete-signal",
 	// Lists work-owned Ideas.
 	listIdeas: "chora:list-ideas",
 	// Discovers related existing Signals.

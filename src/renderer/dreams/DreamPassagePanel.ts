@@ -142,7 +142,10 @@ export class DreamPassagePanel
 				{
 					const signal = this.signals.GetSignal(reference.signalId);
 					if (signal === null) continue;
-					for (const key of GetCoveredPassageKeys(document, signal.selection)) keys.add(key);
+					for (const selection of signal.selections)
+					{
+						for (const key of GetCoveredPassageKeys(document, selection)) keys.add(key);
+					}
 				}
 				for (const key of keys)
 				{

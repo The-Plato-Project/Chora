@@ -16,14 +16,11 @@ function CreateSignal(description: string): SignalRecord
 		id: "signal-1",
 		workId: "republic",
 		sourceRef: "327a",
-		selection: {
+		selections: [{
 			documentId: "republic",
 			start: { segmentKey: "s1", offset: 0 },
-			end: { segmentKey: "s1", offset: 3 },
-			selectedText: "abc",
-			locatorStart: { scheme: "Stephanus", value: "327a" },
-			locatorEnd: { scheme: "Stephanus", value: "327a" }
-		},
+			end: { segmentKey: "s1", offset: 3 }
+		}],
 		text: "abc",
 		description,
 		createdAt: "2026-01-01",
@@ -43,9 +40,8 @@ describe("SignalRepository", function SignalRepositoryTests()
 	{
 		const root = await mkdtemp(path.join(os.tmpdir(), "chora-signals-"));
 		temporaryRoots.push(root);
-		const legacy = path.join(root, "Dreams");
 		const codec = new SignalMarkdownCodec();
-		const repository = new SignalRepository(root, legacy, codec);
+		const repository = new SignalRepository(root, codec);
 		const descriptions = ["First", "Second", "Third", "Fourth"];
 		const saves: Promise<void>[] = [];
 

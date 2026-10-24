@@ -1,8 +1,14 @@
 import { randomUUID } from "node:crypto";
-import type { SaveSignalCommand, SignalRecord } from "../../shared/signals/SignalTypes.js";
+import type { DeleteSignalCommand, SaveSignalCommand, SignalRecord } from "../../shared/signals/SignalTypes.js";
 import type { LibraryService } from "../library/LibraryService.js";
 import { Signal } from "./Signal.js";
 import { SignalRepository } from "./SignalRepository.js";
+
+// Removes one Signal identity from an authoritative document store.
+export interface SignalAssociationRemover
+{
+	RemoveSignalEverywhereAsync(signalId: string): Promise<void>;
+}
 
 // Owns the authoritative collection of work-owned Signals.
 export class SignalLibrary
@@ -11,11 +17,19 @@ export class SignalLibrary
 	private readonly signals = new Map<string, Signal>();
 	// Tracks whether persistence has been loaded for this application run.
 	private isLoaded = false;
+	// Removes Signal associations from all owning document types.
+	private associationRemovers: readonly SignalAssociationRemover[] = [];
 
 	public constructor(
 		private readonly repository: SignalRepository,
 		private readonly documents: LibraryService)
 	{
+	}
+
+	// Registers the authoritative document stores that may reference Signals.
+	public SetAssociationRemovers(removers: readonly SignalAssociationRemover[]): void
+	{
+		this.associationRemovers = [...removers];
 	}
 
 	// Lists Signals belonging to one work.
@@ -69,25 +83,36 @@ export class SignalLibrary
 		}
 	}
 
-	// Imports legacy embedded Signals into the canonical Signal repository without overwriting existing records.
-	public async ImportAsync(records: readonly SignalRecord[]): Promise<void>
+	// Removes a Signal from every owning document and deletes its canonical record.
+	public async DeleteEverywhereAsync(command: DeleteSignalCommand): Promise<void>
 	{
 		await this.EnsureLoadedAsync();
+		const signal = this.signals.get(command.signalId);
 
-		for (const record of records)
+		if (signal === undefined)
 		{
-			if (!this.signals.has(record.id))
-			{
-				const document = await this.documents.GetAsync(record.workId);
-				const signal = new Signal(record, document);
-				const canonical = signal.ToRecord();
-				await this.repository.SaveAsync(canonical);
-				this.signals.set(canonical.id, signal);
-			}
+			throw new Error(`Signal does not exist: ${command.signalId}`);
 		}
+		if (signal.ToRecord().workId !== command.workId)
+		{
+			throw new Error("Signal does not belong to the requested work");
+		}
+		if (this.associationRemovers.length === 0)
+		{
+			throw new Error("Signal association stores are unavailable");
+		}
+
+		for (const remover of this.associationRemovers)
+		{
+			await remover.RemoveSignalEverywhereAsync(command.signalId);
+		}
+
+		const record = signal.ToRecord();
+		await this.repository.DeleteAsync(record);
+		this.signals.delete(command.signalId);
 	}
 
-	// Loads and validates canonical and migrated Signal records once.
+	// Loads and validates canonical Signal records once.
 	private async EnsureLoadedAsync(): Promise<void>
 	{
 		if (!this.isLoaded)

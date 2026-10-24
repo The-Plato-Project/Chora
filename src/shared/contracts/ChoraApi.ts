@@ -3,11 +3,11 @@ import type { SelectionAction } from "../text/TextSelection.js";
 import type { DreamSnapshot, DreamSynopticViewRequest } from "../dreams/DreamTypes.js";
 import type { DeleteIdeaCommand, IdeaDiscoveryRequest, IdeaDiscoverySuggestion, IdeaRecord, SaveIdeaCommand } from "../ideas/IdeaTypes.js";
 import type { LookupBounds, LookupCommand, LookupState } from "../library/LookupTypes.js";
-import type { SaveSignalCommand, SignalRecord } from "../signals/SignalTypes.js";
+import type { DeleteSignalCommand, SaveSignalCommand, SignalRecord } from "../signals/SignalTypes.js";
 
 export type ApiSubscription = () => void;
 
-export type FormattingAction = "bold" | "italic" | null;
+export type FormattingAction = "bold" | "italic" | "bullet_list" | "ordered_list" | "blockquote" | "link" | null;
 
 export interface ChoraApi
 {
@@ -15,8 +15,8 @@ export interface ChoraApi
 	LoadLibraryText(workId: string): Promise<TextDocumentSnapshot>;
 	SubscribeLibraryTextSelected(callback: (workId: string) => void): ApiSubscription;
 	SubscribeExternalTextLoaded(callback: (work: TextDocumentSnapshot) => void): ApiSubscription;
-	ShowSelectionContextMenu(canAddSignal: boolean): Promise<SelectionAction>;
-	ShowDreamSourceContextMenu(): Promise<SelectionAction>;
+	ShowSelectionContextMenu(canAddSignal: boolean, canAddToDreamSource: boolean, canAddToCurrentSignal: boolean): Promise<SelectionAction>;
+	ShowDreamSourceContextMenu(canAddToSelectedSignal: boolean): Promise<SelectionAction>;
 	ShowFormattingContextMenu(): Promise<FormattingAction>;
 	CopySelectedText(selectedText: string): Promise<void>;
 	LookUpWord(selectedText: string): Promise<void>;
@@ -27,6 +27,7 @@ export interface ChoraApi
 	GetSourceNotice(workId: string): Promise<SourceNotice>;
 	ListSignals(workId: string): Promise<SignalRecord[]>;
 	SaveSignal(command: SaveSignalCommand): Promise<SignalRecord>;
+	DeleteSignal(command: DeleteSignalCommand): Promise<void>;
 	// Lists durable Ideas belonging to one work.
 	ListIdeas(workId: string): Promise<IdeaRecord[]>;
 	// Discovers existing Signals related to an unsaved Idea draft.
