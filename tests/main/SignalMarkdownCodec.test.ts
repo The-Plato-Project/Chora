@@ -9,6 +9,7 @@ describe("SignalMarkdownCodec", function SignalMarkdownCodecTests()
 		const codec = new SignalMarkdownCodec();
 		const signal: SignalRecord = {
 			id: "signal-1",
+			dreamId: "dream-1",
 			workId: "republic",
 			sourceRef: "327a",
 			title: "Descent",
@@ -23,12 +24,12 @@ describe("SignalMarkdownCodec", function SignalMarkdownCodecTests()
 			updatedAt: "2026-01-02"
 		};
 
-		const parsed = codec.Parse(codec.Serialize(signal));
+		const markdown = codec.Serialize(signal);
+		const parsed = codec.Parse(markdown);
 
-		expect(parsed).toEqual({
-			...signal,
-			text: ""
-		});
+		expect(parsed).toEqual(signal);
+		expect(markdown).toContain("sourceRef: 327a");
+		expect(markdown).toContain("text:");
 	});
 
 	it("rejects Signal metadata without canonical selections", function RejectsMissingSelections(): void
@@ -50,5 +51,33 @@ Observation.
 		}
 
 		expect(ParseInvalidSignal).toThrow("Signal Markdown is missing required metadata");
+	});
+
+	it("rejects Signal metadata without one explicit Dream owner", function RejectsMissingOwner(): void
+	{
+		const codec = new SignalMarkdownCodec();
+		const content = `---
+id: signal-1
+workId: republic
+selections:
+  - documentId: republic
+    start:
+      segmentKey: 327a
+      offset: 0
+    end:
+      segmentKey: 327a
+      offset: 8
+createdAt: 2026-01-01
+updatedAt: 2026-01-02
+---
+Observation.
+`;
+
+		function ParseOwnerlessSignal(): void
+		{
+			codec.Parse(content);
+		}
+
+		expect(ParseOwnerlessSignal).toThrow("Signal Markdown is missing required metadata");
 	});
 });

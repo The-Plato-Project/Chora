@@ -27,7 +27,7 @@ describe("ErrorManager", function ErrorManagerTests()
 
 		expect(manager.GetRecords()).toHaveLength(1);
 		expect(published).toMatchObject({ level: "error", source: "ModelProvider", message: "Network unavailable", userMessage: "Model request failed." });
-		expect(console.error).toHaveBeenCalledWith("[Chora][ERROR][ModelProvider]", "Network unavailable", expect.any(Error));
+		expect(console.error).toHaveBeenCalledWith("[Chora][ERROR][ModelProvider]", "Network unavailable", expect.objectContaining({ name: "Error", message: "Network unavailable" }));
 	});
 
 	it("returns a snapshot that cannot mutate stored diagnostics", function ProtectsStoredRecords()

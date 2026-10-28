@@ -2,7 +2,7 @@ import matter from "gray-matter";
 import type { SignalRecord } from "../../shared/signals/SignalTypes.js";
 import { DecodeTextSelection } from "../../shared/text/TextSelection.js";
 
-// Serializes and hydrates work-owned Signal Markdown.
+// Serializes and hydrates Dream-owned Signal Markdown.
 export class SignalMarkdownCodec
 {
 	// Hydrates one persisted Signal.
@@ -12,9 +12,11 @@ export class SignalMarkdownCodec
 		const data = parsed.data as Partial<SignalRecord>;
 
 		if (data.id === undefined
+			|| data.dreamId === undefined
 			|| data.workId === undefined
-			|| data.sourceRef === undefined
+			|| typeof data.sourceRef !== "string"
 			|| !Array.isArray(data.selections)
+			|| typeof data.text !== "string"
 			|| data.createdAt === undefined
 			|| data.updatedAt === undefined)
 		{
@@ -32,11 +34,12 @@ export class SignalMarkdownCodec
 		const title = typeof data.title === "string" ? { title: data.title } : {};
 		const record: SignalRecord = {
 			id: data.id,
+			dreamId: data.dreamId,
 			workId: data.workId,
 			sourceRef: data.sourceRef,
 			...title,
 			selections,
-			text: typeof data.text === "string" ? data.text : "",
+			text: data.text,
 			description: parsed.content.trim(),
 			createdAt: data.createdAt,
 			updatedAt: data.updatedAt
@@ -51,10 +54,12 @@ export class SignalMarkdownCodec
 		const title = signal.title === undefined ? {} : { title: signal.title };
 		const frontMatter = {
 			id: signal.id,
+			dreamId: signal.dreamId,
 			workId: signal.workId,
 			sourceRef: signal.sourceRef,
 			...title,
 			selections: signal.selections,
+			text: signal.text,
 			createdAt: signal.createdAt,
 			updatedAt: signal.updatedAt
 		};

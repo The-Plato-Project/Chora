@@ -1,8 +1,9 @@
 export const IPC_CHANNELS = {
+	recordDiagnostic: "chora:record-diagnostic",
+	diagnosticReported: "chora:diagnostic-reported",
 	listLibraryTexts: "chora:list-library-texts",
 	loadLibraryText: "chora:load-library-text",
 	selectLibraryText: "chora:select-library-text",
-	externalTextLoaded: "chora:external-text-loaded",
 	showSelectionContextMenu: "chora:show-selection-context-menu",
 	showDreamSourceContextMenu: "chora:show-dream-source-context-menu",
 	showFormattingContextMenu: "chora:show-formatting-context-menu",
@@ -13,21 +14,21 @@ export const IPC_CHANNELS = {
 	setLookupBounds: "chora:set-lookup-bounds",
 	lookupCommand: "chora:lookup-command",
 	getSourceNotice: "chora:get-source-notice",
-	listSignals: "chora:list-signals",
-	saveSignal: "chora:save-signal",
+	createSignal: "chora:create-signal",
+	updateSignal: "chora:update-signal",
 	deleteSignal: "chora:delete-signal",
-	// Lists work-owned Ideas.
-	listIdeas: "chora:list-ideas",
-	// Discovers related existing Signals.
-	discoverIdeaSignals: "chora:discover-idea-signals",
-	// Saves reader-editable Idea data.
-	saveIdea: "chora:save-idea",
-	// Deletes one work-owned Idea.
-	deleteIdea: "chora:delete-idea",
-	saveDream: "chora:save-dream",
+	createDream: "chora:create-dream",
+	updateDream: "chora:update-dream",
 	deleteDream: "chora:delete-dream",
-	listDreams: "chora:list-dreams",
-	allocateDreamId: "chora:allocate-dream-id",
+	listDreamTrash: "chora:listDreamTrash",
+	restoreDreamTrash: "chora:restoreDreamTrash",
+	purgeDreamTrash: "chora:purgeDreamTrash",
+	emptyDreamTrash: "chora:emptyDreamTrash",
+	reloadDreamCatalogue: "chora:reload-dream-catalogue",
+	listDreamCatalogue: "chora:list-dream-catalogue",
+	createDreamFolder: "chora:create-dream-folder",
+	deleteDreamFolder: "chora:delete-dream-folder",
+	moveDream: "chora:move-dream",
 	createDreamSynopticView: "chora:create-dream-synoptic-view",
 	cancelDreamSynopticView: "chora:cancel-dream-synoptic-view"
 } as const;

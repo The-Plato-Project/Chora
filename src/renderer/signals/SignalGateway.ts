@@ -1,23 +1,24 @@
-import type { DeleteSignalCommand, SaveSignalCommand, SignalRecord } from "../../shared/signals/SignalTypes.js";
+import { ReadOperationAsync } from "../../shared/diagnostics/OperationResult.js";
+import type { CreateSignalCommand, DeleteSignalCommand, SignalRecord, UpdateSignalCommand } from "../../shared/signals/SignalTypes.js";
 
-// Stateless IPC client for work-owned Signals.
+// Stateless IPC client for Dream-owned Signals.
 export class SignalGateway
 {
-	// Lists one work's Signals.
-	public ListAsync(workId: string): Promise<SignalRecord[]>
+	// Creates one Signal inside exactly one Dream.
+	public CreateAsync(command: CreateSignalCommand): Promise<SignalRecord>
 	{
-		return window.chora.ListSignals(workId);
+		return ReadOperationAsync(window.chora.CreateSignal(command));
 	}
 
-	// Creates or updates one Signal.
-	public SaveAsync(command: SaveSignalCommand): Promise<SignalRecord>
+	// Updates one Signal without changing its ownership.
+	public UpdateAsync(command: UpdateSignalCommand): Promise<SignalRecord>
 	{
-		return window.chora.SaveSignal(command);
+		return ReadOperationAsync(window.chora.UpdateSignal(command));
 	}
 
-	// Deletes one Signal from every owning document.
+	// Deletes one Signal from its owning Dream.
 	public DeleteAsync(command: DeleteSignalCommand): Promise<void>
 	{
-		return window.chora.DeleteSignal(command);
+		return ReadOperationAsync(window.chora.DeleteSignal(command));
 	}
 }

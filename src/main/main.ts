@@ -9,6 +9,10 @@ InstallProcessOutputGuard();
 EnvironmentFile.LoadFromWorkingDirectory();
 
 let application: ChoraApplication | null = null;
+// Prevents recursive shutdown while the diagnostic queue drains.
+let isFinalQuit = false;
+// Shares one graceful diagnostic flush across repeated quit requests.
+let isFlushingQuit = false;
 
 app.disableHardwareAcceleration();
 
@@ -34,16 +38,57 @@ function HandleApplicationStartFailure(error: unknown): void
 // Starts Chora after Electron has initialized its native services.
 function HandleElectronReady(): void
 {
+	Errors.Configure(app.getPath("logs"));
+	Errors.Info("Application", "Application starting.");
 	void StartApplicationAsync().catch(HandleApplicationStartFailure);
 }
 
 // Stops main-process feature modules before Electron exits.
-function HandleBeforeQuit(): void
+function HandleBeforeQuit(event: Electron.Event): void
 {
-	if (application !== null)
+	if (!isFinalQuit)
 	{
-		application.Stop();
+		event.preventDefault();
+		if (!isFlushingQuit)
+		{
+			isFlushingQuit = true;
+			void FinishQuitAsync();
+		}
 	}
+}
+
+// Stops modules and waits for admitted diagnostic writes before permitting Electron to exit.
+async function FinishQuitAsync(): Promise<void>
+{
+	try
+	{
+		application?.Stop();
+	}
+	catch (error)
+	{
+		Errors.Capture("Application.Shutdown", error);
+	}
+	await Errors.FlushAsync();
+	isFinalQuit = true;
+	app.quit();
+}
+
+// Preserves otherwise unhandled async failures for logging and user reporting.
+function HandleUnhandledRejection(error: unknown): void
+{
+	Errors.Report("Process.UnhandledRejection", error, "An unexpected background operation failed. Check your current work before continuing.");
+}
+
+// Preserves a fatal exception before terminating a process whose state is no longer trustworthy.
+function HandleUncaughtException(error: Error): void
+{
+	Errors.Capture("Process.UncaughtException", error);
+	// Terminates only after the queued diagnostic append has finished.
+	function Exit(): void
+	{
+		app.exit(1);
+	}
+	void Errors.FlushAsync().then(Exit, Exit);
 }
 
 // Closes Chora when no windows remain on non-macOS platforms.
@@ -79,3 +124,6 @@ app.on("before-quit", HandleBeforeQuit);
 app.on("window-all-closed", HandleAllWindowsClosed);
 
 app.on("activate", HandleActivate);
+
+process.on("unhandledRejection", HandleUnhandledRejection);
+process.on("uncaughtException", HandleUncaughtException);

@@ -1,72 +1,74 @@
-import type { SaveSignalCommand, SignalRecord } from "../../shared/signals/SignalTypes.js";
+import { ApplicationError } from "../../shared/diagnostics/OperationResult.js";
+import type { CreateSignalCommand, SignalRecord, UpdateSignalCommand } from "../../shared/signals/SignalTypes.js";
 import type { TextDocument } from "../../shared/text/TextDocument.js";
-import { IsValidSignalSelection } from "../../shared/signals/SignalSelection.js";
+import { AreTextSelectionsEqual, IsValidSignalSelection } from "../../shared/signals/SignalSelection.js";
 import type { TextSelection } from "../../shared/text/TextSelection.js";
 
-// Owns the intrinsic data and validity of one work-owned Signal.
+// Owns the intrinsic data and validity of one Dream-owned Signal.
 export class Signal
 {
 	// Contains the normalized immutable Signal snapshot.
 	private readonly record: SignalRecord;
 
-	// Hydrates one normalized Signal record.
-	public constructor(record: SignalRecord, document: TextDocument)
+	// Hydrates one complete persisted Signal without reopening its immutable source text.
+	public constructor(record: SignalRecord)
 	{
 		this.ValidateIdentifier(record.id, "Signal identifier");
+		this.ValidateIdentifier(record.dreamId, "Signal Dream identifier");
 		this.ValidateIdentifier(record.workId, "Signal work identifier");
-		const selections = Signal.NormalizeSelections(record.selections, record.workId, document);
-		const firstSelection = selections[0];
+		const selections = Signal.CloneStoredSelections(record.selections, record.workId);
 
-		if (firstSelection === undefined)
+		if (record.sourceRef.trim().length === 0)
 		{
-			throw new Error("Signal selections must not be empty");
+			throw ApplicationError.Expected("validation", "INVALID_SIGNAL", "Signal source reference must not be empty");
 		}
-
-		const citation = document.ResolveCitation(firstSelection.start);
-		const firstText = document.ReconstructText(firstSelection);
-		const title = this.NormalizeTitle(record.title, firstText);
+		if (record.text.trim().length === 0)
+		{
+			throw ApplicationError.Expected("validation", "INVALID_SIGNAL", "Signal passage text must not be empty");
+		}
+		const title = this.NormalizeTitle(record.title, record.text);
 
 		this.record = {
 			...structuredClone(record),
 			title,
-			selections,
-			sourceRef: citation?.value ?? firstSelection.start.segmentKey,
-			text: Signal.ReconstructText(selections, document)
+			sourceRef: record.sourceRef.trim(),
+			selections
 		};
 	}
 
 	// Creates a new Signal from reader-authored data and authoritative metadata.
-	public static Create(command: SaveSignalCommand, signalId: string, timestamp: string, document: TextDocument): Signal
+	public static Create(command: CreateSignalCommand, signalId: string, timestamp: string, document: TextDocument): Signal
 	{
-		const selections = Signal.NormalizeCommandSelections(command, document);
+		const selections = Signal.NormalizeSelections([command.selection], command.selection.documentId, document);
 		const firstSelection = selections[0] as TextSelection;
-		const title = command.title ?? document.ReconstructText(firstSelection).trim();
+		const title = document.ReconstructText(firstSelection).trim();
 
 		const record: SignalRecord = {
 			id: signalId,
-			workId: command.workId,
+			dreamId: command.dreamId,
+			workId: command.selection.documentId,
 			sourceRef: document.ResolveCitation(firstSelection.start)?.value ?? firstSelection.start.segmentKey,
 			title,
 			selections,
-			text: "",
-			description: command.description,
+			text: Signal.ReconstructText(selections, document),
+			description: "",
 			createdAt: timestamp,
 			updatedAt: timestamp
 		};
-		const signal = new Signal(record, document);
+		const signal = new Signal(record);
 
 		return signal;
 	}
 
 	// Applies reader-editable fields while preserving identity and creation metadata.
-	public Update(command: SaveSignalCommand, timestamp: string, document: TextDocument): Signal
+	public Update(command: UpdateSignalCommand, timestamp: string, document: TextDocument): Signal
 	{
-		if (command.workId !== this.record.workId)
+		if (command.dreamId !== this.record.dreamId)
 		{
-			throw new Error("Signal cannot move between works");
+			throw ApplicationError.Expected("validation", "INVALID_SIGNAL", "Signal cannot move between Dreams");
 		}
 
-		const selections = Signal.NormalizeCommandSelections(command, document);
+		const selections = Signal.NormalizeUpdatedSelections(command, this.record.workId, this.record.selections[0], document);
 		const firstSelection = selections[0] as TextSelection;
 		const record: SignalRecord = {
 			...structuredClone(this.record),
@@ -77,7 +79,7 @@ export class Signal
 			description: command.description,
 			updatedAt: timestamp
 		};
-		const signal = new Signal(record, document);
+		const signal = new Signal(record);
 
 		return signal;
 	}
@@ -90,15 +92,38 @@ export class Signal
 		return record;
 	}
 
-	// Validates and normalizes reader-authored selections before creating or updating a Signal.
-	private static NormalizeCommandSelections(command: SaveSignalCommand, document: TextDocument): readonly TextSelection[]
+	// Retains the existing main passage when it remains present in an update.
+	private static NormalizeUpdatedSelections(
+		command: UpdateSignalCommand,
+		workId: string,
+		existingAnchor: TextSelection | undefined,
+		document: TextDocument): readonly TextSelection[]
 	{
-		const selections = Signal.NormalizeSelections(command.selections, command.workId, document);
+		let candidates = command.selections;
+
+		if (existingAnchor !== undefined)
+		{
+			const retainsAnchor = command.selections.some(function MatchesAnchor(selection): boolean
+			{
+				return AreTextSelectionsEqual(selection, existingAnchor);
+			});
+
+			if (retainsAnchor)
+			{
+				const additions = command.selections.filter(function ExcludesAnchor(selection): boolean
+				{
+					return !AreTextSelectionsEqual(selection, existingAnchor);
+				});
+				candidates = [existingAnchor, ...additions];
+			}
+		}
+
+		const selections = Signal.NormalizeSelections(candidates, workId, document);
 
 		return selections;
 	}
 
-	// Orders components and merges duplicate, overlapping, or directly touching ranges.
+	// Preserves the first-added main passage and orders later components behind it.
 	private static NormalizeSelections(
 		candidates: readonly TextSelection[],
 		workId: string,
@@ -106,19 +131,15 @@ export class Signal
 	{
 		if (candidates.length === 0)
 		{
-			throw new Error("Signal selections must not be empty");
+			throw ApplicationError.Expected("validation", "INVALID_SIGNAL", "Signal selections must not be empty");
 		}
 
-		const ordered = candidates.map(function CloneSelection(selection): TextSelection
+		const validated = candidates.map(function CloneSelection(selection): TextSelection
 		{
 			return structuredClone(selection);
-		}).sort(function CompareSelections(first, second): number
-		{
-			return document.CompareSelections(first, second);
 		});
-		const selections: TextSelection[] = [];
 
-		for (const selection of ordered)
+		for (const selection of validated)
 		{
 			document.ValidateSelection(selection);
 			const selectedText = document.ReconstructText(selection);
@@ -128,18 +149,66 @@ export class Signal
 
 			if (!isValid)
 			{
-				throw new Error("Signal selections must not be empty or belong to another work");
+				throw ApplicationError.Expected("validation", "INVALID_SIGNAL", "Signal selections must not be empty or belong to another work");
 			}
+		}
 
-			const previous = selections[selections.length - 1];
+		let anchor = validated[0] as TextSelection;
+		const additions = validated.slice(1).filter(function ExcludesDuplicateAnchor(selection): boolean
+		{
+			return !AreTextSelectionsEqual(selection, anchor);
+		}).sort(function CompareSelections(first, second): number
+		{
+			return document.CompareSelections(first, second);
+		});
+		const selections: TextSelection[] = [anchor];
 
-			if (previous !== undefined && Signal.ShouldMerge(previous, selection, document))
+		for (const selection of additions)
+		{
+			const previousAddition = selections.length > 1 ? selections[selections.length - 1] : undefined;
+			const startsAtOrAfterAnchor = document.ComparePositions(selection.start, anchor.start) >= 0;
+
+			if (startsAtOrAfterAnchor && Signal.ShouldMerge(anchor, selection, document))
 			{
-				selections[selections.length - 1] = document.MergeSelections(previous, selection);
+				anchor = document.MergeSelections(anchor, selection);
+				selections[0] = anchor;
+			}
+			else if (previousAddition !== undefined && Signal.ShouldMerge(previousAddition, selection, document))
+			{
+				selections[selections.length - 1] = document.MergeSelections(previousAddition, selection);
 			}
 			else
 			{
 				selections.push(selection);
+			}
+		}
+
+		return selections;
+	}
+
+	// Validates the self-contained persisted selection shape without reopening the source corpus.
+	private static CloneStoredSelections(candidates: readonly TextSelection[], workId: string): readonly TextSelection[]
+	{
+		if (candidates.length === 0)
+		{
+			throw ApplicationError.Expected("validation", "INVALID_SIGNAL", "Signal selections must not be empty");
+		}
+
+		const selections = candidates.map(function CloneSelection(selection): TextSelection
+		{
+			return structuredClone(selection);
+		});
+
+		for (const selection of selections)
+		{
+			const isValid = selection.documentId === workId
+				&& IsValidSignalSelection(selection)
+				&& selection.start.offset >= 0
+				&& selection.end.offset >= 0;
+
+			if (!isValid)
+			{
+				throw ApplicationError.Expected("validation", "INVALID_SIGNAL", "Stored Signal selections are invalid or belong to another work");
 			}
 		}
 
@@ -184,7 +253,7 @@ export class Signal
 
 		if (value.length === 0)
 		{
-			throw new Error("Signal title must not be empty");
+			throw ApplicationError.Expected("validation", "INVALID_SIGNAL", "Signal title must not be empty");
 		}
 
 		return value;
@@ -197,7 +266,7 @@ export class Signal
 
 		if (!pattern.test(value))
 		{
-			throw new Error(`${label} is invalid`);
+			throw ApplicationError.Expected("validation", "INVALID_SIGNAL", `${label} is invalid`);
 		}
 	}
 }

@@ -2,7 +2,6 @@ import type { Dirent } from "node:fs";
 import { mkdir, readdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
-import matter from "gray-matter";
 import type { SignalRecord } from "../../shared/signals/SignalTypes.js";
 import { SignalMarkdownCodec } from "./SignalMarkdownCodec.js";
 
@@ -61,32 +60,11 @@ export class SignalRepository
 		}
 	}
 
-	// Determines whether any persisted Dream or Idea still references one Signal.
-	public async IsAssociatedAsync(signalId: string): Promise<boolean>
-	{
-		const files = await this.CollectMarkdownFilesAsync(this.rootPath);
-		let associated = false;
-
-		for (const filePath of files)
-		{
-			const isSignalFile = filePath.includes(`${path.sep}Signals${path.sep}`);
-
-			if (!isSignalFile)
-			{
-				const content = await readFile(filePath, "utf8");
-				const data = matter(content).data as Record<string, unknown>;
-				associated = this.ContainsSignal(data, signalId);
-				if (associated) break;
-			}
-		}
-
-		return associated;
-	}
-
 	// Loads canonical Signal Markdown files.
 	private async LoadCanonicalAsync(): Promise<SignalRecord[]>
 	{
 		const records: SignalRecord[] = [];
+		const ids = new Set<string>();
 		const workEntries = await this.ReadEntriesAsync(this.rootPath);
 
 		for (const workEntry of workEntries)
@@ -101,61 +79,20 @@ export class SignalRepository
 					if (entry.isFile() && entry.name.toLocaleLowerCase().endsWith(".md"))
 					{
 						const content = await readFile(path.join(signalPath, entry.name), "utf8");
-						records.push(this.codec.Parse(content));
+						const record = this.codec.Parse(content);
+						if (record.workId !== workEntry.name || `${record.id}.md` !== entry.name)
+						{
+							throw new Error("Signal identity does not match its canonical file location.");
+						}
+						if (ids.has(record.id)) throw new Error(`Duplicate Signal identifier: ${record.id}`);
+						ids.add(record.id);
+						records.push(record);
 					}
 				}
 			}
 		}
 
 		return records;
-	}
-
-	// Recursively collects persisted Markdown documents under Chora's data root.
-	private async CollectMarkdownFilesAsync(directoryPath: string): Promise<string[]>
-	{
-		const files: string[] = [];
-		const entries = await this.ReadEntriesAsync(directoryPath);
-
-		for (const entry of entries)
-		{
-			const entryPath = path.join(directoryPath, entry.name);
-
-			if (entry.isDirectory())
-			{
-				const nested = await this.CollectMarkdownFilesAsync(entryPath);
-				files.push(...nested);
-			}
-			else if (entry.isFile() && entry.name.toLocaleLowerCase().endsWith(".md"))
-			{
-				files.push(entryPath);
-			}
-		}
-
-		return files;
-	}
-
-	// Recognizes current Signal association metadata.
-	private ContainsSignal(data: Record<string, unknown>, signalId: string): boolean
-	{
-		const signalIds = Array.isArray(data.signalIds) ? data.signalIds : [];
-		const relatedSignals = Array.isArray(data.relatedSignals) ? data.relatedSignals : [];
-		const candidates = [data.originSignal, ...relatedSignals];
-		let contains = false;
-
-		for (const candidate of signalIds)
-		{
-			if (candidate === signalId) contains = true;
-		}
-
-		for (const candidate of candidates)
-		{
-			if (typeof candidate === "object" && candidate !== null && (candidate as Record<string, unknown>).signalId === signalId)
-			{
-				contains = true;
-			}
-		}
-
-		return contains;
 	}
 
 	// Reads one optional directory.

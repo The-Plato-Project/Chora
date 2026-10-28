@@ -4,12 +4,12 @@
 
 Chora is an Electron research reading environment. Its top-level source folders represent real Electron runtime boundaries:
 
-- `src/main/` — privileged Electron host code, organized into Library, Chat, Dreams, models, shell, IPC, bootstrap, and diagnostics
+- `src/main/` — privileged Electron host code, organized into Library, Dreams, Signals, models, prompts, shell, bootstrap, and diagnostics, with IPC controllers at feature boundaries
 - `src/preload/` — the deliberately small, context-isolated IPC bridge
-- `src/renderer/` — the browser UI, organized into Library, Chat, Dreams, application composition, and shared renderer infrastructure under `core/`
+- `src/renderer/` — the browser UI, organized into Library, Dreams, Signals, workspace, application composition, shared UI, and renderer infrastructure under `core/`
 - `src/shared/` — pure cross-process contracts, types, and deterministic domain logic
 
-Within a process, organize primarily by product feature. Every renderer feature separates `Panel`, `Controller`, `Store`, and `Gateway` objects. Panels own DOM behavior only; controllers coordinate; stores own state; gateways own IPC. Every main-process feature separates `IpcController`, `Service`, and `Repository` objects. Do not collapse these responsibilities into generic manager classes. Use `core/` only for mechanisms shared across multiple renderer features, such as events, diagnostics, context, and session persistence.
+Within a process, organize primarily by product feature. Renderer panels own DOM behavior, controllers coordinate workflows, stores own state, and gateways own IPC. Related features share an existing owning store where appropriate: Signal editing uses `DreamStore`. Main-process IPC controllers expose use cases; domain owners, services, and repositories separate domain behavior, external responsibilities, and persistence. `DreamLibrary` owns the `Dream` aggregates and their child Signals. Do not add empty layers or generic manager classes. Use `core/` only for mechanisms shared across multiple renderer features, such as events, diagnostics, and session persistence.
 
 The bundled corpus is Plato's *Republic* from PerseusDL.
 
@@ -66,17 +66,25 @@ Read `CODING_STANDARDS.md` first. This project uses the C#-style rules described
 - Import with `.js` extensions for cross-module TypeScript imports (NodeNext module resolution).
 - Prefer `const` / `readonly`; mutable `let` only when necessary.
 - Keep main-process responsibilities out of the renderer; use `IPC_CHANNELS` for all cross-layer communication.
-- Panels own DOM and local user interaction. Managers own state and workflows.
+- Panels own DOM and local user interaction; controllers coordinate workflows; stores own renderer state; gateways own IPC.
 - Components communicate through the typed `ChoraEventBus`; do not call other panels directly.
 - Use `ErrorManager` for application logs, diagnostics, and user-facing errors; do not scatter raw `console` calls through application code.
-- Only `ModelGateway` may initiate language-model IPC from the browser-side application.
+- Model requests use the owning feature gateway. Clarity Check uses `DreamGateway` and the typed preload API to reach `DreamIpcController` and `DreamSynopticViewService`; prompts and provider calls remain in the main process.
 
 ## Architecture Boundaries
 
 - The renderer has no direct filesystem or network access. Use the IPC channels defined in `src/shared/contracts/IpcChannels.ts`.
 - API keys and provider configuration live only in the main process and `.env.local`.
-- Dreams are local Markdown files under `Documents/Chora/Dreams` (main process owns persistence).
+- Dreams are local Markdown files under `Documents/Chora/Dreams/<work-id>/`; their canonical Signals live under `Documents/Chora/<work-id>/Signals/`. The main process owns persistence, folder placement, and recoverable aggregate trash.
+- Catalogue reads use the in-memory `DreamLibrary`; explicit **Reload from disk** stages and validates a filesystem rescan before replacing it.
+- Reading uses the bundled Library catalogue; opening or importing external text files is not supported.
 - The corpus lives in `corpus/generated/` and is built from scripts in `scripts/corpus/`.
+
+## Current Model Workflow
+
+Clarity Check is the active model workflow. `DreamClarityCheckController` assembles a reading document from the Dream, calls `DreamGateway.CreateSynopticViewAsync`, and applies the returned text through the Dream editing and save flow. The preload contract exposes `CreateDreamSynopticView` and `CancelDreamSynopticView`. `DreamSynopticViewService` loads `Prompts/clarity-check.md` through `PromptLoader`, invokes the configured provider with empty conversation history, and owns request cancellation. The stored field is named `synopticView`; the UI calls it Clarity Check.
+
+There is no active Chat feature, saved-chat history, or renderer model-selection workflow in the current application or exposed API. Older references to those workflows do not authorize reintroducing them. Treat the current composition roots, typed API, and these standards as the implementation guide.
 
 ## Configuration
 
@@ -90,7 +98,7 @@ Tests are in `tests/` and run with Vitest. Mirror the source layout:
 - `tests/renderer/*` for renderer modules
 - `tests/corpus/*` for corpus scripts
 
-Run tests before finishing a change.
+Follow the Build and Test Discipline section in CODING_STANDARDS.md. Run one targeted validation pass appropriate to the change. Create new tests only when explicitly required by the task or approved by the user; do not automatically repeat full builds, test suites, or lint passes. If validation fails, report the failure and likely cause before making further changes, and obtain approval before entering an iterative test-and-fix cycle.
 
 ## Common Gotchas
 

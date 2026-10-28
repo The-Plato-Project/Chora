@@ -1,19 +1,26 @@
 import type { TextSelection } from "../../shared/text/TextSelection.js";
-import type { TextDocument, LibraryTextSummary } from "../../shared/library/LibraryTypes.js";
+import type { LibraryTextSummary } from "../../shared/library/LibraryTypes.js";
 import { ErrorManager } from "../core/diagnostics/RendererErrorManager.js";
 import { ChoraEventBus } from "../core/events/ChoraEventBus.js";
 import type { ChoraEvents } from "../core/events/ChoraEvents.js";
 import { LibraryGateway } from "./LibraryGateway.js";
 import { LibraryStore } from "./LibraryStore.js";
+import type { DreamView } from "../dreams/DreamView.js";
+
+// Read-only Dream state required to evaluate reader selection actions.
+export interface LibraryDreamContext
+{
+	// Returns the active Dream editing snapshot.
+	GetActiveDream(): DreamView | null;
+	// Returns the Signal selected in one Dream editing session.
+	GetSelectedSignal(dreamId: string): string | null;
+}
 
 // Coordinates Library workflows between the catalogue, the active text, and the main process.
 export class LibraryController
 {
 	// Local storage key for the reader's last-opened work.
 	private static readonly LastWorkKey = "chora:last-work";
-	private activeDocumentKind: "dream" | "idea" | null = null;
-	private activeSignalId: string | null = null;
-	private activeSignalSelections: readonly TextSelection[] = [];
 
 	// Creates the controller and subscribes to the application events it coordinates.
 	public constructor(
@@ -21,11 +28,9 @@ export class LibraryController
 		private readonly errors: ErrorManager,
 		private readonly store: LibraryStore,
 		private readonly gateway: LibraryGateway,
-		private readonly getActiveDreamSource: () => TextSelection | null = function NoActiveDreamSource(): null { return null; })
+		private readonly dreams: LibraryDreamContext)
 	{
 		this.events.Subscribe("library.text-open-requested", this.HandleTextOpenRequested.bind(this));
-		this.events.Subscribe("workspace.document-selected", this.HandleDocumentSelected.bind(this));
-		this.events.Subscribe("signal.active-changed", this.HandleActiveSignalChanged.bind(this));
 	}
 
 	// Loads the Library catalogue and opens the reader's preferred work.
@@ -72,14 +77,6 @@ export class LibraryController
 		}
 	}
 
-	// Opens a text supplied directly by the main process, bypassing the Library catalogue lookup.
-	public OpenExternal(text: TextDocument): void
-	{
-		this.store.Open(text, null);
-		this.SetFocusSegment(text.segments[0]?.key ?? "");
-		void this.events.PublishAsync("library.text-opened", {});
-	}
-
 	// Reconciles a raw browser selection into canonical form and publishes it when changed.
 	public SetSelection(selection: TextSelection | null): void
 	{
@@ -124,52 +121,40 @@ export class LibraryController
 	public async HandleSelectionActionAsync(selection: TextSelection): Promise<void>
 	{
 		const document = this.store.GetText();
-		const activeDreamSource = this.activeDocumentKind === "dream" ? this.getActiveDreamSource() : null;
+		const activeDream = this.dreams.GetActiveDream();
+		const activeDreamSource = activeDream?.source ?? null;
+		const activeSignalId = activeDream === null ? null : this.dreams.GetSelectedSignal(activeDream.id);
+		const activeSignal = activeSignalId === null
+			? null
+			: activeDream?.signals.find(function MatchesSignal(signal): boolean
+			{
+				return signal.id === activeSignalId;
+			}) ?? null;
 		const canAddToDreamSource = document !== null
 			&& activeDreamSource !== null
 			&& selection.documentId === activeDreamSource.documentId
 			&& document.AreSelectionsAdjacent(selection, activeDreamSource);
-		const canAddSignal = this.activeDocumentKind === "idea"
-			|| (this.activeDocumentKind === "dream"
-				&& document !== null
-				&& activeDreamSource !== null
-				&& document.Contains(selection, activeDreamSource));
-		const canAddToSelectedSignal = this.activeSignalId !== null
+		const canAddSignal = activeDream !== null
 			&& document !== null
-			&& canAddSignal
-			&& this.activeSignalSelections.some((candidate) => candidate.documentId === selection.documentId)
-			&& !this.activeSignalSelections.some((candidate) => document.Contains(selection, candidate));
+			&& activeDreamSource !== null
+			&& document.Contains(selection, activeDreamSource);
+		const canAddToSelectedSignal = activeSignal !== null
+			&& document !== null
+			&& activeSignal.selections.some((candidate) => candidate.documentId === selection.documentId)
+			&& !activeSignal.selections.some((candidate) => document.Contains(selection, candidate));
 		const action = await this.gateway.ShowSelectionContextMenuAsync(canAddSignal, canAddToDreamSource, canAddToSelectedSignal);
 		if (action === "create-dream") await this.events.PublishAsync("dream.create-requested", { selection });
 		if (action === "add-to-dream" && canAddToDreamSource) await this.events.PublishAsync("dream.source-extend-requested", { selection });
-		if (action === "add-signal" && canAddSignal) await this.events.PublishAsync("signal.add-requested", { selection });
-		if (action === "add-to-selected-signal" && this.activeSignalId !== null && canAddToSelectedSignal)
+		if (action === "add-signal" && canAddSignal) await this.events.PublishAsync("dream.signal-add-requested", { selection });
+		if (action === "add-to-selected-signal" && activeSignalId !== null && canAddToSelectedSignal)
 		{
-			await this.events.PublishAsync("signal.selection-add-requested", { signalId: this.activeSignalId, selection });
+			await this.events.PublishAsync("signal.selection-add-requested", { signalId: activeSignalId, selection });
 		}
 		const selectedText = document?.id === selection.documentId
 			? document.ReconstructText(selection)
 			: "";
 		if (action === "copy") await this.gateway.CopyAsync(selectedText);
 		if (action === "lookup") await this.gateway.LookUpAsync(selectedText);
-	}
-
-	// Tracks which document may receive the generic Add Signal action.
-	private HandleDocumentSelected(event: ChoraEvents["workspace.document-selected"]): void
-	{
-		this.activeDocumentKind = event.kind;
-		if (event.kind === null)
-		{
-			this.activeSignalId = null;
-			this.activeSignalSelections = [];
-		}
-	}
-
-	// Tracks the selected Signal that may receive another exact component.
-	private HandleActiveSignalChanged(event: ChoraEvents["signal.active-changed"]): void
-	{
-		this.activeSignalId = event.signalId;
-		this.activeSignalSelections = structuredClone(event.selections);
 	}
 
 	// Routes a text-open-requested application event to the open workflow.

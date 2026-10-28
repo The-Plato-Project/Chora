@@ -28,7 +28,17 @@ interface SignalDescriptionSaveState
 // Serializes Signal-description writes and applies only the newest completed response.
 export class SignalDescriptionSaveQueue
 {
+	// Signals whose last requested description failed to persist.
+	private readonly failed = new Set<string>();
 	private readonly states = new Map<string, SignalDescriptionSaveState>();
+
+	// Prevents reload from replacing pending or failed local description edits.
+	public HasUncommittedChanges(): boolean
+	{
+		const pending = this.states.size > 0 || this.failed.size > 0;
+
+		return pending;
+	}
 
 	// Records the newest description and resolves after its revision has been persisted or reported.
 	public RequestAsync(
@@ -84,10 +94,12 @@ export class SignalDescriptionSaveQueue
 				if (revision === state.revision)
 				{
 					await write.applyAsync(saved);
+					this.failed.delete(signalId);
 				}
 			}
 			catch (error)
 			{
+				this.failed.add(signalId);
 				write.report(error);
 			}
 

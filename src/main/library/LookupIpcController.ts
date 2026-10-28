@@ -1,3 +1,5 @@
+import { ApplicationError } from "../../shared/diagnostics/OperationResult.js";
+import { IpcErrorBoundary } from "../diagnostics/IpcErrorBoundary.js";
 import { ipcMain, type IpcMainInvokeEvent } from "electron";
 import { IPC_CHANNELS } from "../../shared/contracts/IpcChannels.js";
 import type { LookupBounds, LookupCommand, LookupState } from "../../shared/library/LookupTypes.js";
@@ -15,10 +17,10 @@ export class LookupIpcController
 
 	public Register(): void
 	{
-		ipcMain.handle(IPC_CHANNELS.lookUpWord, this.OpenAsync.bind(this));
-		ipcMain.handle(IPC_CHANNELS.getLookupState, this.GetState.bind(this));
-		ipcMain.handle(IPC_CHANNELS.setLookupBounds, this.SetBounds.bind(this));
-		ipcMain.handle(IPC_CHANNELS.lookupCommand, this.ExecuteAsync.bind(this));
+		IpcErrorBoundary.Register(IPC_CHANNELS.lookUpWord, this.OpenAsync.bind(this));
+		IpcErrorBoundary.Register(IPC_CHANNELS.getLookupState, this.GetState.bind(this));
+		IpcErrorBoundary.Register(IPC_CHANNELS.setLookupBounds, this.SetBounds.bind(this));
+		IpcErrorBoundary.Register(IPC_CHANNELS.lookupCommand, this.ExecuteAsync.bind(this));
 	}
 
 	public Unregister(): void
@@ -30,13 +32,13 @@ export class LookupIpcController
 	private ValidateSender(event: IpcMainInvokeEvent): void
 	{
 		const owner = this.windows.GetWindow()?.webContents;
-		if (owner === undefined || event.sender !== owner || event.senderFrame !== owner.mainFrame) throw new Error("Untrusted dictionary request.");
+		if (owner === undefined || event.sender !== owner || event.senderFrame !== owner.mainFrame) throw ApplicationError.Expected("validation", "INVALID_LOOKUP_COMMAND", "Untrusted dictionary request.");
 	}
 
 	private async OpenAsync(event: IpcMainInvokeEvent, text: unknown): Promise<void>
 	{
 		this.ValidateSender(event);
-		if (typeof text !== "string" || text.length > 20000) throw new Error("Invalid lookup text.");
+		if (typeof text !== "string" || text.length > 20000) throw ApplicationError.Expected("validation", "INVALID_LOOKUP_COMMAND", "Invalid lookup text.");
 		await this.service.OpenAsync(text);
 	}
 
@@ -52,13 +54,13 @@ export class LookupIpcController
 		this.ValidateSender(event);
 		if (value !== null)
 		{
-			if (typeof value !== "object") throw new Error("Invalid dictionary bounds.");
+			if (typeof value !== "object") throw ApplicationError.Expected("validation", "INVALID_LOOKUP_COMMAND", "Invalid dictionary bounds.");
 			const candidate = value as Record<string, unknown>;
 			for (const key of ["x", "y", "width", "height"])
 			{
-				if (typeof candidate[key] !== "number" || !Number.isFinite(candidate[key])) throw new Error("Invalid dictionary bounds.");
+				if (typeof candidate[key] !== "number" || !Number.isFinite(candidate[key])) throw ApplicationError.Expected("validation", "INVALID_LOOKUP_COMMAND", "Invalid dictionary bounds.");
 			}
-			if ((candidate.width as number) < 0 || (candidate.height as number) < 0) throw new Error("Invalid dictionary dimensions.");
+			if ((candidate.width as number) < 0 || (candidate.height as number) < 0) throw ApplicationError.Expected("validation", "INVALID_LOOKUP_COMMAND", "Invalid dictionary dimensions.");
 		}
 		this.service.SetBounds(value as LookupBounds | null);
 	}
@@ -66,7 +68,7 @@ export class LookupIpcController
 	private async ExecuteAsync(event: IpcMainInvokeEvent, command: unknown): Promise<void>
 	{
 		this.ValidateSender(event);
-		if (command !== "back" && command !== "forward" && command !== "reload" && command !== "external" && command !== "close") throw new Error("Invalid dictionary command.");
+		if (command !== "back" && command !== "forward" && command !== "reload" && command !== "external" && command !== "close") throw ApplicationError.Expected("validation", "INVALID_LOOKUP_COMMAND", "Invalid dictionary command.");
 		await this.service.ExecuteAsync(command as LookupCommand);
 	}
 }

@@ -19,7 +19,7 @@ describe("Popup styles", function PopupStyleTests()
 		stylesheet.textContent = `${base}\n${panels}`;
 		document.head.append(stylesheet);
 		const popup = new PopupPanel("Remove Signal?");
-		popup.SetBodyHtml(`<p>Remove this Signal from the Idea?</p><div class="popup-actions"><button type="button">Cancel</button><button data-signal-remove-confirm type="button">Remove Signal</button></div>`);
+		popup.SetBodyHtml(`<p>Remove this Signal from the Dream?</p><div class="popup-actions"><button type="button">Cancel</button><button data-signal-remove-confirm type="button">Remove Signal</button></div>`);
 		popup.Open();
 		const dialog = document.querySelector<HTMLElement>(".popup-dialog")!;
 		const heading = dialog.querySelector<HTMLElement>(".popup-header h4")!;

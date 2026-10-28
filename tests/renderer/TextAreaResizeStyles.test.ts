@@ -26,17 +26,8 @@ describe("Text area resize styles", function TextAreaResizeStyleTests()
 		expect(dream).toMatch(/\.dream-editor \.dream-source-section\s*\{[^}]*overflow:\s*auto;[^}]*resize:\s*none;/s);
 		expect(dream).toMatch(/\.dream-editor\.document-editor \.dream-source-section\s*\{[^}]*height:\s*9rem;[^}]*max-height:\s*70vh;/s);
 		expect(dream).toMatch(/\.dream-source-divider\s*\{[^}]*cursor:\s*row-resize;/s);
-		expect(dream).toMatch(/\.dream-editor \.signal-markdown-editor \.markdown-content,[^{]*\{[^}]*resize:\s*none;/s);
+		expect(dream).toMatch(/\.dream-editor \.signal-markdown-editor \.markdown-content\s*\{[^}]*resize:\s*none;/s);
 		expect(markdown).toMatch(/textarea::\-webkit-resizer,[^{]*\.markdown-content::\-webkit-resizer/s);
 	});
 
-	it("keeps the Signal Idea menu inside the viewport without wrapping titles", function KeepsIdeaMenuVisible(): void
-	{
-		const dreamPath = resolve(process.cwd(), "src", "renderer", "styles", "dream-editor.css");
-		const dream = readFileSync(dreamPath, "utf8");
-
-		expect(dream).toMatch(/\.signal-editor-actions \.signal-ideas-menu \.action-menu-items\s*\{[^}]*position:\s*fixed;[^}]*max-width:\s*calc\(100vw - 24px\);[^}]*overflow-y:\s*auto;/s);
-		expect(dream).toMatch(/\.signal-editor-actions \.signal-ideas-menu \.action-menu-items button\s*\{[^}]*grid-template-columns:\s*18px minmax\(0, 1fr\);/s);
-		expect(dream).toMatch(/\.signal-editor-actions \.signal-ideas-menu \.action-menu-items button span\s*\{[^}]*text-overflow:\s*ellipsis;[^}]*white-space:\s*nowrap;/s);
-	});
 });

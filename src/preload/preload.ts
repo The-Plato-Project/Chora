@@ -1,23 +1,25 @@
+import type { OperationResult } from "../shared/diagnostics/OperationResult.js";
+import type { ErrorRecord } from "../shared/diagnostics/DiagnosticManager.js";
+import type { DreamTrashSnapshot } from "../shared/dreams/DreamTrashTypes.js";
 import { contextBridge, ipcRenderer } from "electron";
 import type { SelectionAction } from "../shared/text/TextSelection.js";
 import type { TextDocument, LibraryTextSummary, SourceNotice } from "../shared/library/LibraryTypes.js";
-import type { DreamSnapshot, DreamSynopticViewRequest } from "../shared/dreams/DreamTypes.js";
-import type { DeleteSignalCommand, SaveSignalCommand, SignalRecord } from "../shared/signals/SignalTypes.js";
-import type { DeleteIdeaCommand, IdeaDiscoveryRequest, IdeaDiscoverySuggestion, IdeaRecord, SaveIdeaCommand } from "../shared/ideas/IdeaTypes.js";
+import type { CreateDreamCommand, CreateDreamFolderCommand, DeleteDreamFolderCommand, DreamCatalogueSnapshot, DreamFolderSnapshot, DreamLocationSnapshot, DreamSnapshot, DreamSynopticViewRequest, MoveDreamCommand, UpdateDreamCommand } from "../shared/dreams/DreamTypes.js";
+import type { CreateSignalCommand, DeleteSignalCommand, SignalRecord, UpdateSignalCommand } from "../shared/signals/SignalTypes.js";
 import { IPC_CHANNELS } from "../shared/contracts/IpcChannels.js";
 import type { ApiSubscription, ChoraApi, FormattingAction } from "../shared/contracts/ChoraApi.js";
 import type { LookupBounds, LookupCommand, LookupState } from "../shared/library/LookupTypes.js";
 
-async function ListLibraryTexts(): Promise<LibraryTextSummary[]>
+async function ListLibraryTexts(): Promise<OperationResult<LibraryTextSummary[]>>
 {
 	const works = await ipcRenderer.invoke(IPC_CHANNELS.listLibraryTexts);
-	return works as LibraryTextSummary[];
+	return works as OperationResult<LibraryTextSummary[]>;
 }
 
-async function LoadLibraryText(workId: string): Promise<TextDocument>
+async function LoadLibraryText(workId: string): Promise<OperationResult<TextDocument>>
 {
 	const work = await ipcRenderer.invoke(IPC_CHANNELS.loadLibraryText, workId);
-	return work as TextDocument;
+	return work as OperationResult<TextDocument>;
 }
 
 function SubscribeLibraryTextSelected(callback: (workId: string) => void): ApiSubscription
@@ -30,33 +32,23 @@ function SubscribeLibraryTextSelected(callback: (workId: string) => void): ApiSu
 	return () => ipcRenderer.removeListener(IPC_CHANNELS.selectLibraryText, listener);
 }
 
-function SubscribeExternalTextLoaded(callback: (work: TextDocument) => void): ApiSubscription
-{
-	const listener = (_event: Electron.IpcRendererEvent, work: unknown): void =>
-	{
-		callback(work as TextDocument);
-	};
-	ipcRenderer.on(IPC_CHANNELS.externalTextLoaded, listener);
-	return () => ipcRenderer.removeListener(IPC_CHANNELS.externalTextLoaded, listener);
-}
-
-async function ShowSelectionContextMenu(canAddSignal: boolean, canAddToDreamSource: boolean, canAddToCurrentSignal: boolean): Promise<SelectionAction>
+async function ShowSelectionContextMenu(canAddSignal: boolean, canAddToDreamSource: boolean, canAddToCurrentSignal: boolean): Promise<OperationResult<SelectionAction>>
 {
 	const result = await ipcRenderer.invoke(IPC_CHANNELS.showSelectionContextMenu, canAddSignal, canAddToDreamSource, canAddToCurrentSignal);
-	return result as SelectionAction;
+	return result as OperationResult<SelectionAction>;
 }
 
-async function ShowDreamSourceContextMenu(canAddToSelectedSignal: boolean): Promise<SelectionAction>
+async function ShowDreamSourceContextMenu(canAddToSelectedSignal: boolean): Promise<OperationResult<SelectionAction>>
 {
 	const result = await ipcRenderer.invoke(IPC_CHANNELS.showDreamSourceContextMenu, canAddToSelectedSignal);
-	return result as SelectionAction;
+	return result as OperationResult<SelectionAction>;
 }
 
-async function ShowFormattingContextMenu(): Promise<FormattingAction>
+async function ShowFormattingContextMenu(): Promise<OperationResult<FormattingAction>>
 {
-	const result = await new Promise<FormattingAction>(function AwaitNativeMenu(resolve): void
+	const result = await new Promise<OperationResult<FormattingAction>>(function AwaitNativeMenu(resolve): void
 	{
-		ipcRenderer.once(IPC_CHANNELS.showFormattingContextMenu, function ReceiveAction(_event, action: FormattingAction): void
+		ipcRenderer.once(IPC_CHANNELS.showFormattingContextMenu, function ReceiveAction(_event, action: OperationResult<FormattingAction>): void
 		{
 			resolve(action);
 		});
@@ -64,33 +56,37 @@ async function ShowFormattingContextMenu(): Promise<FormattingAction>
 	return result;
 }
 
-async function CopySelectedText(selectedText: string): Promise<void>
+async function CopySelectedText(selectedText: string): Promise<OperationResult<void>>
 {
-	await ipcRenderer.invoke(IPC_CHANNELS.copySelectedText, selectedText);
+	const response = await ipcRenderer.invoke(IPC_CHANNELS.copySelectedText, selectedText);
+	return response as OperationResult<void>;
 }
 
-async function LookUpWord(selectedText: string): Promise<void>
+async function LookUpWord(selectedText: string): Promise<OperationResult<void>>
 {
-	await ipcRenderer.invoke(IPC_CHANNELS.lookUpWord, selectedText);
+	const response = await ipcRenderer.invoke(IPC_CHANNELS.lookUpWord, selectedText);
+	return response as OperationResult<void>;
 }
 
 // Reads dictionary state when the renderer mounts.
-async function GetLookupState(): Promise<LookupState>
+async function GetLookupState(): Promise<OperationResult<LookupState>>
 {
 	const state = await ipcRenderer.invoke(IPC_CHANNELS.getLookupState);
-	return state as LookupState;
+	return state as OperationResult<LookupState>;
 }
 
 // Places or hides the isolated dictionary view.
-async function SetLookupBounds(bounds: LookupBounds | null): Promise<void>
+async function SetLookupBounds(bounds: LookupBounds | null): Promise<OperationResult<void>>
 {
-	await ipcRenderer.invoke(IPC_CHANNELS.setLookupBounds, bounds);
+	const response = await ipcRenderer.invoke(IPC_CHANNELS.setLookupBounds, bounds);
+	return response as OperationResult<void>;
 }
 
 // Sends a dictionary toolbar command.
-async function ExecuteLookupCommand(command: LookupCommand): Promise<void>
+async function ExecuteLookupCommand(command: LookupCommand): Promise<OperationResult<void>>
 {
-	await ipcRenderer.invoke(IPC_CHANNELS.lookupCommand, command);
+	const response = await ipcRenderer.invoke(IPC_CHANNELS.lookupCommand, command);
+	return response as OperationResult<void>;
 }
 
 // Subscribes to dictionary navigation and loading state.
@@ -108,104 +104,160 @@ function SubscribeLookupState(callback: (state: LookupState) => void): ApiSubscr
 	return Unsubscribe;
 }
 
-async function GetSourceNotice(workId: string): Promise<SourceNotice>
+async function GetSourceNotice(workId: string): Promise<OperationResult<SourceNotice>>
 {
 	const result = await ipcRenderer.invoke(IPC_CHANNELS.getSourceNotice, workId);
-	return result as SourceNotice;
+	return result as OperationResult<SourceNotice>;
 }
 
-async function ListSignals(workId: string): Promise<SignalRecord[]>
+async function CreateSignal(command: CreateSignalCommand): Promise<OperationResult<SignalRecord>>
 {
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.listSignals, workId);
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.createSignal, command);
 
-	return result as SignalRecord[];
+	return result as OperationResult<SignalRecord>;
 }
 
-async function SaveSignal(command: SaveSignalCommand): Promise<SignalRecord>
+async function UpdateSignal(command: UpdateSignalCommand): Promise<OperationResult<SignalRecord>>
 {
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.saveSignal, command);
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.updateSignal, command);
 
-	return result as SignalRecord;
+	return result as OperationResult<SignalRecord>;
 }
 
-async function DeleteSignal(command: DeleteSignalCommand): Promise<void>
+async function DeleteSignal(command: DeleteSignalCommand): Promise<OperationResult<void>>
 {
-	await ipcRenderer.invoke(IPC_CHANNELS.deleteSignal, command);
+	const response = await ipcRenderer.invoke(IPC_CHANNELS.deleteSignal, command);
+	return response as OperationResult<void>;
 }
 
-// Lists durable Ideas through the isolated renderer bridge.
-async function ListIdeas(workId: string): Promise<IdeaRecord[]>
+async function CreateDream(command: CreateDreamCommand): Promise<OperationResult<DreamSnapshot>>
 {
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.listIdeas, workId);
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.createDream, command);
 
-	return result as IdeaRecord[];
+	return result as OperationResult<DreamSnapshot>;
 }
 
-// Discovers related existing Signals through the isolated renderer bridge.
-async function DiscoverIdeaSignals(request: IdeaDiscoveryRequest): Promise<IdeaDiscoverySuggestion[]>
+async function UpdateDream(command: UpdateDreamCommand): Promise<OperationResult<DreamSnapshot>>
 {
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.discoverIdeaSignals, request);
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.updateDream, command);
 
-	return result as IdeaDiscoverySuggestion[];
+	return result as OperationResult<DreamSnapshot>;
 }
 
-// Saves reader-editable Idea data through the isolated renderer bridge.
-async function SaveIdea(command: SaveIdeaCommand): Promise<IdeaRecord>
+// Requests an explicit main-process filesystem reconciliation.
+async function ReloadDreamCatalogue(): Promise<OperationResult<DreamCatalogueSnapshot>>
 {
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.saveIdea, command);
+	const snapshot = await ipcRenderer.invoke(IPC_CHANNELS.reloadDreamCatalogue);
 
-	return result as IdeaRecord;
+	return snapshot as OperationResult<DreamCatalogueSnapshot>;
 }
 
-// Deletes one work-owned Idea through the isolated renderer bridge.
-async function DeleteIdea(command: DeleteIdeaCommand): Promise<void>
+async function ListDreamCatalogue(): Promise<OperationResult<DreamCatalogueSnapshot>>
 {
-	await ipcRenderer.invoke(IPC_CHANNELS.deleteIdea, command);
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.listDreamCatalogue);
+
+	return result as OperationResult<DreamCatalogueSnapshot>;
 }
 
-async function SaveDream(dream: DreamSnapshot): Promise<DreamSnapshot>
+async function DeleteDream(dreamId: string): Promise<OperationResult<void>>
 {
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.saveDream, dream);
-
-	return result as DreamSnapshot;
+	const response = await ipcRenderer.invoke(IPC_CHANNELS.deleteDream, dreamId);
+	return response as OperationResult<void>;
 }
 
-async function ListDreams(): Promise<DreamSnapshot[]>
+// Creates one filesystem-backed Dream folder.
+async function CreateDreamFolder(command: CreateDreamFolderCommand): Promise<OperationResult<DreamFolderSnapshot>>
 {
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.listDreams);
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.createDreamFolder, command);
 
-	return result as DreamSnapshot[];
+	return result as OperationResult<DreamFolderSnapshot>;
 }
 
-async function DeleteDream(dreamId: string): Promise<void>
+// Deletes one empty filesystem-backed Dream folder.
+async function DeleteDreamFolder(command: DeleteDreamFolderCommand): Promise<OperationResult<void>>
 {
-	await ipcRenderer.invoke(IPC_CHANNELS.deleteDream, dreamId);
+	const response = await ipcRenderer.invoke(IPC_CHANNELS.deleteDreamFolder, command);
+	return response as OperationResult<void>;
 }
 
-async function AllocateDreamId(): Promise<string>
+// Moves one Dream to a folder within its work.
+async function MoveDream(command: MoveDreamCommand): Promise<OperationResult<DreamLocationSnapshot>>
 {
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.allocateDreamId);
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.moveDream, command);
 
-	return result as string;
+	return result as OperationResult<DreamLocationSnapshot>;
 }
 
-async function CreateDreamSynopticView(request: DreamSynopticViewRequest): Promise<string>
+async function CreateDreamSynopticView(request: DreamSynopticViewRequest): Promise<OperationResult<string>>
 {
 	const result = await ipcRenderer.invoke(IPC_CHANNELS.createDreamSynopticView, request);
 
-	return result as string;
+	return result as OperationResult<string>;
 }
 
-async function CancelDreamSynopticView(dreamId: string): Promise<void>
+async function CancelDreamSynopticView(dreamId: string): Promise<OperationResult<void>>
 {
-	await ipcRenderer.invoke(IPC_CHANNELS.cancelDreamSynopticView, dreamId);
+	const response = await ipcRenderer.invoke(IPC_CHANNELS.cancelDreamSynopticView, dreamId);
+	return response as OperationResult<void>;
+}
+
+// Invokes the narrow ListDreamTrash command.
+async function ListDreamTrash(): Promise<OperationResult<readonly DreamTrashSnapshot[]>>
+{
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.listDreamTrash);
+	return result as OperationResult<readonly DreamTrashSnapshot[]>;
+}
+
+// Invokes the narrow RestoreDreamTrash command.
+async function RestoreDreamTrash(id: string): Promise<OperationResult<void>>
+{
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.restoreDreamTrash, id);
+	return result as OperationResult<void>;
+}
+
+// Invokes the narrow PurgeDreamTrash command.
+async function PurgeDreamTrash(id: string): Promise<OperationResult<void>>
+{
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.purgeDreamTrash, id);
+	return result as OperationResult<void>;
+}
+
+// Invokes the narrow EmptyDreamTrash command.
+async function EmptyDreamTrash(): Promise<OperationResult<void>>
+{
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.emptyDreamTrash);
+	return result as OperationResult<void>;
+}
+
+// Stores renderer diagnostics through a dedicated, validated endpoint.
+async function RecordDiagnostic(record: ErrorRecord): Promise<OperationResult<void>>
+{
+	const response = await ipcRenderer.invoke(IPC_CHANNELS.recordDiagnostic, record);
+	return response as OperationResult<void>;
+}
+
+// Delivers main-process notifications as plain diagnostic records.
+function SubscribeDiagnostics(callback: (record: ErrorRecord) => void): ApiSubscription
+{
+	function Receive(_event: Electron.IpcRendererEvent, record: ErrorRecord): void
+	{
+		callback(record);
+	}
+	function Unsubscribe(): void
+	{
+		ipcRenderer.removeListener(IPC_CHANNELS.diagnosticReported, Receive);
+	}
+	const subscription = ipcRenderer.on(IPC_CHANNELS.diagnosticReported, Receive);
+	void subscription;
+	return Unsubscribe;
 }
 
 const api: ChoraApi = {
+	RecordDiagnostic,
+	SubscribeDiagnostics,
 	ListLibraryTexts,
 	LoadLibraryText,
 	SubscribeLibraryTextSelected,
-	SubscribeExternalTextLoaded,
 	ShowSelectionContextMenu,
 	ShowDreamSourceContextMenu,
 	ShowFormattingContextMenu,
@@ -216,17 +268,21 @@ const api: ChoraApi = {
 	ExecuteLookupCommand,
 	SubscribeLookupState,
 	GetSourceNotice,
-	ListSignals,
-	SaveSignal,
+	CreateSignal,
+	UpdateSignal,
 	DeleteSignal,
-	ListIdeas,
-	DiscoverIdeaSignals,
-	SaveIdea,
-	DeleteIdea,
-	SaveDream,
+	CreateDream,
+	UpdateDream,
 	DeleteDream,
-	ListDreams,
-	AllocateDreamId,
+	ListDreamTrash,
+	RestoreDreamTrash,
+	PurgeDreamTrash,
+	EmptyDreamTrash,
+	ReloadDreamCatalogue,
+	ListDreamCatalogue,
+	CreateDreamFolder,
+	DeleteDreamFolder,
+	MoveDream,
 	CreateDreamSynopticView,
 	CancelDreamSynopticView
 };

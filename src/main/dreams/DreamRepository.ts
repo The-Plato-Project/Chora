@@ -1,6 +1,5 @@
 import type { Dirent } from "node:fs";
-import { randomUUID } from "node:crypto";
-import { mkdir, readdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, rmdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { DreamSnapshot } from "../../shared/dreams/DreamTypes.js";
 import { Errors } from "../diagnostics/MainErrorManager.js";
@@ -20,14 +19,11 @@ export class DreamRepository
 {
 	// Identifies the filesystem root read by this repository.
 	private readonly libraryPath: string;
-	// Receives deleted Dream records outside the visible library.
-	private readonly trashPath: string;
 
 	// Creates persistence access scoped to one Dream library root.
-	public constructor(libraryPath: string, trashPath: string = path.join(path.dirname(libraryPath), "Trash", "Dreams"))
+	public constructor(libraryPath: string)
 	{
 		this.libraryPath = libraryPath;
-		this.trashPath = trashPath;
 	}
 
 	// Loads persisted records for the Dream library.
@@ -44,6 +40,48 @@ export class DreamRepository
 		const loaded = [...records.values()];
 
 		return loaded;
+	}
+
+	// Lists every reader-created folder relative to its work directory.
+	public async LoadFolderPathsAsync(): Promise<readonly { readonly workId: string; readonly folderPath: string }[]>
+	{
+		const folders: { workId: string; folderPath: string }[] = [];
+		let works: Dirent<string>[] = [];
+
+		try
+		{
+			works = await readdir(this.libraryPath, { withFileTypes: true });
+		}
+		catch (error)
+		{
+			const code = this.GetErrorCode(error);
+			if (code !== "ENOENT") throw error;
+		}
+
+		for (const work of works)
+		{
+			if (work.isDirectory())
+			{
+				const workPath = path.join(this.libraryPath, work.name);
+				await this.CollectFolderPathsAsync(work.name, workPath, workPath, folders);
+			}
+		}
+
+		return folders;
+	}
+
+	// Creates one validated folder selected by the owning DreamLibrary.
+	public async CreateFolderAsync(folderPath: string): Promise<void>
+	{
+		const parentPath = path.dirname(folderPath);
+		await mkdir(parentPath, { recursive: true });
+		await mkdir(folderPath);
+	}
+
+	// Deletes one empty folder selected by the owning DreamLibrary.
+	public async DeleteFolderAsync(folderPath: string): Promise<void>
+	{
+		await rmdir(folderPath);
 	}
 
 	// Writes a record at the path chosen by the owning DreamLibrary.
@@ -71,20 +109,18 @@ export class DreamRepository
 		}
 	}
 
-	// Moves the specified primary persistence record into Chora's recoverable trash.
+	// Removes a canonical record only after its aggregate payload has been durably retained.
 	public async DeleteAsync(record: DreamPersistenceRecord): Promise<void>
 	{
-		const relativePath = path.relative(this.libraryPath, record.filePath);
-		const relativeDirectory = path.dirname(relativePath);
-		const extension = path.extname(relativePath);
-		const fileName = path.basename(relativePath, extension);
-		const trashPath = path.join(
-			this.trashPath,
-			relativeDirectory,
-			`${fileName}--deleted-${randomUUID()}${extension}`);
-
-		await mkdir(path.dirname(trashPath), { recursive: true });
-		await rename(record.filePath, trashPath);
+		try
+		{
+			await unlink(record.filePath);
+		}
+		catch (error)
+		{
+			const code = this.GetErrorCode(error);
+			if (code !== "ENOENT") throw error;
+		}
 	}
 
 	// Reads and parses one Markdown file into a persistence record.
@@ -94,21 +130,17 @@ export class DreamRepository
 		{
 			const content = await readFile(filePath, "utf8");
 			const parsed = ParseDreamMarkdown(content);
-			const hasDream = parsed !== null;
-			const isNew = hasDream && parsed !== null && !records.has(parsed.id);
-
-			if (isNew && parsed !== null)
-			{
-				const record: DreamPersistenceRecord = {
-					dream: parsed,
-					filePath
-				};
-				records.set(parsed.id, record);
-			}
+			if (parsed === null) throw new Error(`Invalid Dream Markdown: ${filePath}`);
+			if (records.has(parsed.id)) throw new Error(`Duplicate Dream identifier: ${parsed.id}`);
+			const record: DreamPersistenceRecord = {
+				dream: parsed,
+				filePath
+			};
+			records.set(parsed.id, record);
 		}
 		catch (error)
 		{
-			Errors.Error("DreamRepository", `Unable to read Dream Markdown file: ${filePath}`, error);
+			throw error;
 		}
 	}
 
@@ -125,9 +157,11 @@ export class DreamRepository
 		{
 			const code = this.GetErrorCode(error);
 
-			if (code !== "ENOENT")
+			const isOptionalRoot = code === "ENOENT" && path.resolve(directory) === path.resolve(this.libraryPath);
+
+			if (!isOptionalRoot)
 			{
-				Errors.Error("DreamRepository", "Unable to read the Dream library.", error);
+				throw error;
 			}
 		}
 
@@ -155,6 +189,28 @@ export class DreamRepository
 		}
 
 		return paths;
+	}
+
+	// Recursively records nested folders without exposing absolute paths.
+	private async CollectFolderPathsAsync(
+		workId: string,
+		workPath: string,
+		directoryPath: string,
+		folders: { workId: string; folderPath: string }[]): Promise<void>
+	{
+		const entries = await readdir(directoryPath, { withFileTypes: true });
+
+		for (const entry of entries)
+		{
+			if (entry.isDirectory())
+			{
+				const entryPath = path.join(directoryPath, entry.name);
+				const relativePath = path.relative(workPath, entryPath);
+				const folderPath = relativePath.split(path.sep).join("/");
+				folders.push({ workId, folderPath });
+				await this.CollectFolderPathsAsync(workId, workPath, entryPath, folders);
+			}
+		}
 	}
 
 	// Writes one Dream atomically through a temporary sibling file.

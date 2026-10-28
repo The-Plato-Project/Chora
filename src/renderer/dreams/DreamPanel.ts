@@ -1,7 +1,12 @@
 import type { DreamView } from "./DreamView.js";
 import type { ChoraEvents } from "../core/events/ChoraEvents.js";
 import { ChoraEventBus, type Unsubscribe } from "../core/events/ChoraEventBus.js";
-import { DreamController, type DreamCatalogueGroup } from "./DreamController.js";
+import { DreamController } from "./DreamController.js";
+import type { DreamCatalogueController, DreamCatalogueGroup } from "./DreamCatalogueController.js";
+import type { DreamSaveCoordinator } from "./DreamSaveCoordinator.js";
+import type { DreamClarityCheckController } from "./DreamClarityCheckController.js";
+import type { DreamExportController } from "./DreamExportController.js";
+import type { DreamExplorerController } from "../workspace/DreamExplorerController.js";
 import { DreamStore, type DreamSaveState } from "./DreamStore.js";
 import { LibraryStore } from "../library/LibraryStore.js";
 import { EscapeHtml } from "../ui/Html.js";
@@ -12,20 +17,16 @@ import { DreamSignalsPanel } from "./DreamSignalsPanel.js";
 import { DreamReflectionsPanel } from "./DreamReflectionsPanel.js";
 import { DreamSynopticViewPanel } from "./DreamSynopticViewPanel.js";
 import { ErrorManager } from "../core/diagnostics/RendererErrorManager.js";
-import type { IdeaStore } from "../ideas/IdeaStore.js";
-import type { SignalRecord } from "../../shared/signals/SignalTypes.js";
-import { SignalDocumentPanel } from "../signals/SignalDocumentPanel.js";
 import type { SignalController } from "../signals/SignalController.js";
-import type { SignalStore } from "../signals/SignalStore.js";
-import type { IdeaController } from "../ideas/IdeaController.js";
 import { LayoutSettings } from "../core/settings/LayoutSettingsStore.js";
 import type { TextSelection } from "../../shared/text/TextSelection.js";
+import { RenderSemanticText } from "../library/SemanticTextMarkup.js";
 
 // Which view of the DreamView feature this panel instance renders.
 type DreamPanelMode = "catalogue" | "editor";
 
 // Renders the DreamView catalogue and editor views and translates browser events into controller calls.
-export class DreamPanel extends SignalDocumentPanel
+export class DreamPanel
 {
 	// Event-bus subscriptions released when the panel is disposed.
 	private readonly subscriptions: Unsubscribe[] = [];
@@ -66,12 +67,13 @@ export class DreamPanel extends SignalDocumentPanel
 		private readonly controller: DreamController,
 		private readonly library: LibraryStore,
 		private readonly mode: DreamPanelMode,
-		private readonly ideas: IdeaStore | null = null,
-		signals: SignalStore | null = null,
-		signalController: SignalController | null = null,
-		private readonly ideaController: IdeaController | null = null)
+		private readonly catalogue: DreamCatalogueController,
+		private readonly saves: DreamSaveCoordinator,
+		private readonly clarity: DreamClarityCheckController,
+		private readonly exports: DreamExportController,
+		private readonly explorer: DreamExplorerController,
+		private readonly signalController: SignalController | null = null)
 	{
-		super(root, events, signals, signalController);
 		this.errors = new ErrorManager(events);
 		this.root.addEventListener("click", this.HandleClick.bind(this));
 		this.root.addEventListener("input", this.HandleInput.bind(this));
@@ -96,9 +98,6 @@ export class DreamPanel extends SignalDocumentPanel
 		this.subscriptions.push(this.events.Subscribe("dream.closed", this.HandleDreamClosed.bind(this)));
 		this.subscriptions.push(this.events.Subscribe("dream.saved", this.HandleDreamSaved.bind(this)));
 		this.subscriptions.push(this.events.Subscribe("dream.structure-changed", this.HandleStructureChanged.bind(this)));
-		const signalAddedHandler = this.HandleSignalAddedAsync.bind(this);
-		const signalAddedSubscription = this.events.Subscribe("dream.signal-added", signalAddedHandler);
-		this.subscriptions.push(signalAddedSubscription);
 		this.subscriptions.push(this.events.Subscribe("dream.changed", this.HandleDreamStatusChanged.bind(this)));
 		this.subscriptions.push(this.events.Subscribe("dream.save-state-changed", this.HandleDreamStatusChanged.bind(this)));
 		this.subscriptions.push(this.events.Subscribe("dream.synoptic-view-state-changed", this.HandleSynopticViewStateChanged.bind(this)));
@@ -109,7 +108,6 @@ export class DreamPanel extends SignalDocumentPanel
 	// Releases every event-bus subscription owned by this panel.
 	public Dispose(): void
 	{
-		this.DisposeSignalDocumentPanel();
 		for (const unsubscribe of this.subscriptions) unsubscribe();
 		this.subscriptions.length = 0;
 		this.manageSignalsPopup?.Dispose();
@@ -117,18 +115,6 @@ export class DreamPanel extends SignalDocumentPanel
 		this.root.removeEventListener("pointerdown", this.sourceResizeDownHandler);
 		window.removeEventListener("pointermove", this.sourceResizeMoveHandler);
 		window.removeEventListener("pointerup", this.sourceResizeUpHandler);
-	}
-
-	// Returns whether this instance represents the active DreamView editor.
-	protected CanAssociateSignal(): boolean
-	{
-		return this.mode === "editor" && this.store.GetActiveDream() !== null;
-	}
-
-	// Connects one work-owned Signal to the active DreamView.
-	protected async AssociateSignalAsync(signal: SignalRecord): Promise<void>
-	{
-		await this.controller.AssociateSignalAsync(signal);
 	}
 
 	// Re-renders the active view (catalogue or editor) and its status line.
@@ -160,12 +146,10 @@ export class DreamPanel extends SignalDocumentPanel
 				this.signalsPanel = new DreamSignalsPanel(
 					this.controller,
 					this.events,
-					this.ideas,
 					this.signalController,
-					this.errors,
-					this.ideaController);
+					this.errors);
 				this.reflectionsPanel = new DreamReflectionsPanel(this.controller, dream.reflection, this.errors);
-				this.synopticViewPanel = new DreamSynopticViewPanel(this.controller, dream, this.errors);
+				this.synopticViewPanel = new DreamSynopticViewPanel(this.controller, this.clarity, this.exports, dream, this.errors);
 				const rememberedTab = this.controller.GetEditorTab(dream.id);
 				const selectedTab = rememberedTab === "description" ? "reflections" : rememberedTab;
 				this.tabs = new TabControl(
@@ -193,7 +177,7 @@ export class DreamPanel extends SignalDocumentPanel
 	// Renders the catalogue header, search field, and grouped DreamView list.
 	private RenderCatalogue(): string
 	{
-		const groups = this.controller.GetCatalogueGroups(this.store.GetSearchText());
+		const groups = this.catalogue.GetCatalogueGroups(this.store.GetSearchText());
 		const content = this.RenderCatalogueContent(groups);
 		const filter = this.RenderPassageFilter();
 		const catalogue = `<section class="dream-catalogue left-tab-panel" aria-label="Dreams Explorer"><div class="dream-catalogue-controls"><label class="dream-search">${SearchIcon}<input data-dream-search type="search" aria-label="Search Dreams" placeholder="Search Dreams" value="${EscapeHtml(this.store.GetSearchText())}"></label><button class="catalogue-header-button button-control" data-new-dream type="button" title="New Dream" aria-label="New Dream">${AddIcon}</button></div>${filter}<div class="dream-catalogue-list" role="tree" aria-label="Dreams by Book">${content}</div></section>`;
@@ -301,7 +285,7 @@ export class DreamPanel extends SignalDocumentPanel
 	{
 		const source = this.RenderDreamSource(dream);
 		const title = EscapeHtml(dream.title);
-		const editor = `<div class="dream-editor-stack"><section class="dream-panel dream-editor document-editor"><section class="dream-interpretation document-interpretation"><label><span>Title</span><input data-dream-editor-title value="${title}" placeholder="Name this Dream"></label></section>${source}<div class="dream-source-divider" data-dream-source-divider role="separator" tabindex="0" aria-label="Resize Source Passage" aria-orientation="horizontal"></div><section class="dream-signals-section document-signals-section" aria-label="Dream content"><div class="dream-tabs-host document-signal-view-host" data-dream-tabs></div></section><footer class="dream-editor-actions document-editor-actions"><div class="document-save-actions"><button class="document-save-button button-control idea-save-button" data-save-dream type="button" aria-label="Save Dream">Save</button></div></footer></section></div>`;
+		const editor = `<div class="dream-editor-stack"><section class="dream-panel dream-editor document-editor"><section class="dream-interpretation document-interpretation"><label><span>Title</span><input data-dream-editor-title value="${title}" placeholder="Name this Dream"></label></section>${source}<div class="dream-source-divider" data-dream-source-divider role="separator" tabindex="0" aria-label="Resize Source Passage" aria-orientation="horizontal"></div><section class="dream-signals-section document-signals-section" aria-label="Dream content"><div class="dream-tabs-host document-signal-view-host" data-dream-tabs></div></section><footer class="dream-editor-actions document-editor-actions"><div class="document-save-actions"><button class="document-save-button button-control" data-save-dream type="button" aria-label="Save Dream">Save</button></div></footer></section></div>`;
 
 		return editor;
 	}
@@ -319,10 +303,46 @@ export class DreamPanel extends SignalDocumentPanel
 		const range = this.FormatSourceRange(dream);
 		const meta = `${EscapeHtml(dream.dialogue ?? dream.workId)} &middot; ${EscapeHtml(range)}`;
 		const height = LayoutSettings.GetDimension("dreamSourceHeight", 144);
-		const sourceText = this.controller.ResolveSelectionText(dream.source);
-		const source = `<details class="dream-section dream-source-section" style="height: ${height}px" open><summary>Source Passage <span class="dream-source-meta" data-dream-source-meta>${meta}</span></summary><blockquote class="dream-source" data-dream-source>${EscapeHtml(sourceText)}</blockquote><button class="dream-action-link button-control" data-jump-source type="button">Jump to source ${OpenIcon}</button></details>`;
+		const sourceText = this.RenderDreamSourceText(dream);
+		const source = `<details class="dream-section dream-source-section" style="height: ${height}px" open><summary>Source Passage <span class="dream-source-meta" data-dream-source-meta>${meta}</span></summary><button class="dream-source-jump button-control" data-jump-source type="button" title="Jump to source passage" aria-label="Jump to source passage">${OpenIcon}</button><blockquote class="dream-source" data-dream-source>${sourceText}</blockquote></details>`;
 
 		return source;
+	}
+
+	// Renders the selected source range while retaining semantic quotation markup.
+	private RenderDreamSourceText(dream: DreamView): string
+	{
+		const document = this.library.GetText();
+		const pieces: string[] = [];
+
+		if (document !== null && document.id === dream.source.documentId)
+		{
+			const startIndex = document.segments.findIndex(function FindStart(segment): boolean
+			{
+				return segment.key === dream.source.start.segmentKey;
+			});
+			const endIndex = document.segments.findIndex(function FindEnd(segment): boolean
+			{
+				return segment.key === dream.source.end.segmentKey;
+			});
+
+			for (let index = startIndex; index >= 0 && index <= endIndex; index += 1)
+			{
+				const segment = document.segments[index];
+				if (segment !== undefined)
+				{
+					const start = index === startIndex ? dream.source.start.offset : 0;
+					const end = index === endIndex ? dream.source.end.offset : segment.text.length;
+					pieces.push(RenderSemanticText(segment.text, segment.annotations, start, end));
+				}
+			}
+		}
+
+		const markup = pieces.length > 0
+			? pieces.join("\n")
+			: EscapeHtml(this.controller.ResolveSelectionText(dream.source));
+
+		return markup;
 	}
 
 	// Begins resizing the Source Passage from its dedicated horizontal divider.
@@ -434,7 +454,7 @@ export class DreamPanel extends SignalDocumentPanel
 				error.hidden = true;
 				this.controller.UpdateTitle(title);
 				this.UpdateStatus();
-				await this.controller.SaveAsync();
+				await this.saves.SaveAsync();
 				this.UpdateStatus();
 				const saveFailed = this.store.GetSaveState() === "error";
 
@@ -481,7 +501,7 @@ export class DreamPanel extends SignalDocumentPanel
 		const clearFilter = target?.closest("[data-clear-passage-filter]");
 		if (clearFilter !== null && clearFilter !== undefined)
 		{
-			void this.controller.ClearPassageFilterAsync();
+			void this.catalogue.ClearPassageFilterAsync();
 		}
 
 		if (renameDreamId !== undefined)
@@ -508,7 +528,7 @@ export class DreamPanel extends SignalDocumentPanel
 			else this.collapsedBooks.add(book);
 			this.Update();
 		}
-		if (target?.closest("[data-save-dream]") !== null) void this.controller.SaveAsync();
+		if (target?.closest("[data-save-dream]") !== null) void this.saves.SaveAsync();
 		if (target?.closest("[data-close-dream]") !== null) void this.controller.CloseAsync();
 		if (target?.closest("[data-copy-dream-markdown]") !== null) void this.CopyDreamAsMarkdownAsync();
 		if (target?.closest("[data-new-dream]") !== null) this.CreateDreamFromSelection();
@@ -525,7 +545,7 @@ export class DreamPanel extends SignalDocumentPanel
 	{
 		try
 		{
-			await this.controller.CopyDreamAsMarkdownAsync();
+			await this.exports.CopyDreamAsMarkdownAsync();
 		}
 		catch (error)
 		{
@@ -556,7 +576,7 @@ export class DreamPanel extends SignalDocumentPanel
 
 		if (list !== null)
 		{
-			const groups = this.controller.GetCatalogueGroups(this.store.GetSearchText());
+			const groups = this.catalogue.GetCatalogueGroups(this.store.GetSearchText());
 			list.innerHTML = this.RenderCatalogueContent(groups);
 		}
 	}
@@ -564,7 +584,7 @@ export class DreamPanel extends SignalDocumentPanel
 	// Starts a new DreamView from the reader's current passage selection.
 	private CreateDreamFromSelection(): void
 	{
-		void this.controller.CreateFromCurrentSelection();
+		void this.explorer.CreateFromCurrentSelectionAsync();
 	}
 
 	// Saves the active DreamView on Ctrl/Cmd+Enter.
@@ -594,7 +614,7 @@ export class DreamPanel extends SignalDocumentPanel
 		{
 			event.preventDefault();
 			event.stopPropagation();
-			void this.controller.SaveAsync();
+			void this.saves.SaveAsync();
 		}
 	}
 
@@ -650,8 +670,8 @@ export class DreamPanel extends SignalDocumentPanel
 		}
 	}
 
-	// Re-renders the editor, then awaits selection, scrolling, and focus for one Signal.
-	private async UpdateAndScrollToSignalAsync(signalId: string): Promise<void>
+	// Re-renders the editor and selects one explicitly requested Signal without scrolling.
+	private async UpdateAndSelectSignalAsync(signalId: string): Promise<void>
 	{
 		this.Update();
 		this.tabs?.Select("signals");
@@ -716,20 +736,14 @@ export class DreamPanel extends SignalDocumentPanel
 		}
 	}
 
-	// Re-renders and scrolls to a newly added signal.
-	private async HandleSignalAddedAsync(event: ChoraEvents["dream.signal-added"]): Promise<void>
-	{
-		await this.UpdateAndScrollToSignalAsync(event.signalId);
-	}
-
-	// Reveals a specific signal within the active DreamView, when the request targets it.
+	// Selects a specifically requested Signal without moving either pane.
 	private async HandleSignalFocusRequestedAsync(event: ChoraEvents["dream.signal-focus-requested"]): Promise<void>
 	{
 		const dream = this.store.GetActiveDream();
 
 		if (dream?.id === event.dreamId)
 		{
-			await this.UpdateAndScrollToSignalAsync(event.signalId);
+			await this.UpdateAndSelectSignalAsync(event.signalId);
 		}
 	}
 

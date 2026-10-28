@@ -1,53 +1,44 @@
-import { Menu, type BrowserWindow, type MenuItemConstructorOptions } from "electron";
-import type { LibraryTextSummary } from "../../shared/library/LibraryTypes.js";
-import { IPC_CHANNELS } from "../../shared/contracts/IpcChannels.js";
-import { ExternalTextLoader } from "../library/ExternalTextLoader.js";
 import { Errors } from "../diagnostics/MainErrorManager.js";
+import { app, dialog, shell, Menu, type MenuItemConstructorOptions } from "electron";
 
-// Supplies the currently active BrowserWindow to native menu actions.
-export interface BrowserWindowProvider
+// Creates native application commands for the bundled Library reading environment.
+export function CreateApplicationMenu(): Menu
 {
-	GetWindow(): BrowserWindow | null;
-}
-
-export function CreateApplicationMenu(windows: BrowserWindowProvider, _works: LibraryTextSummary[]): Menu
-{
-	const externalTexts = new ExternalTextLoader();
 	const menuTemplate: MenuItemConstructorOptions[] = [
 		{
 			label: "File",
 			submenu: [
 				{
-					label: "Open Text...",
-					accelerator: "CmdOrCtrl+O",
-					click: async () =>
-					{
-						try
-						{
-							const window = windows.GetWindow();
-							const work = await externalTexts.OpenAsync(window);
-
-							if (window && work)
-							{
-								window.webContents.send(IPC_CHANNELS.externalTextLoaded, work);
-							}
-						}
-						catch (error)
-						{
-							const message = error instanceof Error ? error.message : "Unable to open text file.";
-							Errors.Error("ApplicationMenu", message, error);
-						}
-					}
-				},
-				{
-					type: "separator"
-				},
-				{
 					role: "quit"
 				}
 			]
+		},
+		{
+			label: "Help",
+			submenu: [{ label: "Open Logs Folder", click: OpenLogsAsync }]
 		}
 	];
 	const menu = Menu.buildFromTemplate(menuTemplate);
+
 	return menu;
+}
+
+// Exposes the authoritative logs location and reports storage health without requesting renderer paths.
+async function OpenLogsAsync(): Promise<void>
+{
+	try
+	{
+		await Errors.FlushAsync();
+		const storageError = Errors.GetStorageError();
+		if (storageError !== null)
+		{
+			dialog.showErrorBox("Logging unavailable", "Chora could not write its diagnostic log. Check available disk space and permissions. Recent diagnostics remain in memory.");
+		}
+		const result = await shell.openPath(app.getPath("logs"));
+		if (result.length > 0) throw new Error(result);
+	}
+	catch (error)
+	{
+		Errors.Report("ApplicationMenu.Logs", error, "The logs folder could not be opened.");
+	}
 }

@@ -1,4 +1,4 @@
-import type { DreamSnapshot } from "../../shared/dreams/DreamTypes.js";
+import type { DreamSnapshot, UpdateDreamCommand } from "../../shared/dreams/DreamTypes.js";
 import type { SignalRecord } from "../../shared/signals/SignalTypes.js";
 
 // Renderer-owned editable projection that resolves a Dream's canonical Signal identities for display.
@@ -9,7 +9,6 @@ export interface DreamView
 	dialogue: string | null;
 	title: string;
 	source: DreamSnapshot["source"];
-	signalIds: string[];
 	signals: SignalRecord[];
 	reflection: string;
 	synopticView: string;
@@ -18,18 +17,13 @@ export interface DreamView
 	updatedAt: string;
 }
 
-// Creates one renderer projection from a serialized Dream and canonical Signal snapshots.
-export function CreateDreamView(snapshot: DreamSnapshot, signals: readonly SignalRecord[]): DreamView
+// Creates one editable renderer projection from a canonical Dream aggregate.
+export function CreateDreamView(snapshot: DreamSnapshot): DreamView
 {
-	const associated = signals.filter(function IsAssociated(signal): boolean
-	{
-		return snapshot.signalIds.includes(signal.id);
-	});
 	const view: DreamView = {
 		...structuredClone(snapshot),
-		signalIds: [...snapshot.signalIds],
-		linkedDreamIds: [...snapshot.linkedDreamIds],
-		signals: structuredClone(associated)
+		signals: structuredClone([...snapshot.signals]),
+		linkedDreamIds: [...snapshot.linkedDreamIds]
 	};
 
 	return view;
@@ -44,7 +38,7 @@ export function CreateDreamSnapshot(view: DreamView): DreamSnapshot
 		dialogue: view.dialogue,
 		title: view.title,
 		source: structuredClone(view.source),
-		signalIds: [...view.signalIds],
+		signals: structuredClone(view.signals),
 		reflection: view.reflection,
 		synopticView: view.synopticView,
 		linkedDreamIds: [...view.linkedDreamIds],
@@ -53,4 +47,19 @@ export function CreateDreamSnapshot(view: DreamView): DreamSnapshot
 	};
 
 	return snapshot;
+}
+
+// Creates one narrow Dream update command without authoritative aggregate fields.
+export function CreateDreamUpdateCommand(view: DreamView): UpdateDreamCommand
+{
+	const command: UpdateDreamCommand = {
+		dreamId: view.id,
+		title: view.title,
+		source: structuredClone(view.source),
+		reflection: view.reflection,
+		synopticView: view.synopticView,
+		linkedDreamIds: [...view.linkedDreamIds]
+	};
+
+	return command;
 }

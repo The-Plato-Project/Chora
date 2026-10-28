@@ -158,10 +158,10 @@ describe("Dictionary view", function LookupTests()
 		const handlers = new Map(vi.mocked(ipcMain.handle).mock.calls);
 		const open = handlers.get(IPC_CHANNELS.lookUpWord)!;
 		const bounds = handlers.get(IPC_CHANNELS.setLookupBounds)!;
-		await expect(open({ sender: {}, senderFrame: {} } as never, "logos")).rejects.toThrow("Untrusted");
-		await expect(open({ sender: host, senderFrame: {} } as never, "logos")).rejects.toThrow("Untrusted");
+		await expect(open({ sender: {}, senderFrame: {} } as never, "logos")).resolves.toMatchObject({ ok: false, error: { code: "INVALID_LOOKUP_COMMAND", kind: "validation" } });
+		await expect(open({ sender: host, senderFrame: {} } as never, "logos")).resolves.toMatchObject({ ok: false, error: { code: "INVALID_LOOKUP_COMMAND", kind: "validation" } });
 		const trusted = { sender: host, senderFrame: host.mainFrame } as never;
-		expect(function InvalidBounds(): void { bounds(trusted, { x: NaN, y: 0, width: 10, height: 10 }); }).toThrow("Invalid");
+		await expect(bounds(trusted, { x: NaN, y: 0, width: 10, height: 10 })).resolves.toMatchObject({ ok: false, error: { code: "INVALID_LOOKUP_COMMAND", kind: "validation" } });
 		await open(trusted, "logos");
 		expect(service.GetState().open).toBe(true);
 		controller.Unregister();

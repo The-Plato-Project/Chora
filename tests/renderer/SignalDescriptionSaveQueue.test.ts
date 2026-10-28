@@ -7,6 +7,7 @@ function CreateSignal(description: string): SignalRecord
 {
 	return {
 		id: "signal-1",
+		dreamId: "dream-1",
 		workId: "republic",
 		selections: [{
 			documentId: "republic",

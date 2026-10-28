@@ -7,15 +7,10 @@ import { ShowEditContextMenu, ShowFormattingContextMenu } from "../../src/main/s
 const applicationMocks = vi.hoisted(function CreateApplicationMocks()
 {
 	return {
-		libraryList: vi.fn(),
 		libraryStart: vi.fn(),
 		libraryStop: vi.fn(),
-		ideasStart: vi.fn(),
-		ideasStop: vi.fn(),
 		dreamsStart: vi.fn(),
 		dreamsStop: vi.fn(),
-		signalsStart: vi.fn(),
-		signalsStop: vi.fn(),
 		lookupRegister: vi.fn(),
 		lookupUnregister: vi.fn(),
 		windowOpen: vi.fn()
@@ -24,7 +19,7 @@ const applicationMocks = vi.hoisted(function CreateApplicationMocks()
 
 vi.mock("electron", function MockElectron()
 {
-	return { Menu: { buildFromTemplate: vi.fn(), setApplicationMenu: vi.fn() }, dialog: {} };
+	return { Menu: { buildFromTemplate: vi.fn(), setApplicationMenu: vi.fn() }, ipcMain: { handle: vi.fn(), removeHandler: vi.fn() } };
 });
 
 vi.mock("../../src/main/bootstrap/Environment.js", function MockEnvironment()
@@ -48,40 +43,9 @@ vi.mock("../../src/main/library/LibraryModule.js", function MockLibraryModule()
 		LibraryModule: vi.fn(function LibraryModule()
 		{
 			return {
-				GetService: function GetService() { return { ListAsync: applicationMocks.libraryList }; },
+				GetService: function GetService() { return {}; },
 				Start: applicationMocks.libraryStart,
 				Stop: applicationMocks.libraryStop
-			};
-		})
-	};
-});
-
-vi.mock("../../src/main/ideas/IdeaModule.js", function MockIdeaModule()
-{
-	return {
-		IdeaModule: vi.fn(function IdeaModule()
-		{
-			return {
-				GetLibrary: function GetLibrary(): object { return {}; },
-				Start: applicationMocks.ideasStart,
-				Stop: applicationMocks.ideasStop
-			};
-		})
-	};
-});
-
-vi.mock("../../src/main/signals/SignalModule.js", function MockSignalModule()
-{
-	return {
-		SignalModule: vi.fn(function SignalModule()
-		{
-			return {
-				GetLibrary: function GetLibrary(): object
-				{
-					return { SetAssociationRemovers: vi.fn() };
-				},
-				Start: applicationMocks.signalsStart,
-				Stop: applicationMocks.signalsStop
 			};
 		})
 	};
@@ -92,7 +56,6 @@ vi.mock("../../src/main/dreams/DreamModule.js", function MockDreamModule()
 	return {
 		DreamModule: vi.fn(function DreamModule()
 		{
-			// Supplies the Dream use cases required by Idea composition.
 			function GetService(): object
 			{
 				const service = {};
@@ -224,49 +187,41 @@ describe("Application menu", function ApplicationMenuTests(): void
 		]));
 	});
 
-	it("keeps external text opening without duplicating the reader work selector", function KeepsExternalTextOpening(): void
+	it("keeps text selection in the reader and exposes only Quit in the File menu", function KeepsBundledLibraryMenu(): void
 	{
-		const send = vi.fn();
-		const window = { webContents: { send } } as unknown as BrowserWindow;
-		const windows = { GetWindow: function GetWindow(): BrowserWindow { return window; } };
-		CreateApplicationMenu(windows, [{ id: "republic", title: "Republic", titleGreek: null, urn: null, author: "Plato", language: "grc", editor: null, fileName: "republic.json" }]);
+		CreateApplicationMenu();
 		const template = vi.mocked(Menu.buildFromTemplate).mock.lastCall?.[0] ?? [];
 		const file = template.find(function FindFile(item): boolean { return item.label === "File"; });
 		const commands = file?.submenu as MenuItemConstructorOptions[];
-		const choose = commands.find(function FindChoose(item): boolean { return item.label === "Choose Text"; });
-		expect(choose).toBeUndefined();
-		expect(commands.some(function HasOpenText(item): boolean { return item.label === "Open Text..."; })).toBe(true);
+		expect(commands).toEqual([{ role: "quit" }]);
 	});
 
 	it("rolls back a failed start, retries cleanly, and stops the successful run once", async function RollsBackFailedStartAsync(): Promise<void>
 	{
-		applicationMocks.libraryList
-			.mockRejectedValueOnce(new Error("menu failed"))
-			.mockResolvedValueOnce([]);
+		vi.mocked(Menu.buildFromTemplate).mockImplementationOnce(function FailMenu(): never
+		{
+			throw new Error("menu failed");
+		});
 
 		const application = new ChoraApplication("documents");
 
 		await expect(application.StartAsync()).rejects.toThrow("menu failed");
 		expect(applicationMocks.libraryStart).toHaveBeenCalledTimes(1);
 		expect(applicationMocks.lookupRegister).toHaveBeenCalledTimes(1);
-		expect(applicationMocks.ideasStart).toHaveBeenCalledTimes(1);
 		expect(applicationMocks.dreamsStart).toHaveBeenCalledTimes(1);
 		expect(applicationMocks.lookupUnregister).toHaveBeenCalledTimes(1);
 		expect(applicationMocks.dreamsStop).toHaveBeenCalledTimes(1);
-		expect(applicationMocks.ideasStop).toHaveBeenCalledTimes(1);
 		expect(applicationMocks.libraryStop).toHaveBeenCalledTimes(1);
 
 		await application.StartAsync();
 		expect(applicationMocks.libraryStart).toHaveBeenCalledTimes(2);
 		expect(applicationMocks.lookupRegister).toHaveBeenCalledTimes(2);
-		expect(applicationMocks.ideasStart).toHaveBeenCalledTimes(2);
 		expect(applicationMocks.dreamsStart).toHaveBeenCalledTimes(2);
 
 		application.Stop();
 		application.Stop();
 		expect(applicationMocks.lookupUnregister).toHaveBeenCalledTimes(2);
 		expect(applicationMocks.dreamsStop).toHaveBeenCalledTimes(2);
-		expect(applicationMocks.ideasStop).toHaveBeenCalledTimes(2);
 		expect(applicationMocks.libraryStop).toHaveBeenCalledTimes(2);
 	});
 });

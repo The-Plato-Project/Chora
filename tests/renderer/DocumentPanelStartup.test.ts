@@ -1,3 +1,4 @@
+import type { OperationResult } from "../../src/shared/diagnostics/OperationResult.js";
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ChoraEventBus } from "../../src/renderer/core/events/ChoraEventBus.js";
@@ -8,8 +9,11 @@ import { DocumentPanel } from "../../src/renderer/library/DocumentPanel.js";
 import { LibraryController } from "../../src/renderer/library/LibraryController.js";
 import { LibraryGateway } from "../../src/renderer/library/LibraryGateway.js";
 import { LibraryStore } from "../../src/renderer/library/LibraryStore.js";
+import { DreamStore } from "../../src/renderer/dreams/DreamStore.js";
+import { SessionStore } from "../../src/renderer/core/session/SessionStore.js";
 import type { TextDocument, LibraryTextSummary, SourceNotice } from "../../src/shared/library/LibraryTypes.js";
 import type { TextSelection } from "../../src/shared/text/TextSelection.js";
+import type { SignalRecord } from "../../src/shared/signals/SignalTypes.js";
 
 // Library summary available from the empty startup workspace.
 const summary: LibraryTextSummary = {
@@ -58,30 +62,62 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 	let root: HTMLElement;
 	let events: ChoraEventBus<ChoraEvents>;
 	let controller: LibraryController;
-	let activeDreamSource: TextSelection | null;
+	let dreamStore: DreamStore;
+
+	// Opens one test Dream and optionally selects one owned Signal.
+	function SetActiveDream(source: TextSelection, signalSelections: readonly TextSelection[] = []): void
+	{
+		if (dreamStore.GetActiveDream() !== null) dreamStore.Close();
+		const signal: SignalRecord | null = signalSelections.length === 0
+			? null
+			: {
+				id: "signal-1",
+				dreamId: "dream-1",
+				workId: "republic",
+				sourceRef: "327a",
+				selections: structuredClone(signalSelections),
+				text: "signal",
+				description: "",
+				createdAt: "2026-01-01",
+				updatedAt: "2026-01-01"
+			};
+		dreamStore.Open({
+			id: "dream-1",
+			workId: "republic",
+			dialogue: "Republic",
+			title: "",
+			source: structuredClone(source),
+			signals: signal === null ? [] : [signal],
+			reflection: "",
+			synopticView: "",
+			linkedDreamIds: [],
+			createdAt: "2026-01-01",
+			updatedAt: "2026-01-01"
+		}, false);
+		if (signal !== null) dreamStore.SetSelectedSignal("dream-1", signal.id);
+	}
 
 	beforeEach(async function SetupAsync()
 	{
 		root = document.createElement("div");
 		document.body.append(root);
 		events = new ChoraEventBus<ChoraEvents>();
-		activeDreamSource = null;
+		dreamStore = new DreamStore(new SessionStore());
 		const errors = new ErrorManager(events);
 		const store = new LibraryStore();
+		const sessionStorage = window.sessionStorage;
 		vi.stubGlobal("window", {
 			...window,
+			sessionStorage,
+			getSelection: window.getSelection.bind(window),
 			chora: {
-				ListLibraryTexts: vi.fn(async function ListLibraryTexts(): Promise<LibraryTextSummary[]> { return [summary]; }),
-				LoadLibraryText: vi.fn(async function LoadLibraryText(): Promise<TextDocument> { return libraryText; }),
-				GetSourceNotice: vi.fn(async function GetSourceNotice(): Promise<SourceNotice> { return sourceNotice; }),
-				ShowSelectionContextMenu: vi.fn(async function ShowSelectionContextMenu(): Promise<null> { return null; })
+				ListLibraryTexts: vi.fn(async function ListLibraryTexts(): Promise<OperationResult<LibraryTextSummary[]>> { return { ok: true, value: [summary] }; }),
+				LoadLibraryText: vi.fn(async function LoadLibraryText(): Promise<OperationResult<TextDocument>> { return { ok: true, value: libraryText }; }),
+				GetSourceNotice: vi.fn(async function GetSourceNotice(): Promise<OperationResult<SourceNotice>> { return { ok: true, value: sourceNotice }; }),
+				ShowSelectionContextMenu: vi.fn(async function ShowSelectionContextMenu(): Promise<OperationResult<null>> { return { ok: true, value: null }; })
 			}
 		});
-		function GetActiveDreamSource(): TextSelection | null
-		{
-			return activeDreamSource;
-		}
-		controller = new LibraryController(events, errors, store, new LibraryGateway(), GetActiveDreamSource);
+		controller = new LibraryController(events, errors, store, new LibraryGateway(), dreamStore);
 		panel = new DocumentPanel(root, events, store, controller, new ReadingSettingsStore());
 		await controller.StartAsync();
 	});
@@ -279,26 +315,70 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 			end: { segmentKey: "s2", offset: 4 }
 		};
 		const menu = vi.mocked(window.chora.ShowSelectionContextMenu);
-		menu.mockResolvedValue("add-to-selected-signal");
+		menu.mockResolvedValue({ ok: true, value: "add-to-selected-signal" });
 		let request: ChoraEvents["signal.selection-add-requested"] | null = null;
 		events.Subscribe("signal.selection-add-requested", function CaptureRequest(event): void
 		{
 			request = event;
 		});
-		await events.PublishAsync("workspace.document-selected", { kind: "idea" });
-		await events.PublishAsync("signal.active-changed", {
-			signalId: "signal-1",
-			selections: [{
+		SetActiveDream({
+			documentId: "republic",
+			start: { segmentKey: "s1", offset: 0 },
+			end: { segmentKey: "s1", offset: 3 }
+		}, [{
 				documentId: "republic",
 				start: { segmentKey: "s1", offset: 0 },
 				end: { segmentKey: "s1", offset: 3 }
-			}]
-		});
+		}]);
 
 		await controller.HandleSelectionActionAsync(selection);
 
-		expect(menu).toHaveBeenCalledWith(true, false, true);
+		expect(menu).toHaveBeenCalledWith(false, false, true);
 		expect(request).toEqual({ signalId: "signal-1", selection });
+	});
+
+	it("creates a Signal directly in the active Dream from formatted reader text", async function CreatesSignalInActiveDreamAsync()
+	{
+		SetActiveDream({
+			documentId: "republic",
+			start: { segmentKey: "s1", offset: 0 },
+			end: { segmentKey: "s3", offset: libraryText.segments[2]?.text.length ?? 0 }
+		});
+		const menu = vi.mocked(window.chora.ShowSelectionContextMenu);
+		menu.mockResolvedValue({ ok: true, value: "add-signal" });
+		let request: ChoraEvents["dream.signal-add-requested"] | null = null;
+		events.Subscribe("dream.signal-add-requested", function CaptureRequest(event): void
+		{
+			request = event;
+		});
+		const quotation = root.querySelector<HTMLElement>("[data-segment-key='s2'] .source-quotation-text");
+		const textNode = quotation?.firstChild ?? null;
+
+		if (textNode === null)
+		{
+			throw new Error("Formatted reader quotation was not rendered.");
+		}
+
+		const range = document.createRange();
+		range.setStart(textNode, 0);
+		range.setEnd(textNode, textNode.textContent?.length ?? 0);
+		const browserSelection = window.getSelection();
+		browserSelection?.removeAllRanges();
+		browserSelection?.addRange(range);
+		quotation?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+
+		await vi.waitFor(function SignalRequested(): void
+		{
+			expect(request).not.toBeNull();
+		});
+		expect(menu).toHaveBeenCalledWith(true, false, false);
+		expect(request).toEqual({
+			selection: {
+				documentId: "republic",
+				start: { segmentKey: "s2", offset: 0 },
+				end: { segmentKey: "s2", offset: 4 }
+			}
+		});
 	});
 
 	it("retains an automatically selected Signal when its Dream becomes active", async function RetainsAutoSelectedSignalAsync()
@@ -309,27 +389,22 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 			end: { segmentKey: "s2", offset: 4 }
 		};
 		const menu = vi.mocked(window.chora.ShowSelectionContextMenu);
-		menu.mockResolvedValue("add-to-selected-signal");
+		menu.mockResolvedValue({ ok: true, value: "add-to-selected-signal" });
 		let request: ChoraEvents["signal.selection-add-requested"] | null = null;
 		events.Subscribe("signal.selection-add-requested", function CaptureRequest(event): void
 		{
 			request = event;
 		});
 
-		await events.PublishAsync("signal.active-changed", {
-			signalId: "signal-1",
-			selections: [{
-				documentId: "republic",
-				start: { segmentKey: "s1", offset: 0 },
-				end: { segmentKey: "s1", offset: 3 }
-			}]
-		});
-		await events.PublishAsync("workspace.document-selected", { kind: "dream" });
-		activeDreamSource = {
+		SetActiveDream({
 			documentId: "republic",
 			start: { segmentKey: "s1", offset: 0 },
 			end: { segmentKey: "s2", offset: 4 }
-		};
+		}, [{
+				documentId: "republic",
+				start: { segmentKey: "s1", offset: 0 },
+				end: { segmentKey: "s1", offset: 3 }
+		}]);
 
 		await controller.HandleSelectionActionAsync(selection);
 
@@ -337,7 +412,7 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 		expect(request).toEqual({ signalId: "signal-1", selection });
 	});
 
-	it("disables Dream Signal actions outside the active source passage", async function RejectsSignalOutsideDreamSourceAsync()
+	it("adds an external passage to the active Signal without enabling new Signal creation", async function AddsExternalSignalPassageAsync()
 	{
 		const selection = {
 			documentId: "republic",
@@ -345,31 +420,26 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 			end: { segmentKey: "s2", offset: 4 }
 		};
 		const menu = vi.mocked(window.chora.ShowSelectionContextMenu);
-		menu.mockResolvedValue("add-to-selected-signal");
+		menu.mockResolvedValue({ ok: true, value: "add-to-selected-signal" });
 		let request: ChoraEvents["signal.selection-add-requested"] | null = null;
 		events.Subscribe("signal.selection-add-requested", function CaptureRequest(event): void
 		{
 			request = event;
 		});
-		activeDreamSource = {
+		SetActiveDream({
 			documentId: "republic",
 			start: { segmentKey: "s1", offset: 0 },
 			end: { segmentKey: "s1", offset: 3 }
-		};
-		await events.PublishAsync("workspace.document-selected", { kind: "dream" });
-		await events.PublishAsync("signal.active-changed", {
-			signalId: "signal-1",
-			selections: [{
+		}, [{
 				documentId: "republic",
 				start: { segmentKey: "s1", offset: 0 },
 				end: { segmentKey: "s1", offset: 2 }
-			}]
-		});
+		}]);
 
 		await controller.HandleSelectionActionAsync(selection);
 
-		expect(menu).toHaveBeenCalledWith(false, false, false);
-		expect(request).toBeNull();
+		expect(menu).toHaveBeenCalledWith(false, false, true);
+		expect(request).toEqual({ signalId: "signal-1", selection });
 	});
 
 	it("disables adding text already contained by the selected Signal", async function RejectsDuplicateComponentAsync()
@@ -380,15 +450,15 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 			end: { segmentKey: "s1", offset: 2 }
 		};
 		const menu = vi.mocked(window.chora.ShowSelectionContextMenu);
-		await events.PublishAsync("workspace.document-selected", { kind: "dream" });
-		await events.PublishAsync("signal.active-changed", {
-			signalId: "signal-1",
-			selections: [{
+		SetActiveDream({
+			documentId: "republic",
+			start: { segmentKey: "s2", offset: 0 },
+			end: { segmentKey: "s2", offset: 4 }
+		}, [{
 				documentId: "republic",
 				start: { segmentKey: "s1", offset: 0 },
 				end: { segmentKey: "s1", offset: 3 }
-			}]
-		});
+		}]);
 
 		await controller.HandleSelectionActionAsync(selection);
 
@@ -397,11 +467,11 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 
 	it("enables Dream source extension only for an adjacent selection", async function ChecksDreamSourceAdjacencyAsync()
 	{
-		activeDreamSource = {
+		SetActiveDream({
 			documentId: "republic",
 			start: { segmentKey: "s1", offset: 1 },
 			end: { segmentKey: "s1", offset: 3 }
-		};
+		});
 		const adjacent = {
 			documentId: "republic",
 			start: { segmentKey: "s1", offset: 3 },
@@ -418,15 +488,13 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 			end: { segmentKey: "s2", offset: 2 }
 		};
 		const menu = vi.mocked(window.chora.ShowSelectionContextMenu);
-		await events.PublishAsync("workspace.document-selected", { kind: "dream" });
-
 		await controller.HandleSelectionActionAsync(adjacent);
 		await controller.HandleSelectionActionAsync(separated);
-		activeDreamSource = {
+		SetActiveDream({
 			documentId: "republic",
 			start: { segmentKey: "s1", offset: 1 },
 			end: { segmentKey: "s1", offset: libraryText.segments[0]?.text.length ?? 0 }
-		};
+		});
 		await controller.HandleSelectionActionAsync(segmentBoundary);
 
 		expect(menu).toHaveBeenNthCalledWith(1, false, true, false);

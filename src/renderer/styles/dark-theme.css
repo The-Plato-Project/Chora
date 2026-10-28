@@ -8,9 +8,7 @@
 	--side-panel-background: #172229;
 	--signal-observation-background: #141e24;
 	--signal-toolbar-background: #111a20;
-	--idea-raised-background: #21323c;
-	--idea-input-background: #111b22;
-	--idea-accent-foreground: #07131b;
+	--editor-input-background: #111b22;
 	--dream-background: #10181e;
 	--dream-raised: #172128;
 	--dream-divider: #25343e;
@@ -38,7 +36,6 @@
 :root[data-theme="dark"] .workspace-explorer,
 :root[data-theme="dark"] .dream-catalogue,
 :root[data-theme="dark"] .dream-panel,
-:root[data-theme="dark"] .idea-panel,
 :root[data-theme="dark"] .catalogue-group h4,
 :root[data-theme="dark"] .catalogue-group-toggle {
 	background: var(--side-panel-background);
@@ -111,14 +108,8 @@
 :root[data-theme="dark"] .dream-field > span,
 :root[data-theme="dark"] .dream-source-meta,
 :root[data-theme="dark"] .dream-empty,
-:root[data-theme="dark"] .catalogue-location,
-:root[data-theme="dark"] .idea-panel span,
-:root[data-theme="dark"] .idea-panel p {
+:root[data-theme="dark"] .catalogue-location {
 	color: var(--dream-muted);
-}
-
-:root[data-theme="dark"] .idea-error {
-	color: var(--danger);
 }
 
 :root[data-theme="dark"] .catalogue-group-toggle,
@@ -129,8 +120,4 @@
 
 :root[data-theme="dark"] .signal-row {
 	background: var(--dream-raised);
-}
-
-:root[data-theme="dark"] .dream-action-link {
-	color: var(--dream-accent);
 }

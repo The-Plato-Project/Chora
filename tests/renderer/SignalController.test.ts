@@ -1,243 +1,185 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ErrorManager } from "../../src/renderer/core/diagnostics/RendererErrorManager.js";
 import { ChoraEventBus } from "../../src/renderer/core/events/ChoraEventBus.js";
 import type { ChoraEvents } from "../../src/renderer/core/events/ChoraEvents.js";
+import { SessionStore } from "../../src/renderer/core/session/SessionStore.js";
+import { DreamStore } from "../../src/renderer/dreams/DreamStore.js";
+import type { DreamView } from "../../src/renderer/dreams/DreamView.js";
+import { LibraryStore } from "../../src/renderer/library/LibraryStore.js";
 import { SignalController } from "../../src/renderer/signals/SignalController.js";
 import { SignalGateway } from "../../src/renderer/signals/SignalGateway.js";
-import { SignalStore } from "../../src/renderer/signals/SignalStore.js";
 import type { SignalRecord } from "../../src/shared/signals/SignalTypes.js";
 
-// Creates one canonical Signal fixture.
-function CreateSignal(): SignalRecord
+// Canonical source selection used by the active Dream.
+const source = {
+	documentId: "republic",
+	start: { segmentKey: "s1", offset: 0 },
+	end: { segmentKey: "s1", offset: 16 }
+};
+
+// Creates one Dream-owned Signal fixture.
+function CreateSignal(id = "signal-1"): SignalRecord
 {
-	const signal: SignalRecord = {
-		id: "signal-1",
+	return {
+		id,
+		dreamId: "dream-1",
 		workId: "republic",
 		sourceRef: "327a",
-		selections: [{
-			documentId: "republic",
-			start: { segmentKey: "s1", offset: 0 },
-			end: { segmentKey: "s1", offset: 7 },
-			selectedText: "κατέβην",
-			locatorStart: { scheme: "Stephanus", value: "327a" },
-			locatorEnd: { scheme: "Stephanus", value: "327a" }
-		}],
-		text: "κατέβην",
+		selections: [{ documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 5 } }],
+		text: "alpha",
 		description: "Initial observation",
 		createdAt: "2026-01-01",
 		updatedAt: "2026-01-01"
 	};
+}
 
-	return signal;
+// Creates the active Dream aggregate.
+function CreateDream(signals: SignalRecord[] = []): DreamView
+{
+	return {
+		id: "dream-1",
+		workId: "republic",
+		dialogue: "Republic",
+		title: "Attention",
+		source,
+		signals,
+		reflection: "",
+		synopticView: "",
+		linkedDreamIds: [],
+		createdAt: "2026-01-01",
+		updatedAt: "2026-01-01"
+	};
 }
 
 describe("SignalController", function SignalControllerTests()
 {
+	let events: ChoraEventBus<ChoraEvents>;
+	let dreams: DreamStore;
+	let library: LibraryStore;
+	let controller: SignalController;
+
+	beforeEach(function Setup(): void
+	{
+		window.sessionStorage.clear();
+		events = new ChoraEventBus<ChoraEvents>();
+		dreams = new DreamStore(new SessionStore());
+		library = new LibraryStore();
+		library.Open({
+			id: "republic",
+			urn: null,
+			title: "Republic",
+			titleGreek: null,
+			author: "Plato",
+			language: "grc",
+			edition: { editor: null, title: null, volume: null, publisher: null, publicationPlace: null, publicationDate: null },
+			provenance: { repository: "test", commit: "test", sourceFile: "test.xml", license: "test" },
+			segments: [{ key: "s1", citation: { system: "stephanus", value: "327a" }, text: "alpha beta gamma" }]
+		}, null);
+		dreams.Open(CreateDream(), false);
+		vi.stubGlobal("window", {
+			...window,
+			sessionStorage: window.sessionStorage,
+			chora: {
+				CreateSignal: vi.fn(),
+				UpdateSignal: vi.fn(),
+				DeleteSignal: vi.fn()
+			}
+		});
+		controller = new SignalController(new ErrorManager(events), dreams, library, new SignalGateway(), events);
+	});
+
 	afterEach(function Cleanup(): void
 	{
+		dreams.Dispose();
 		vi.unstubAllGlobals();
 	});
 
-	it("publishes canonical edits so Dream and Idea projections can refresh", async function PublishesSignalChangesAsync()
+	it("creates and selects Signals through one Dream-owned API without scrolling", async function CreatesOwnedSignalAsync(): Promise<void>
 	{
-		const signal = CreateSignal();
-		const preceding: SignalRecord = {
-			...signal,
-			id: "signal-before",
-			selections: [{
-				...signal.selections[0],
-				start: { segmentKey: "s1", offset: 0 },
-				end: { segmentKey: "s1", offset: 3 }
-			}],
-			text: "κατ"
-		};
-		const following: SignalRecord = {
-			...signal,
-			id: "signal-after",
-			selections: [{
-				...signal.selections[0],
-				start: { segmentKey: "s1", offset: 10 },
-				end: { segmentKey: "s1", offset: 17 }
-			}],
-			text: "Πειραιᾶ"
-		};
-		const saved: SignalRecord = {
-			...signal,
-			description: "Updated from the Idea",
-			updatedAt: "2026-01-02"
-		};
-		vi.stubGlobal("window", {
-			chora: {
-				SaveSignal: vi.fn(async function SaveSignal(): Promise<SignalRecord>
-				{
-					return structuredClone(saved);
-				})
-			}
-		});
-		const events = new ChoraEventBus<ChoraEvents>();
-		const errors = new ErrorManager(events);
-		const store = new SignalStore();
-		store.SetWork("republic", [preceding, signal, following]);
-		const controller = new SignalController(errors, store, new SignalGateway(), events);
-		let changed: SignalRecord | null = null;
-
-		// Captures the authoritative Signal-change notification.
-		async function CaptureChange(event: ChoraEvents["signal.changed"]): Promise<void>
+		const saved = CreateSignal();
+		vi.mocked(window.chora.CreateSignal).mockResolvedValue({ ok: true, value: saved });
+		let jumps = 0;
+		events.Subscribe("library.jump-requested", function CountJump(): void
 		{
-			changed = event.signal;
-			await Promise.resolve();
-		}
+			jumps += 1;
+		});
 
-		events.Subscribe("signal.changed", CaptureChange);
+		const created = await controller.CreateAsync(saved.selections[0]!);
 
-		await controller.UpdateDescriptionAsync(signal.id, saved.description);
-
-		expect(store.GetSignal(signal.id)?.description).toBe(saved.description);
-		expect(store.GetSignals().map(function SelectId(record): string { return record.id; })).toEqual([
-			preceding.id,
-			signal.id,
-			following.id
-		]);
-		expect(changed?.description).toBe(saved.description);
+		expect(window.chora.CreateSignal).toHaveBeenCalledExactlyOnceWith({
+			dreamId: "dream-1",
+			selection: saved.selections[0]
+		});
+		expect(created).toEqual(saved);
+		expect(dreams.GetActiveDream()?.signals).toEqual([saved]);
+		expect(dreams.GetSelectedSignal("dream-1")).toBe(saved.id);
+		expect(jumps).toBe(0);
 	});
 
-	it("creates Signals from selections longer than five words", async function CreatesLongSelectionsAsync()
+	it("routes the shared creation request from either text surface to the same API", async function RoutesSharedCreationAsync(): Promise<void>
 	{
-		const selectedText = "one two three four five six seven eight nine ten";
-		const saved: SignalRecord = {
-			...CreateSignal(),
-			selections: [{
-				...CreateSignal().selections[0],
-				end: { segmentKey: "s1", offset: selectedText.length },
-				selectedText
-			}],
-			text: selectedText
-		};
-		const saveSignal = vi.fn(async function SaveSignal(): Promise<SignalRecord>
-		{
-			return structuredClone(saved);
-		});
-		vi.stubGlobal("window", { chora: { SaveSignal: saveSignal } });
-		const events = new ChoraEventBus<ChoraEvents>();
-		const errors = new ErrorManager(events);
-		const store = new SignalStore();
-		const controller = new SignalController(errors, store, new SignalGateway(), events);
+		const saved = CreateSignal();
+		vi.mocked(window.chora.CreateSignal).mockResolvedValue({ ok: true, value: saved });
 
-		const signal = await controller.CreateAsync(saved.selections[0]!);
+		await events.PublishAsync("dream.signal-add-requested", { selection: saved.selections[0]! });
 
-		expect(signal?.text).toBe(selectedText);
-		expect(saveSignal).toHaveBeenCalledOnce();
+		expect(window.chora.CreateSignal).toHaveBeenCalledOnce();
+		expect(dreams.GetActiveDream()?.signals).toEqual([saved]);
 	});
 
-	it("creates a Signal when Greek function words surround focused content", async function CreatesGreekPhraseAsync()
-	{
-		const selectedText = "ἀλλὰ τοῖσδέ τε τοῖς νεανίσκοις σύνισθι";
-		const saved: SignalRecord = {
-			...CreateSignal(),
-			selections: [{
-				...CreateSignal().selections[0],
-				end: { segmentKey: "s1", offset: selectedText.length },
-				selectedText
-			}],
-			text: selectedText
-		};
-		const saveSignal = vi.fn(async function SaveSignal(): Promise<SignalRecord>
-		{
-			return structuredClone(saved);
-		});
-		vi.stubGlobal("window", { chora: { SaveSignal: saveSignal } });
-		const events = new ChoraEventBus<ChoraEvents>();
-		const errors = new ErrorManager(events);
-		const store = new SignalStore();
-		const controller = new SignalController(errors, store, new SignalGateway(), events);
-
-		const signal = await controller.CreateAsync(saved.selections[0]!);
-
-		expect(signal?.text).toBe(selectedText);
-		expect(saveSignal).toHaveBeenCalledWith(expect.objectContaining({
-			selections: [expect.objectContaining({ selectedText })]
-		}));
-	});
-
-	it("adds another component to an existing Signal", async function AddsSelectionAsync(): Promise<void>
+	it("updates titles and passages without automatic navigation", async function UpdatesSignalAsync(): Promise<void>
 	{
 		const existing = CreateSignal();
-		const added = {
-			documentId: "republic",
-			start: { segmentKey: "s1", offset: 10 },
-			end: { segmentKey: "s1", offset: 17 }
-		};
-		const saved: SignalRecord = {
-			...existing,
-			selections: [...existing.selections, added],
-			text: "κατέβην … Πειραιᾶ"
-		};
-		const saveSignal = vi.fn(async function SaveSignal(): Promise<SignalRecord>
+		dreams.SetOwnedSignals("dream-1", [existing]);
+		const added = { documentId: "republic", start: { segmentKey: "s1", offset: 11 }, end: { segmentKey: "s1", offset: 16 } };
+		const saved = { ...existing, title: "Descent", selections: [...existing.selections, added], text: "alpha … gamma" };
+		vi.mocked(window.chora.UpdateSignal).mockResolvedValueOnce({ ok: true, value: { ...existing, title: "Descent" } }).mockResolvedValueOnce({ ok: true, value: saved });
+		let jumps = 0;
+		events.Subscribe("library.jump-requested", function CountJump(): void
 		{
-			return structuredClone(saved);
+			jumps += 1;
 		});
-		vi.stubGlobal("window", { chora: { SaveSignal: saveSignal } });
-		const events = new ChoraEventBus<ChoraEvents>();
-		const store = new SignalStore();
-		store.SetWork("republic", [existing]);
-		const controller = new SignalController(new ErrorManager(events), store, new SignalGateway(), events);
-
-		await controller.AddSelectionAsync(existing.id, added);
-
-		expect(saveSignal).toHaveBeenCalledWith(expect.objectContaining({
-			signalId: existing.id,
-			selections: [existing.selections[0], added]
-		}));
-		expect(store.GetSignal(existing.id)?.selections).toHaveLength(2);
-	});
-
-	it("renames a Signal without changing its passages", async function RenamesSignalAsync(): Promise<void>
-	{
-		const existing = CreateSignal();
-		const saved = { ...existing, title: "Descent" };
-		const saveSignal = vi.fn(async function SaveSignal(): Promise<SignalRecord> { return saved; });
-		vi.stubGlobal("window", { chora: { SaveSignal: saveSignal } });
-		const events = new ChoraEventBus<ChoraEvents>();
-		const store = new SignalStore();
-		store.SetWork("republic", [existing]);
-		const controller = new SignalController(new ErrorManager(events), store, new SignalGateway(), events);
 
 		await controller.UpdateTitleAsync(existing.id, "  Descent  ");
+		await controller.AddSelectionAsync(existing.id, added);
 
-		expect(saveSignal).toHaveBeenCalledWith(expect.objectContaining({
-			title: "Descent",
-			selections: existing.selections
+		expect(window.chora.UpdateSignal).toHaveBeenNthCalledWith(1, expect.objectContaining({
+			dreamId: "dream-1",
+			signalId: existing.id,
+			title: "Descent"
 		}));
-		expect(store.GetSignal(existing.id)?.title).toBe("Descent");
+		expect(window.chora.UpdateSignal).toHaveBeenNthCalledWith(2, expect.objectContaining({
+			dreamId: "dream-1",
+			selections: [...existing.selections, added]
+		}));
+		expect(dreams.GetActiveDream()?.signals[0]?.selections).toHaveLength(2);
+		expect(jumps).toBe(0);
 	});
 
-	it("removes one passage but preserves the final passage", async function RemovesPassageAsync(): Promise<void>
+	it("deletes a Signal only through its owning Dream", async function DeletesOwnedSignalAsync(): Promise<void>
 	{
 		const existing = CreateSignal();
-		const second = { documentId: "republic", start: { segmentKey: "s1", offset: 10 }, end: { segmentKey: "s1", offset: 17 } };
-		const multipart = { ...existing, title: "Descent", selections: [...existing.selections, second] };
-		const saved = { ...multipart, selections: [second], text: "Πειραιᾶ" };
-		const saveSignal = vi.fn(async function SaveSignal(): Promise<SignalRecord> { return saved; });
-		vi.stubGlobal("window", { chora: { SaveSignal: saveSignal } });
-		const events = new ChoraEventBus<ChoraEvents>();
-		const store = new SignalStore();
-		store.SetWork("republic", [multipart]);
-		const controller = new SignalController(new ErrorManager(events), store, new SignalGateway(), events);
-		let highlightedSelections: readonly TextSelection[] = [];
-		events.Subscribe("library.jump-requested", function CaptureHighlight(event): void
-		{
-			if (event.target === "signal") highlightedSelections = event.selections ?? [];
+		dreams.SetOwnedSignals("dream-1", [existing]);
+		vi.mocked(window.chora.DeleteSignal).mockResolvedValue({ ok: true, value: undefined });
+
+		const deleted = await controller.DeleteAsync(existing.id);
+
+		expect(deleted).toBe(true);
+		expect(window.chora.DeleteSignal).toHaveBeenCalledExactlyOnceWith({
+			dreamId: "dream-1",
+			signalId: existing.id
 		});
+		expect(dreams.GetActiveDream()?.signals).toEqual([]);
+	});
 
-		await controller.RemoveSelectionAsync(existing.id, 0);
-		await controller.RemoveSelectionAsync(existing.id, 0);
+	it("rejects creation outside the active Dream source before IPC", async function RejectsOutsideSelectionAsync(): Promise<void>
+	{
+		const outside = { documentId: "republic", start: { segmentKey: "s1", offset: 16 }, end: { segmentKey: "s1", offset: 16 } };
 
-		expect(saveSignal).toHaveBeenCalledOnce();
-		expect(saveSignal).toHaveBeenCalledWith(expect.objectContaining({
-			title: "Descent",
-			selections: [second]
-		}));
-		expect(highlightedSelections).toEqual([second]);
+		const created = await controller.CreateAsync(outside);
+
+		expect(created).toBeNull();
+		expect(window.chora.CreateSignal).not.toHaveBeenCalled();
 	});
 });

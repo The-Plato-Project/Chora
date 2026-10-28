@@ -1,3 +1,4 @@
+import { ApplicationError } from "../../shared/diagnostics/OperationResult.js";
 import fs from "node:fs/promises";
 import type { LibraryManifest, LibraryTextSummary } from "../../shared/library/LibraryTypes.js";
 import { TextDocument, type TextDocumentSnapshot } from "../../shared/text/TextDocument.js";
@@ -29,7 +30,7 @@ export class LibraryRepository
 
 		if (!isKnownText)
 		{
-			throw new Error(`No Library text matches ${textId}`);
+			throw ApplicationError.Expected("not-found", "TEXT_NOT_FOUND", `No Library text matches ${textId}`);
 		}
 
 		const textPath = ResolveCorpusPath(LibraryRepository.TextsDirectory, `${textId}.json`);

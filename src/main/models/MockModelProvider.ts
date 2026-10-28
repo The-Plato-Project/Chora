@@ -3,17 +3,16 @@ import { CreateProviderError } from "./ModelProviderError.js";
 
 const MockLatencyMilliseconds = 650;
 
-// Creates deterministic chat or discovery output without external inference.
+// Creates deterministic model output without external inference.
 function CreateChatResponse(request: ModelRequest): string
 {
-	const isIdeaDiscovery = request.systemPrompt.includes("IDEA_SIGNAL_DISCOVERY");
-	let response = "{\"matches\":[]}";
+	let response = "";
 
 	if (request.systemPrompt.includes("philosophical reading companion participating"))
 	{
 		response = "## Emerging Relationships\n\nThe current Signals and Reflections gather around a shared movement in the passage while leaving its tensions open.";
 	}
-	else if (!isIdeaDiscovery)
+	else
 	{
 		const trimmedText = request.userPrompt.trim();
 		const normalizedText = trimmedText.replace(/\s+/gu, " ");

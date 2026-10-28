@@ -1,33 +1,26 @@
 import { EscapeHtml } from "../ui/Html.js";
 import { PopupPanel } from "../ui/PopupPanel.js";
 
-// Identifies the document association removed from a Signal.
-export type SignalAssociationOwner = "Dream" | "Idea";
-
-// Owns the safe confirmation workflow for removing a Signal association.
+// Owns the confirmation workflow for deleting one Dream-owned Signal.
 export class SignalRemovalConfirmation
 {
+	// Lazily created confirmation popup.
 	private popup: PopupPanel | null = null;
-	private removeAction: (() => void) | null = null;
-	private deleteEverywhereAction: (() => Promise<boolean>) | null = null;
+	// Canonical deletion action supplied by the Signal controller.
+	private deleteAction: (() => Promise<boolean>) | null = null;
+	// Control that opened the prompt.
 	private trigger: HTMLElement | null = null;
 
-	// Opens a removal confirmation focused on the safe cancellation action.
-	public Open(
-		signalText: string,
-		owner: SignalAssociationOwner,
-		trigger: HTMLElement,
-		removeAction: () => void,
-		deleteEverywhereAction: () => Promise<boolean>): void
+	// Opens the single unambiguous Signal deletion confirmation.
+	public Open(signalText: string, trigger: HTMLElement, deleteAction: () => Promise<boolean>): void
 	{
 		const name = signalText.trim() || "Untitled Signal";
 		const popup = this.GetPopup();
 		this.trigger = trigger;
-		this.removeAction = removeAction;
-		this.deleteEverywhereAction = deleteEverywhereAction;
-		popup.SetBodyHtml(`<p>Remove <strong>${EscapeHtml(name)}</strong> from this ${owner}?</p><p><strong>Remove from this ${owner}</strong> keeps the Signal everywhere else it is connected.</p><p><strong>Delete Signal Everywhere</strong> removes it from every Dream and Idea and permanently deletes the Signal.</p><p data-signal-delete-error role="alert" hidden>Unable to delete this Signal everywhere. Nothing else will be deleted.</p><div class="popup-actions"><button class="button-control" data-signal-remove-cancel type="button">Cancel</button><button class="button-control" data-signal-remove-confirm type="button">Remove from this ${owner}</button><button class="button-control" data-signal-delete-everywhere type="button">Delete Signal Everywhere</button></div>`);
+		this.deleteAction = deleteAction;
+		popup.SetBodyHtml(`<p>Delete <strong>${EscapeHtml(name)}</strong>?</p><p>This permanently deletes the Signal from its Dream.</p><p data-signal-delete-error role="alert" hidden>Unable to delete this Signal. Nothing was changed.</p><div class="popup-actions"><button class="button-control" data-signal-delete-cancel type="button">Cancel</button><button class="button-control danger" data-signal-delete-confirm type="button">Delete Signal</button></div>`);
 		popup.Open();
-		const cancel = document.querySelector<HTMLButtonElement>('.popup-overlay:not([hidden]) [data-signal-remove-cancel]');
+		const cancel = document.querySelector<HTMLButtonElement>('.popup-overlay:not([hidden]) [data-signal-delete-cancel]');
 		cancel?.focus();
 	}
 
@@ -38,27 +31,21 @@ export class SignalRemovalConfirmation
 		this.popup = null;
 	}
 
-	// Applies the reader's cancellation or explicit removal choice.
+	// Applies cancellation or the one canonical deletion action.
 	private async HandleClickAsync(event: MouseEvent): Promise<void>
 	{
 		const target = event.target as HTMLElement | null;
-		const cancel = target?.closest("[data-signal-remove-cancel]") ?? null;
-		const confirm = target?.closest("[data-signal-remove-confirm]") ?? null;
-		const deleteEverywhere = target?.closest<HTMLButtonElement>("[data-signal-delete-everywhere]") ?? null;
+		const cancel = target?.closest("[data-signal-delete-cancel]") ?? null;
+		const confirm = target?.closest<HTMLButtonElement>("[data-signal-delete-confirm]") ?? null;
 
 		if (cancel !== null)
 		{
 			this.popup?.Close();
 		}
-		else if (confirm !== null && this.removeAction !== null)
+		else if (confirm !== null && this.deleteAction !== null)
 		{
-			this.removeAction();
-			this.popup?.Close();
-		}
-		else if (deleteEverywhere !== null && this.deleteEverywhereAction !== null)
-		{
-			deleteEverywhere.disabled = true;
-			const deleted = await this.deleteEverywhereAction();
+			confirm.disabled = true;
+			const deleted = await this.deleteAction();
 
 			if (deleted)
 			{
@@ -66,20 +53,20 @@ export class SignalRemovalConfirmation
 			}
 			else
 			{
-				deleteEverywhere.disabled = false;
+				confirm.disabled = false;
 				const error = document.querySelector<HTMLElement>('.popup-overlay:not([hidden]) [data-signal-delete-error]');
 				if (error !== null) error.hidden = false;
-				deleteEverywhere.focus();
+				confirm.focus();
 			}
 		}
 	}
 
-	// Creates the popup only when removal is requested.
+	// Creates the popup only when deletion is requested.
 	private GetPopup(): PopupPanel
 	{
 		if (this.popup === null)
 		{
-			this.popup = new PopupPanel("Remove Signal?");
+			this.popup = new PopupPanel("Delete Signal?");
 			this.popup.OnBodyClick(this.HandleClickAsync.bind(this));
 			this.popup.OnClose(this.HandleClosed.bind(this));
 		}
@@ -87,13 +74,12 @@ export class SignalRemovalConfirmation
 		return this.popup;
 	}
 
-	// Clears transient actions and restores focus after the prompt closes.
+	// Clears transient actions and restores focus without scrolling.
 	private HandleClosed(): void
 	{
 		const fallback = document.querySelector<HTMLElement>("[data-signal-toggle]");
 		const focusTarget = this.trigger?.isConnected === true ? this.trigger : fallback;
-		this.removeAction = null;
-		this.deleteEverywhereAction = null;
+		this.deleteAction = null;
 		this.trigger = null;
 		focusTarget?.focus({ preventScroll: true });
 	}

@@ -1,3 +1,5 @@
+import type { DreamClarityCheckController } from "./DreamClarityCheckController.js";
+import type { DreamExportController } from "./DreamExportController.js";
 import type { DreamView } from "./DreamView.js";
 import type { ErrorManager } from "../core/diagnostics/RendererErrorManager.js";
 import { CloseIcon, CopyIcon, IlluminateIcon } from "../ui/Icons.js";
@@ -14,7 +16,7 @@ export class DreamSynopticViewPanel extends TabPanel
 	private readonly progress: HTMLElement;
 	private readonly clickHandler = this.HandleClick.bind(this);
 
-	public constructor(private readonly controller: DreamController, dream: DreamView, private readonly errors: ErrorManager)
+	public constructor(private readonly controller: DreamController, private readonly clarity: DreamClarityCheckController, private readonly exports: DreamExportController, dream: DreamView, private readonly errors: ErrorManager)
 	{
 		super("synoptic-view", "Clarity Check");
 		this.Root.classList.add("dream-synoptic-view-tab");
@@ -43,12 +45,12 @@ export class DreamSynopticViewPanel extends TabPanel
 	public Update(dream: DreamView): void
 	{
 		this.editor.SetMarkdown(dream.synopticView);
-		const generating = this.controller.IsCreatingSynopticView(dream.id);
+		const generating = this.clarity.IsCreatingSynopticView(dream.id);
 		this.createButton.innerHTML = generating ? CloseIcon : IlluminateIcon;
 		this.createButton.title = generating ? "Cancel" : "Check clarity";
 		this.createButton.setAttribute("aria-label", generating ? "Cancel" : "Check clarity");
 		this.createButton.dataset.createSynopticView = generating ? "cancel" : "start";
-		this.createButton.disabled = !generating && !this.controller.CanCreateSynopticView(dream);
+		this.createButton.disabled = !generating && !this.clarity.CanCreateSynopticView(dream);
 		this.copyButton.disabled = dream.synopticView.trim().length === 0;
 		this.progress.hidden = !generating;
 		this.Root.setAttribute("aria-busy", String(generating));
@@ -66,8 +68,8 @@ export class DreamSynopticViewPanel extends TabPanel
 		const create = target?.closest<HTMLButtonElement>("[data-create-synoptic-view]");
 		if (create !== null && create !== undefined)
 		{
-			if (create.dataset.createSynopticView === "cancel") void this.controller.CancelSynopticViewAsync();
-			else if (this.editor.GetMarkdown().trim().length === 0 || window.confirm("Replace the current Clarity Check?")) void this.controller.CreateSynopticViewAsync();
+			if (create.dataset.createSynopticView === "cancel") void this.clarity.CancelSynopticViewAsync();
+			else if (this.editor.GetMarkdown().trim().length === 0 || window.confirm("Replace the current Clarity Check?")) void this.clarity.CreateSynopticViewAsync();
 			return;
 		}
 		if (target?.closest("[data-copy-synoptic-view]") !== null) void this.CopyAsync();
@@ -77,7 +79,7 @@ export class DreamSynopticViewPanel extends TabPanel
 	{
 		try
 		{
-			await this.controller.CopySynopticViewAsync();
+			await this.exports.CopySynopticViewAsync();
 		}
 		catch (error)
 		{

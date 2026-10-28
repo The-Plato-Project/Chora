@@ -14,6 +14,7 @@ function CreateSignal(description: string): SignalRecord
 {
 	return {
 		id: "signal-1",
+		dreamId: "dream-1",
 		workId: "republic",
 		sourceRef: "327a",
 		selections: [{
@@ -56,5 +57,18 @@ describe("SignalRepository", function SignalRepositoryTests()
 		expect(entries).toEqual(["signal-1.md"]);
 		const content = await readFile(path.join(directory, "signal-1.md"), "utf8");
 		expect(descriptions).toContain(codec.Parse(content).description);
+	});
+
+	it("loads immutable Dream ownership from canonical Signal files", async function LoadsDreamOwnershipAsync(): Promise<void>
+	{
+		const root = await mkdtemp(path.join(os.tmpdir(), "chora-signals-"));
+		temporaryRoots.push(root);
+		const repository = new SignalRepository(root, new SignalMarkdownCodec());
+		await repository.SaveAsync(CreateSignal("Owned observation"));
+
+		const loaded = await repository.LoadAsync();
+
+		expect(loaded).toHaveLength(1);
+		expect(loaded[0]?.dreamId).toBe("dream-1");
 	});
 });

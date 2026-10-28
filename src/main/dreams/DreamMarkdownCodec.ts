@@ -14,22 +14,21 @@ function BuildDreamSnapshot(record: ParsedDreamData): DreamSnapshot | null
 		&& record.id !== undefined
 		&& record.workId !== undefined
 		&& record.dialogue !== undefined
-		&& Array.isArray(record.signalIds)
 		&& typeof record.synopticView === "string"
 		&& Array.isArray(record.linkedDreamIds)
 		&& typeof record.createdAt === "string"
 		&& typeof record.updatedAt === "string";
-	let snapshot: DreamSnapshot | null = null;
+	let parsed: DreamSnapshot | null = null;
 
 	if (hasRequiredFields)
 	{
-		snapshot = {
+		parsed = {
 			id: record.id,
 			workId: record.workId,
 			dialogue: record.dialogue,
 			title: record.title?.trim() ?? "",
 			source: DecodeTextSelection(source),
-			signalIds: [...record.signalIds],
+			signals: [],
 			reflection: record.reflection,
 			synopticView: record.synopticView,
 			linkedDreamIds: Array.from(new Set(record.linkedDreamIds)),
@@ -38,7 +37,7 @@ function BuildDreamSnapshot(record: ParsedDreamData): DreamSnapshot | null
 		};
 	}
 
-	return snapshot;
+	return parsed;
 }
 
 function ReadSections(content: string): { title: string; reflections: string } | null
@@ -75,7 +74,6 @@ export function SerializeDreamMarkdown(dream: DreamSnapshot): string
 		workId: dream.workId,
 		dialogue: dream.dialogue,
 		source: dream.source,
-		signalIds: dream.signalIds,
 		synopticView: dream.synopticView,
 		linkedDreamIds: dream.linkedDreamIds,
 		createdAt: dream.createdAt,

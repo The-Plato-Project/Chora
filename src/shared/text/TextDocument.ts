@@ -160,8 +160,8 @@ export interface TextEdition
 	readonly publicationDate: string | null;
 }
 
-// Identifies whether a document is bundled or loaded from the local filesystem.
-export type LibrarySourceKind = "bundled" | "external";
+// Identifies a document supplied by the bundled corpus.
+export type LibrarySourceKind = "bundled";
 
 // Describes the provenance of a serialized document.
 export interface TextProvenance
@@ -171,7 +171,6 @@ export interface TextProvenance
 	readonly commit: string;
 	readonly sourceFile: string;
 	readonly license: string;
-	readonly externalFilePath?: string | null;
 }
 
 // Serialized form of a TextDocument at a repository or IPC boundary.

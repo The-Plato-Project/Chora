@@ -1,544 +1,231 @@
+import { DreamSaveCoordinator } from "../../src/renderer/dreams/DreamSaveCoordinator.js";
+import { DreamCatalogueController } from "../../src/renderer/dreams/DreamCatalogueController.js";
+import { DreamClarityCheckController } from "../../src/renderer/dreams/DreamClarityCheckController.js";
+import { DreamExportController } from "../../src/renderer/dreams/DreamExportController.js";
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { ErrorManager } from "../../src/renderer/core/diagnostics/RendererErrorManager.js";
-import { ChoraEventBus } from "../../src/renderer/core/events/ChoraEventBus.js";
-import type { ChoraEvents } from "../../src/renderer/core/events/ChoraEvents.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DreamTrashPanel } from "../../src/renderer/dreams/DreamTrashPanel.js";
+import { DreamTrashController } from "../../src/renderer/dreams/DreamTrashController.js";
 import { SessionStore } from "../../src/renderer/core/session/SessionStore.js";
 import { DreamController } from "../../src/renderer/dreams/DreamController.js";
 import { DreamGateway } from "../../src/renderer/dreams/DreamGateway.js";
+import { LibraryGateway } from "../../src/renderer/library/LibraryGateway.js";
 import { DreamStore } from "../../src/renderer/dreams/DreamStore.js";
-import { IdeaController } from "../../src/renderer/ideas/IdeaController.js";
-import { IdeaGateway } from "../../src/renderer/ideas/IdeaGateway.js";
-import { IdeaStore } from "../../src/renderer/ideas/IdeaStore.js";
+import { ErrorManager } from "../../src/renderer/core/diagnostics/RendererErrorManager.js";
+import { ChoraEventBus } from "../../src/renderer/core/events/ChoraEventBus.js";
+import type { ChoraEvents } from "../../src/renderer/core/events/ChoraEvents.js";
 import { LibraryStore } from "../../src/renderer/library/LibraryStore.js";
 import { WorkspacePanel } from "../../src/renderer/workspace/WorkspacePanel.js";
+import { DreamExplorerController } from "../../src/renderer/workspace/DreamExplorerController.js";
 import type { DreamView } from "../../src/renderer/dreams/DreamView.js";
-import type { IdeaRecord } from "../../src/shared/ideas/IdeaTypes.js";
 import type { TextDocument, LibraryTextSummary } from "../../src/shared/library/LibraryTypes.js";
 
-const text: TextDocument = {
-	id: "republic", urn: null, title: "Republic", titleGreek: "Πολιτεία", author: "Plato", language: "grc",
-	edition: { editor: null, title: null, volume: null, publisher: null, publicationPlace: null, publicationDate: null },
-	provenance: { repository: "test", commit: "test", sourceFile: "test", license: "test" },
-	segments: [
-		{ key: "s0", citation: { system: "stephanus", value: "326a" }, division: { type: "book", label: "1" }, text: "earlier" },
-		{ key: "s1", citation: { system: "stephanus", value: "327a" }, division: { type: "book", label: "1" }, text: "abcdef" }
-	]
+const summary: LibraryTextSummary = {
+	id: "republic",
+	urn: null,
+	title: "Republic",
+	titleGreek: "Πολιτεία",
+	author: "Plato",
+	language: "grc",
+	editor: null,
+	fileName: "republic.xml"
 };
 
-const works: LibraryTextSummary[] = [
-	{ id: "republic", urn: null, title: "Republic", titleGreek: "Πολιτεία", author: "Plato", language: "grc", editor: null, fileName: "republic.json" },
-	{ id: "phaedo", urn: null, title: "Phaedo", titleGreek: "Φαίδων", author: "Plato", language: "grc", editor: null, fileName: "phaedo.json" }
-];
+const text: TextDocument = {
+	id: summary.id,
+	urn: summary.urn,
+	title: summary.title,
+	titleGreek: summary.titleGreek,
+	author: summary.author,
+	language: summary.language,
+	edition: { editor: null, title: null, volume: null, publisher: null, publicationPlace: null, publicationDate: null },
+	provenance: { repository: "test", commit: "test", sourceFile: summary.fileName, license: "test" },
+	segments: [{
+		key: "s1",
+		citation: { system: "stephanus", value: "327a" },
+		division: { type: "book", label: "1" },
+		text: "abcdef"
+	}]
+};
 
-function CreateDream(id: string, title: string): DreamView
+function CreateDream(id = "dream-1", title = "Descent"): DreamView
 {
 	return {
-		id, workId: "republic", dialogue: "Republic", title,
+		id,
+		workId: text.id,
+		dialogue: text.title,
+		title,
 		source: {
-			documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 6 }
+			documentId: text.id,
+			start: { segmentKey: "s1", offset: 0 },
+			end: { segmentKey: "s1", offset: 3 },
+			selectedText: "abc",
+			locatorStart: { scheme: "Stephanus", value: "327a" },
+			locatorEnd: { scheme: "Stephanus", value: "327a" }
 		},
-		signalIds: [], signals: [], reflection: "", synopticView: "", linkedDreamIds: [], createdAt: "2026-01-01", updatedAt: "2026-01-01"
+		signals: [],
+		reflection: "",
+		synopticView: "",
+		linkedDreamIds: [],
+		createdAt: "2026-09-08",
+		updatedAt: "2026-09-08"
 	};
 }
-
-function SetDreamLocator(dream: DreamView, locator: string): DreamView
-{
-	const segmentKey = locator === "326a" ? "s0" : "s1";
-	const endOffset = locator === "326a" ? 7 : 6;
-	dream.source = {
-		documentId: "republic",
-		start: { segmentKey, offset: 0 },
-		end: { segmentKey, offset: endOffset }
-	};
-	return dream;
-}
-
-function CreateIdea(): IdeaRecord
-{
-	return {
-		id: "idea-1", workId: "republic", title: "Justice", content: "Justice across the dialogue",
-		originSignal: { signalId: "signal-1" }, relatedSignals: [],
-		createdAt: "2026-01-01", updatedAt: "2026-01-01"
-	};
-}
-
-// Dispatches one native-style Chora Signal drop.
-function DropSignal(target: HTMLElement, signalId: string): void
-{
-	const event = new Event("drop", { bubbles: true, cancelable: true }) as DragEvent;
-	const dataTransfer = {
-		types: ["application/x-chora-signal"],
-		dropEffect: "none",
-		effectAllowed: "copy",
-		getData: function GetData(type: string): string
-		{
-			const value = type === "application/x-chora-signal" ? signalId : "";
-
-			return value;
-		},
-		setData: function SetData(): void
-		{
-		}
-	};
-	Object.defineProperty(event, "dataTransfer", { value: dataTransfer });
-	target.dispatchEvent(event);
-}
-
-afterEach(function Cleanup(): void
-{
-	document.body.replaceChildren();
-	window.sessionStorage.clear();
-	window.localStorage.clear();
-	vi.restoreAllMocks();
-});
 
 describe("WorkspacePanel", function WorkspacePanelTests()
 {
-	it("opens a new Idea created from the Signal picker", async function OpensCreatedIdeaAsync(): Promise<void>
+	let explorerRoot: HTMLElement;
+	let tabsRoot: HTMLElement;
+	let events: ChoraEventBus<ChoraEvents>;
+	let dreamStore: DreamStore;
+	let dreamController: DreamController;
+	let saves: DreamSaveCoordinator;
+	let clarity: DreamClarityCheckController;
+	let catalogue: DreamCatalogueController;
+	let explorer: DreamExplorerController;
+	let library: LibraryStore;
+	let panel: WorkspacePanel;
+	// Trash feature composed alongside the Explorer under test.
+	let trashPanel: DreamTrashPanel;
+
+	beforeEach(function Setup(): void
 	{
-		const events = new ChoraEventBus<ChoraEvents>();
-		const errors = new ErrorManager(events);
-		const library = new LibraryStore();
-		library.SetLibrary(works);
+		window.localStorage.clear();
+		window.sessionStorage.clear();
+		explorerRoot = document.createElement("div");
+		tabsRoot = document.createElement("div");
+		document.body.append(explorerRoot, tabsRoot);
+		events = new ChoraEventBus<ChoraEvents>();
+		dreamStore = new DreamStore(new SessionStore());
+		dreamStore.SetCatalogue([CreateDream()], [], [{ dreamId: "dream-1", workId: "republic", folderPath: "" }]);
+		library = new LibraryStore();
+		library.SetLibrary([summary]);
 		library.Open(text, null);
-		const dreamStore = new DreamStore(new SessionStore());
-		const dream = CreateDream("dream-1", "Descent");
-		dreamStore.SetCatalogue([dream]);
-		dreamStore.Open(dream, false);
-		const dreamController = new DreamController(events, errors, library, dreamStore, new DreamGateway());
-		const ideaStore = new IdeaStore();
-		ideaStore.SetWork("republic", []);
-		const ideaGateway = new IdeaGateway();
-		const saveIdea = vi.spyOn(ideaGateway, "SaveAsync").mockImplementation(async function SaveCreatedIdea(command): Promise<IdeaRecord>
-		{
-			return {
-				id: "saved-idea",
-				workId: command.workId,
-				title: command.title,
-				content: command.content,
-				originSignal: structuredClone(command.originSignal),
-				relatedSignals: structuredClone(command.relatedSignals),
-				createdAt: "2026-01-01",
-				updatedAt: "2026-01-01"
-			};
-		});
-		const ideaController = new IdeaController(events, errors, ideaStore, ideaGateway);
-		const explorer = document.createElement("div");
-		const tabs = document.createElement("div");
-		document.body.append(explorer, tabs);
-		const panel = new WorkspacePanel(explorer, tabs, events, dreamStore, dreamController, ideaStore, ideaController, library);
-		let selectedKind: string | null = null;
-		events.Subscribe("workspace.document-selected", function CaptureSelection(event): void
-		{
-			selectedKind = event.kind;
-		});
-
-		ideaController.BeginAddToIdea({ signalId: "signal-1" });
-		await vi.waitFor(function PickerOpened(): void
-		{
-			expect(document.querySelector<HTMLElement>("[data-picker-new-idea]")?.closest<HTMLElement>(".popup-overlay")?.hidden).toBe(false);
-		});
-		document.querySelector<HTMLButtonElement>("[data-picker-new-idea]")?.click();
-
-		await vi.waitFor(function IdeaOpened(): void
-		{
-			expect(ideaStore.GetDraft()?.originSignal).toEqual({ signalId: "signal-1" });
-			expect(ideaStore.GetDraft()?.ideaId).toBe("saved-idea");
-			expect(ideaStore.GetIdeas().map(function SelectId(idea): string { return idea.id; })).toContain("saved-idea");
-			expect(explorer.querySelector("[data-workspace-idea='saved-idea']")).not.toBeNull();
-			expect(tabs.querySelector("[data-workspace-tab='saved-idea']")).not.toBeNull();
-			expect(tabs.querySelector("[data-workspace-tab-kind='idea']")?.getAttribute("aria-selected")).toBe("true");
-			expect(selectedKind).toBe("idea");
-		});
-		expect(saveIdea).toHaveBeenCalledWith(expect.objectContaining({
-			ideaId: null,
-			originSignal: { signalId: "signal-1" }
-		}));
-
-		panel.Dispose();
-		dreamStore.Dispose();
+		const errors = new ErrorManager(events);
+		const gateway = new DreamGateway();
+		const reader = new LibraryGateway();
+		saves = new DreamSaveCoordinator(events, errors, dreamStore, gateway);
+		clarity = new DreamClarityCheckController(events, errors, library, dreamStore, gateway, saves);
+		catalogue = new DreamCatalogueController(events, errors, library, dreamStore, gateway, saves, clarity);
+		dreamController = new DreamController(events, errors, library, dreamStore, gateway, reader, saves);
+		explorer = new DreamExplorerController(dreamStore, library, gateway, events, errors, catalogue, { HasUncommittedChanges: function HasUncommittedChanges(): boolean { return false; } });
+		const exporter = new DreamExportController(dreamStore, library, reader);
+		const trashController = new DreamTrashController(gateway, catalogue, errors);
+		trashPanel = new DreamTrashPanel(trashController);
+		panel = new WorkspacePanel(explorerRoot, tabsRoot, events, dreamStore, dreamController, library, explorer, trashPanel, saves, exporter);
 	});
 
-	it("prompts to save a populated new Idea before closing it", async function SavesNewIdeaOnCloseAsync(): Promise<void>
+	afterEach(function Cleanup(): void
 	{
-		const events = new ChoraEventBus<ChoraEvents>();
-		const errors = new ErrorManager(events);
-		const library = new LibraryStore();
-		library.SetLibrary(works);
-		library.Open(text, null);
-		const dreamStore = new DreamStore(new SessionStore());
-		const dreamController = new DreamController(events, errors, library, dreamStore, new DreamGateway());
-		const ideaStore = new IdeaStore();
-		ideaStore.SetWork("republic", []);
-		const gateway = new IdeaGateway();
-		const save = vi.spyOn(gateway, "SaveAsync");
-		save.mockRejectedValueOnce(new Error("Disk unavailable"));
-		save.mockImplementation(async function SaveIdea(command): Promise<IdeaRecord>
-		{
-			return {
-				id: "saved-idea",
-				workId: command.workId,
-				title: command.title,
-				content: command.content,
-				originSignal: structuredClone(command.originSignal),
-				relatedSignals: structuredClone(command.relatedSignals),
-				createdAt: "2026-01-01",
-				updatedAt: "2026-01-01"
-			};
-		});
-		const ideaController = new IdeaController(events, errors, ideaStore, gateway);
-		const explorer = document.createElement("div");
-		const tabs = document.createElement("div");
-		document.body.append(explorer, tabs);
-		const panel = new WorkspacePanel(explorer, tabs, events, dreamStore, dreamController, ideaStore, ideaController, library);
-		await ideaController.CreateAsync();
-		ideaController.Update("The Good", "A question that should be preserved.");
-		await vi.waitFor(function NewIdeaTabShown(): void
-		{
-			expect(tabs.querySelector("[data-close-workspace-tab='new']")).not.toBeNull();
-		});
-
-		tabs.querySelector<HTMLButtonElement>("[data-close-workspace-tab='new']")?.click();
-
-		const prompt = document.querySelector<HTMLElement>("[data-unsaved-idea-save]")?.closest<HTMLElement>(".popup-overlay");
-		expect(prompt?.hidden).toBe(false);
-		expect(prompt?.textContent).toContain("This Idea has not been saved.");
-		prompt?.querySelector<HTMLButtonElement>("[data-unsaved-idea-save]")?.click();
-
-		await vi.waitFor(function FailedSavePreservesDraft(): void
-		{
-			expect(prompt?.querySelector<HTMLElement>("[data-unsaved-idea-error]")?.hidden).toBe(false);
-			expect(ideaStore.GetDraft()?.title).toBe("The Good");
-		});
-
-		prompt?.querySelector<HTMLButtonElement>("[data-unsaved-idea-save]")?.click();
-
-		await vi.waitFor(function SavedIdeaClosed(): void
-		{
-			expect(save).toHaveBeenCalledTimes(2);
-			expect(ideaStore.GetIdea("saved-idea")?.content).toBe("A question that should be preserved.");
-			expect(ideaStore.GetDraft()).toBeNull();
-			expect(prompt?.hidden).toBe(true);
-		});
-
 		panel.Dispose();
+		trashPanel.Dispose();
+		explorer.Dispose();
+		catalogue.Dispose();
+		clarity.Dispose();
+		dreamController.Dispose();
+		saves.Dispose();
 		dreamStore.Dispose();
+		document.body.replaceChildren();
+		window.localStorage.clear();
+		window.sessionStorage.clear();
+		vi.restoreAllMocks();
 	});
 
-	it("associates dropped Signals with existing or new Ideas", async function DropsSignalsAsync()
+	it("opens Trash from the Explorer", function OpensTrash(): void
 	{
-		const events = new ChoraEventBus<ChoraEvents>();
-		const errors = new ErrorManager(events);
-		const library = new LibraryStore();
-		library.SetLibrary(works);
-		library.Open(text, null);
-		const sessions = new SessionStore();
-		const dreamStore = new DreamStore(sessions);
-		const dreamController = new DreamController(events, errors, library, dreamStore, new DreamGateway());
-		const existing = CreateIdea();
-		const ideaStore = new IdeaStore(sessions);
-		ideaStore.SetWork("republic", [existing]);
-		const gateway = new IdeaGateway();
-		vi.spyOn(gateway, "SaveAsync").mockImplementation(async function SaveIdea(command): Promise<IdeaRecord>
-		{
-			return {
-				...existing,
-				originSignal: structuredClone(command.originSignal),
-				relatedSignals: structuredClone(command.relatedSignals)
-			};
-		});
-		const ideaController = new IdeaController(events, errors, ideaStore, gateway);
-		const explorer = document.createElement("div");
-		const tabs = document.createElement("div");
-		document.body.append(explorer, tabs);
-		const panel = new WorkspacePanel(explorer, tabs, events, dreamStore, dreamController, ideaStore, ideaController, library);
-		const existingTarget = explorer.querySelector<HTMLElement>("[data-workspace-idea='idea-1']");
-
-		if (existingTarget !== null) DropSignal(existingTarget, "signal-2");
-
-		await vi.waitFor(function ExistingIdeaUpdated(): void
-		{
-			expect(ideaStore.GetDraft()?.relatedSignals).toContainEqual({ signalId: "signal-2" });
-		});
-
-		const heading = explorer.querySelector<HTMLElement>('[data-workspace-toggle="ideas"]');
-		if (heading !== null) DropSignal(heading, "signal-3");
-
-		await vi.waitFor(function NewIdeaCreated(): void
-		{
-			expect(ideaStore.GetDraft()?.ideaId).toBeNull();
-			expect(ideaStore.GetDraft()?.originSignal).toEqual({ signalId: "signal-3" });
-		});
-
-		panel.Dispose();
-		dreamStore.Dispose();
+		const open = vi.spyOn(trashPanel, "OpenAsync").mockResolvedValue();
+		const trigger = explorerRoot.querySelector<HTMLButtonElement>("[data-open-dream-trash]");
+		trigger?.click();
+		expect(open).toHaveBeenCalledExactlyOnceWith(trigger);
 	});
 
-	it("renders one Plato Explorer and mixed Idea/Dream document tabs", async function RendersUnifiedWorkspaceAsync(): Promise<void>
+	it("renders a Dream-only Explorer", function RendersDreamOnlyExplorer(): void
 	{
-		const events = new ChoraEventBus<ChoraEvents>();
-		const errors = new ErrorManager(events);
-		const library = new LibraryStore();
-		library.SetLibrary(works);
-		library.Open(text, null);
-		const sessions = new SessionStore();
-		const dreamStore = new DreamStore(sessions);
-		const first = CreateDream("dream-1", "Descent");
-		const second = SetDreamLocator(CreateDream("dream-2", "Return"), "326a");
-		dreamStore.SetCatalogue([first, second]);
-		dreamStore.Open(first, false);
-		const dreamGateway = new DreamGateway();
-		vi.spyOn(dreamGateway, "ListAsync").mockResolvedValue([first, second]);
-		const save = vi.spyOn(dreamGateway, "SaveAsync").mockImplementation(async (dream) => structuredClone(dream));
-		const copy = vi.spyOn(dreamGateway, "CopyAsync").mockResolvedValue(undefined);
-		const deleteDream = vi.spyOn(dreamGateway, "DeleteAsync").mockResolvedValue();
-		const dreamController = new DreamController(events, errors, library, dreamStore, dreamGateway);
-		const ideaStore = new IdeaStore(sessions);
-		ideaStore.SetWork("republic", [CreateIdea()]);
-		const ideaGateway = new IdeaGateway();
-		const deleteIdea = vi.spyOn(ideaGateway, "DeleteAsync").mockResolvedValue();
-		const ideaController = new IdeaController(events, errors, ideaStore, ideaGateway);
-		const explorer = document.createElement("div");
-		const tabs = document.createElement("div");
-		document.body.append(explorer, tabs);
-		const panel = new WorkspacePanel(explorer, tabs, events, dreamStore, dreamController, ideaStore, ideaController, library);
-
-		ideaController.BeginAddToIdea({ signalId: "signal-2" });
-		await vi.waitFor(function IdeaPickerOpened(): void
-		{
-			const create = document.querySelector<HTMLButtonElement>("[data-picker-new-idea]");
-			const picker = create?.closest<HTMLElement>(".popup-overlay");
-			expect(picker?.hidden).toBe(false);
-			expect(picker?.textContent).toContain("Justice");
-			expect(picker?.textContent).toContain("Create new Idea");
-			expect(create?.classList.contains("idea-picker-new")).toBe(true);
-			expect(create?.querySelector("svg")).not.toBeNull();
-			const rows = picker?.querySelectorAll<HTMLButtonElement>(".idea-picker-list > .idea-picker-item");
-			expect(rows).toHaveLength(1);
-			expect(rows?.[0]?.textContent).toBe("Justice");
-			expect(rows?.[0]?.querySelector("svg")).not.toBeNull();
-		});
-		document.querySelector<HTMLElement>("[data-picker-new-idea]")?.closest<HTMLElement>(".popup-overlay")?.querySelector<HTMLButtonElement>(".popup-close")?.click();
-		expect(ideaStore.GetPendingAddReference()).toBeNull();
-
-		expect(explorer.textContent).toContain("Plato");
-		expect(explorer.textContent).toContain("Republic");
-		expect(explorer.querySelector("[data-workspace-search]")?.getAttribute("placeholder")).toBe("Filter Ideas and Dreams…");
-		expect(explorer.textContent).toContain("Add work…");
-		expect(explorer.textContent).toContain("Ideas");
-		expect(explorer.textContent).toContain("Dreams");
-		const ideasFolder = explorer.querySelector<HTMLButtonElement>('[data-workspace-toggle="ideas"]')!;
-		ideasFolder.click();
-		expect(explorer.querySelector('[data-workspace-toggle="ideas"]')?.getAttribute("aria-expanded")).toBe("false");
-		panel.FocusExplorerSection("idea");
-		expect(explorer.querySelector('[data-workspace-toggle="ideas"]')?.getAttribute("aria-expanded")).toBe("true");
-		expect(document.activeElement).toBe(explorer.querySelector('[data-workspace-toggle="ideas"]'));
-		const dreamsFolder = explorer.querySelector<HTMLButtonElement>('[data-workspace-toggle="dreams"]')!;
-		dreamsFolder.click();
-		expect(explorer.querySelector('[data-workspace-toggle="dreams"]')?.getAttribute("aria-expanded")).toBe("false");
-		panel.FocusExplorerSection("dream");
-		expect(explorer.querySelector('[data-workspace-toggle="dreams"]')?.getAttribute("aria-expanded")).toBe("true");
-		expect(document.activeElement).toBe(explorer.querySelector('[data-workspace-toggle="dreams"]'));
-		expect(explorer.textContent).toContain("Book I");
-		expect(explorer.textContent).toContain("Descent (327a)");
-		const dreamRows = Array.from(explorer.querySelectorAll<HTMLElement>("[data-workspace-dream]"));
-		expect(dreamRows.map(function GetDreamTitle(row): string
-		{
-			return row.textContent?.trim() ?? "";
-		})).toEqual(["Return (326a)", "Descent (327a)"]);
-		dreamStore.SetPassageFilter({ workId: "republic", segmentKey: "s1", label: "Republic · 327a" });
-		const updateMarkup = explorer.innerHTML;
-		await events.PublishAsync("signal.deleted", { signalId: "deleted-signal", workId: "republic" });
-		expect(explorer.innerHTML).toBe(updateMarkup);
-		const rowsAfterSignalDeletion = Array.from(explorer.querySelectorAll<HTMLElement>("[data-workspace-dream]"));
-		expect(rowsAfterSignalDeletion.map(function GetDreamTitle(row): string
-		{
-			return row.textContent?.trim() ?? "";
-		})).toEqual(["Return (326a)", "Descent (327a)"]);
-		expect(explorer.textContent).not.toContain("Chat");
-		expect(explorer.querySelectorAll("[data-rename-workspace-dream]")).toHaveLength(1);
-		expect(explorer.querySelector("[data-rename-workspace-dream]")?.getAttribute("data-rename-workspace-dream")).toBe("dream-1");
-		const newDream = explorer.querySelector<HTMLButtonElement>("[data-new-workspace-dream]")!;
-		expect(newDream.disabled).toBe(true);
-		expect(newDream.parentElement?.title).toBe("Select a passage to create a Dream");
-
-		explorer.querySelector<HTMLButtonElement>("[data-rename-workspace-dream]")!.click();
-		const renameInput = document.querySelector<HTMLInputElement>("[data-workspace-dream-title]")!;
-		expect(renameInput.value).toBe("Descent");
-		renameInput.value = "The Descent";
-		renameInput.form!.requestSubmit();
-		await vi.waitFor(function DreamRenamed(): void
-		{
-			expect(dreamStore.GetActiveDream()?.title).toBe("The Descent");
-			expect(save).toHaveBeenCalledWith(expect.objectContaining({ title: "The Descent" }));
-			expect(document.querySelector<HTMLElement>("[data-workspace-dream-title]")?.closest<HTMLElement>(".popup-overlay")?.hidden).toBe(true);
-		});
-
-		library.SetSelection(first.source);
-		await events.PublishAsync("library.selection-changed", {});
-		expect(explorer.querySelector<HTMLButtonElement>("[data-new-workspace-dream]")?.disabled).toBe(false);
-
-		expect(tabs.querySelectorAll("[data-workspace-tab]")).toHaveLength(1);
-		expect(tabs.querySelector("[data-workspace-tab-kind='dream']")?.textContent).toContain("Descent");
-		const actions = Array.from(tabs.querySelectorAll<HTMLButtonElement>(".action-menu-items > button"), (button) => button.textContent?.trim());
-		expect(actions).toEqual(["Save", "Close", "Delete", "Copy as Markdown"]);
-		tabs.querySelector<HTMLButtonElement>("[data-workspace-copy-dream]")?.click();
-		await vi.waitFor(function Copied(): void { expect(copy).toHaveBeenCalledOnce(); });
-		tabs.querySelector<HTMLButtonElement>("[data-workspace-delete-dream]")?.click();
-		const deletePrompt = document.querySelector<HTMLElement>("[data-dream-delete-confirm]")?.closest<HTMLElement>(".popup-overlay");
-		expect(deletePrompt?.hidden).toBe(false);
-		expect(deletePrompt?.textContent).toContain("The Descent");
-		expect(document.activeElement).toBe(deletePrompt?.querySelector("[data-dream-delete-cancel]"));
-		deletePrompt?.querySelector<HTMLButtonElement>("[data-dream-delete-cancel]")?.click();
-		expect(deleteDream).not.toHaveBeenCalled();
-
-		explorer.querySelector<HTMLButtonElement>("[data-workspace-idea='idea-1']")?.click();
-		await vi.waitFor(function IdeaOpened(): void
-		{
-			expect(tabs.querySelectorAll("[data-workspace-tab]")).toHaveLength(2);
-		});
-		expect(tabs.querySelector("[data-workspace-tab-kind='idea']")?.getAttribute("aria-selected")).toBe("true");
-		const ideaActions = Array.from(tabs.querySelectorAll<HTMLButtonElement>(".action-menu-items > button"), (button) => button.textContent?.trim());
-		expect(ideaActions).toEqual(["Save", "Close", "Delete"]);
-		tabs.querySelector<HTMLButtonElement>("[data-workspace-delete-idea]")?.click();
-		const ideaDeletePrompt = document.querySelector<HTMLElement>("[data-idea-delete-confirm]")?.closest<HTMLElement>(".popup-overlay");
-		expect(ideaDeletePrompt?.hidden).toBe(false);
-		expect(ideaDeletePrompt?.textContent).toContain("Justice");
-		expect(document.activeElement).toBe(ideaDeletePrompt?.querySelector("[data-idea-delete-cancel]"));
-		ideaDeletePrompt?.querySelector<HTMLButtonElement>("[data-idea-delete-cancel]")?.click();
-		expect(deleteIdea).not.toHaveBeenCalled();
-
-		explorer.querySelector<HTMLButtonElement>("[data-workspace-dream='dream-2']")?.click();
-		await vi.waitFor(function SecondDreamOpened(): void
-		{
-			expect(tabs.querySelectorAll("[data-workspace-tab]")).toHaveLength(3);
-		});
-		expect(tabs.querySelector("[data-workspace-tab='dream-2']")?.getAttribute("aria-selected")).toBe("true");
-		expect(explorer.querySelectorAll("[data-rename-workspace-dream]")).toHaveLength(1);
-		expect(explorer.querySelector("[data-rename-workspace-dream]")?.getAttribute("data-rename-workspace-dream")).toBe("dream-2");
-
-		let returnCount = 0;
-		events.Subscribe("idea.return-requested", function CountReturn(): void { returnCount += 1; });
-		panel.SetIdeaReturnAvailable(true);
-		tabs.querySelector<HTMLButtonElement>("[data-return-to-idea]")?.click();
-		await Promise.resolve();
-		expect(returnCount).toBe(1);
-
-		const search = explorer.querySelector<HTMLInputElement>("[data-workspace-search]")!;
-		search.value = "justice";
-		search.dispatchEvent(new Event("input", { bubbles: true }));
-		expect(explorer.textContent).toContain("Justice");
-		expect(explorer.textContent).not.toContain("Descent (327a)");
-
-		let requestedWorkId = "";
-		events.Subscribe("library.text-open-requested", function CaptureRequestedWork(event): void { requestedWorkId = event.textId; });
-		explorer.querySelector<HTMLButtonElement>("[data-add-work]")?.click();
-		const workFilter = document.querySelector<HTMLElement>(".work-picker-search")!;
-		expect(workFilter.classList.contains("application-find")).toBe(true);
-		expect(workFilter.classList.contains("dream-search")).toBe(false);
-		const addPhaedo = document.querySelector<HTMLButtonElement>("[data-add-library-work='phaedo']")!;
-		expect(addPhaedo.textContent).toContain("Phaedo");
-		addPhaedo.click();
-		await Promise.resolve();
-		expect(requestedWorkId).toBe("phaedo");
-		expect(window.localStorage.getItem("chora:workspace-works")).toContain("phaedo");
-		expect(explorer.textContent).toContain("Phaedo");
-
-		panel.Dispose();
-		dreamStore.Dispose();
+		expect(explorerRoot.textContent).toContain("Dreams");
+		expect(explorerRoot.textContent).toContain("Descent");
 	});
 
-	it("opens an existing Idea when a Signal membership requests it", async function OpensSignalIdeaAsync(): Promise<void>
+	it("opens a Dream from the Explorer and renders its tab", async function OpensDreamAsync(): Promise<void>
 	{
-		const events = new ChoraEventBus<ChoraEvents>();
-		const errors = new ErrorManager(events);
-		const library = new LibraryStore();
-		library.SetLibrary(works);
-		library.Open(text, null);
-		const dreamStore = new DreamStore(new SessionStore());
-		const dreamController = new DreamController(events, errors, library, dreamStore, new DreamGateway());
-		const ideaStore = new IdeaStore();
-		ideaStore.SetWork("republic", [CreateIdea()]);
-		const ideaController = new IdeaController(events, errors, ideaStore, new IdeaGateway());
-		const explorer = document.createElement("div");
-		const tabs = document.createElement("div");
-		document.body.append(explorer, tabs);
-		const panel = new WorkspacePanel(explorer, tabs, events, dreamStore, dreamController, ideaStore, ideaController, library);
-		let selectedKind: string | null = null;
-		events.Subscribe("workspace.document-selected", (event) => { selectedKind = event.kind; });
+		const open = vi.spyOn(dreamController, "Open");
+		explorerRoot.querySelector<HTMLButtonElement>('[data-workspace-dream="dream-1"]')?.click();
 
-		await events.PublishAsync("idea.open-requested", { ideaId: "idea-1" });
-
-		expect(ideaStore.GetDraft()?.ideaId).toBe("idea-1");
-		expect(tabs.querySelector("[data-workspace-tab-kind='idea']")?.getAttribute("aria-selected")).toBe("true");
-		expect(selectedKind).toBe("idea");
-		panel.Dispose();
-		dreamStore.Dispose();
+		expect(open).toHaveBeenCalledWith("dream-1");
+		await events.PublishAsync("dream.opened", {});
+		expect(tabsRoot.querySelector('[data-workspace-tab="dream-1"]')?.textContent).toContain("Descent");
 	});
 
-	it("reveals and focuses the existing Ideas chooser when adding a Signal", async function RevealsAddToIdeaAsync(): Promise<void>
+	it("orders Dream actions as Save, Close, Delete", async function OrdersDreamActionsAsync(): Promise<void>
 	{
-		const events = new ChoraEventBus<ChoraEvents>();
-		const errors = new ErrorManager(events);
-		const library = new LibraryStore();
-		library.SetLibrary(works);
-		library.Open(text, null);
-		const dreamStore = new DreamStore(new SessionStore());
-		const dreamController = new DreamController(events, errors, library, dreamStore, new DreamGateway());
-		const ideaStore = new IdeaStore();
-		ideaStore.SetWork("republic", [CreateIdea()]);
-		const ideaController = new IdeaController(events, errors, ideaStore, new IdeaGateway());
-		const explorer = document.createElement("div");
-		const tabs = document.createElement("div");
-		document.body.append(explorer, tabs);
-		const panel = new WorkspacePanel(explorer, tabs, events, dreamStore, dreamController, ideaStore, ideaController, library);
-		const search = explorer.querySelector<HTMLInputElement>("[data-workspace-search]")!;
-		search.value = "nothing";
-		search.dispatchEvent(new Event("input", { bubbles: true }));
-		explorer.querySelector<HTMLButtonElement>('[data-workspace-toggle="ideas"]')!.click();
-		explorer.querySelector<HTMLButtonElement>('[data-workspace-toggle="work:republic"]')!.click();
+		dreamController.Open("dream-1");
+		await events.PublishAsync("dream.opened", {});
+		const labels = Array.from(tabsRoot.querySelectorAll<HTMLButtonElement>(".action-menu-items button"), (button) => button.textContent?.trim());
 
-		ideaController.BeginAddToIdea({ signalId: "signal-2" });
-
-		await vi.waitFor(function ChooserRevealed(): void
-		{
-			expect(explorer.querySelector<HTMLInputElement>("[data-workspace-search]")?.value).toBe("");
-			expect(explorer.querySelector('[data-workspace-toggle="ideas"]')?.getAttribute("aria-expanded")).toBe("true");
-			expect(explorer.querySelector('[data-workspace-toggle="work:republic"]')?.getAttribute("aria-expanded")).toBe("true");
-			const pickerIdea = document.querySelector<HTMLButtonElement>('[data-picker-idea="idea-1"]');
-			expect(pickerIdea?.closest<HTMLElement>(".popup-overlay")?.hidden).toBe(false);
-			expect(document.activeElement).toBe(pickerIdea);
-		});
-
-		ideaController.CancelAddToIdea();
-		await vi.waitFor(function AdditionCancelled(): void
-		{
-			expect(ideaStore.GetPendingAddReference()).toBeNull();
-		});
-		ideaController.BeginAddToIdea({ signalId: "signal-1" });
-
-		await vi.waitFor(function ConnectedIdeaExcluded(): void
-		{
-			expect(document.querySelector<HTMLButtonElement>('[data-picker-idea="idea-1"]')?.disabled).toBe(true);
-			expect(document.activeElement).toBe(document.querySelector("[data-picker-new-idea]"));
-		});
-
-		panel.Dispose();
-		dreamStore.Dispose();
+		expect(labels.slice(0, 3)).toEqual(["Save", "Close", "Delete"]);
 	});
 
-	it("restores open Idea tabs from the session", function RestoresIdeaTabs(): void
+	it("filters Dreams without changing the Library text", function FiltersDreams(): void
 	{
-		const sessions = new SessionStore();
-		const store = new IdeaStore(sessions);
-		store.SetWork("republic", [CreateIdea()]);
-		store.SetDraft(store.CreateDraft(CreateIdea()));
-		store.UpdateDraft("Revised Justice", "Draft content");
+		const input = explorerRoot.querySelector<HTMLInputElement>("[data-workspace-search]")!;
+		input.value = "missing";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
 
-		const restored = new IdeaStore(sessions);
-		restored.SetWork("republic", [CreateIdea()]);
-		expect(restored.GetOpenTabs()).toEqual([{ key: "idea-1", ideaId: "idea-1", title: "Revised Justice" }]);
-		expect(restored.GetDraft()?.content).toBe("Draft content");
+		expect(explorerRoot.textContent).toContain("No matching Dreams.");
+		expect(library.GetText()?.id).toBe(text.id);
+	});
+
+	it("renders nested filesystem folders and Dreams in their assigned folder", async function RendersFoldersAsync(): Promise<void>
+	{
+		const dream = CreateDream();
+		dreamStore.SetCatalogue(
+			[dream],
+			[
+				{ workId: "republic", path: "Themes", name: "Themes", parentPath: "" },
+				{ workId: "republic", path: "Themes/Justice", name: "Justice", parentPath: "Themes" }
+			],
+			[{ dreamId: dream.id, workId: dream.workId, folderPath: "Themes/Justice" }]);
+
+		await events.PublishAsync("dream.catalogue-changed", { count: 1 });
+
+		const justice = explorerRoot.querySelector<HTMLElement>('[data-dream-folder="Themes/Justice"]');
+		expect(justice?.textContent).toContain("Justice");
+		expect(justice?.parentElement?.querySelector('[data-workspace-dream="dream-1"]')).not.toBeNull();
+		expect(justice?.querySelector<HTMLButtonElement>("[data-delete-dream-folder]")?.disabled).toBe(true);
+	});
+
+	it("selects a Shift-click range and moves the selected Dreams together", async function MovesSelectedDreamsByDropAsync(): Promise<void>
+	{
+		const first = CreateDream();
+		const second = CreateDream("dream-2", "Justice");
+		dreamStore.SetCatalogue(
+			[first, second],
+			[{ workId: "republic", path: "Themes", name: "Themes", parentPath: "" }],
+			[
+				{ dreamId: first.id, workId: first.workId, folderPath: "" },
+				{ dreamId: second.id, workId: second.workId, folderPath: "" }
+			]);
+		await events.PublishAsync("dream.catalogue-changed", { count: 2 });
+		const move = vi.spyOn(dreamController, "MoveDreamsAsync").mockResolvedValue(true);
+		const transfer = new DataTransfer();
+		const firstButton = explorerRoot.querySelector<HTMLElement>('[data-workspace-dream="dream-1"]');
+		firstButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		const secondButton = explorerRoot.querySelector<HTMLElement>('[data-workspace-dream="dream-2"]');
+		secondButton?.dispatchEvent(new MouseEvent("click", { bubbles: true, shiftKey: true }));
+		const item = explorerRoot.querySelector<HTMLElement>('[data-workspace-drag-dream="dream-2"]');
+		const folder = explorerRoot.querySelector<HTMLElement>('[data-dream-folder="Themes"]');
+		const dragStart = new DragEvent("dragstart", { bubbles: true });
+		const drop = new DragEvent("drop", { bubbles: true, cancelable: true });
+		Object.defineProperty(dragStart, "dataTransfer", { value: transfer });
+		Object.defineProperty(drop, "dataTransfer", { value: transfer });
+
+		expect(explorerRoot.querySelector('[data-workspace-dream="dream-1"]')?.getAttribute("aria-selected")).toBe("true");
+		expect(explorerRoot.querySelector('[data-workspace-dream="dream-2"]')?.getAttribute("aria-selected")).toBe("true");
+		item?.dispatchEvent(dragStart);
+		folder?.dispatchEvent(drop);
+
+		await vi.waitFor(function DreamsMoved(): void
+		{
+			expect(move).toHaveBeenCalledWith(expect.arrayContaining(["dream-1", "dream-2"]), "Themes");
+		});
 	});
 });

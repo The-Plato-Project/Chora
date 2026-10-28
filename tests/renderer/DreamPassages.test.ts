@@ -1,3 +1,8 @@
+import { DreamSaveCoordinator } from "../../src/renderer/dreams/DreamSaveCoordinator.js";
+import { DreamCatalogueController } from "../../src/renderer/dreams/DreamCatalogueController.js";
+import { DreamClarityCheckController } from "../../src/renderer/dreams/DreamClarityCheckController.js";
+import { DreamExportController } from "../../src/renderer/dreams/DreamExportController.js";
+import { DreamExplorerController } from "../../src/renderer/workspace/DreamExplorerController.js";
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
@@ -17,11 +22,7 @@ import { ChoraEventBus } from "../../src/renderer/core/events/ChoraEventBus.js";
 import type { ChoraEvents } from "../../src/renderer/core/events/ChoraEvents.js";
 import { ErrorManager } from "../../src/renderer/core/diagnostics/RendererErrorManager.js";
 import { ReadingSettingsStore } from "../../src/renderer/core/settings/ReadingSettingsStore.js";
-import { IdeaStore } from "../../src/renderer/ideas/IdeaStore.js";
-import { SignalStore } from "../../src/renderer/signals/SignalStore.js";
-import type { IdeaRecord } from "../../src/shared/ideas/IdeaTypes.js";
-import type { SignalRecord } from "../../src/shared/signals/SignalTypes.js";
-import { DocumentIcon, IdeaIcon } from "../../src/renderer/ui/Icons.js";
+import { DocumentIcon } from "../../src/renderer/ui/Icons.js";
 
 // A passage split across segments followed by two further passages.
 const text: TextDocument = {
@@ -40,7 +41,7 @@ const text: TextDocument = {
 function CreateDream(): DreamView
 {
 	const dream: DreamView = {
-		id: "dream", workId: text.id, dialogue: text.title, title: "Attention", signalIds: [], signals: [], reflection: "", synopticView: "",
+		id: "dream", workId: text.id, dialogue: text.title, title: "Attention", signals: [], reflection: "", synopticView: "",
 		linkedDreamIds: [], createdAt: "2026-09-07", updatedAt: "2026-09-07",
 		source: {
 			documentId: text.id, start: { segmentKey: "s1", offset: 1 }, end: { segmentKey: "s4", offset: 3 }
@@ -71,7 +72,8 @@ describe("Dream passage matching", function PassageTests()
 		library.Open(documentText, {
 			source: "Perseus Digital Library", license: "CC BY-SA", editor: null, editionTitle: null, repository: "test"
 		});
-		const controller = new LibraryController(events, errors, library, new LibraryGateway());
+		const dreamStore = new DreamStore(new SessionStore());
+		const controller = new LibraryController(events, errors, library, new LibraryGateway(), dreamStore);
 		const root = document.createElement("div");
 		root.className = "shell";
 		const stylesheet = document.createElement("style");
@@ -201,7 +203,10 @@ describe("Dream passage matching", function PassageTests()
 		const other = CreateDream();
 		other.id = "other";
 		other.workId = "other-work";
-		store.SetCatalogue([dream, other]);
+		store.SetCatalogue([dream, other], [], [
+			{ dreamId: dream.id, workId: dream.workId, folderPath: "" },
+			{ dreamId: other.id, workId: other.workId, folderPath: "" }
+		]);
 		const counts = store.GetPassageCounts(text);
 		expect([...counts]).toEqual([["s1", 1], ["s3", 1], ["s4", 1]]);
 		expect([...store.GetPassageDreamTitles(text)]).toEqual([
@@ -238,20 +243,32 @@ describe("Dream passage matching", function PassageTests()
 		otherDream.workId = otherText.id;
 		otherDream.dialogue = otherText.title;
 		otherDream.source.documentId = otherText.id;
-		store.SetCatalogue([dream]);
-		store.SetActiveDream(dream);
+		store.SetCatalogue([dream], [], [{ dreamId: dream.id, workId: dream.workId, folderPath: "" }]);
+		store.Open(dream, false);
 		const gateway = new DreamGateway();
-		const list = vi.spyOn(gateway, "ListAsync").mockResolvedValue([dream, otherDream]);
-		const dreams = new DreamController(events, errors, library, store, gateway);
+		const list = vi.spyOn(gateway, "ListAsync").mockResolvedValue({
+			dreams: [dream, otherDream],
+			folders: [],
+			locations: [
+				{ dreamId: dream.id, workId: dream.workId, folderPath: "" },
+				{ dreamId: otherDream.id, workId: otherDream.workId, folderPath: "" }
+			]
+		});
 		const libraryGateway = new LibraryGateway();
+		const saveOwner = new DreamSaveCoordinator(events, errors, store, gateway);
+		const clarityOwner = new DreamClarityCheckController(events, errors, library, store, gateway, saveOwner);
+		const catalogueOwner = new DreamCatalogueController(events, errors, library, store, gateway, saveOwner, clarityOwner);
+		const explorerOwner = new DreamExplorerController(store, library, gateway, events, errors, catalogueOwner, { HasUncommittedChanges: function HasUncommittedChanges(): boolean { return false; } });
+		const exportOwner = new DreamExportController(store, library, libraryGateway);
+		const dreams = new DreamController(events, errors, library, store, gateway, libraryGateway, saveOwner);
 		vi.spyOn(libraryGateway, "LoadAsync").mockResolvedValue(otherText);
 		vi.spyOn(libraryGateway, "GetSourceNoticeAsync").mockResolvedValue(null);
-		const controller = new LibraryController(events, errors, library, libraryGateway);
+		const controller = new LibraryController(events, errors, library, libraryGateway, store);
 		const readingRoot = document.createElement("div");
 		const catalogueRoot = document.createElement("div");
 		document.body.append(readingRoot, catalogueRoot);
 		const reader = new DocumentPanel(readingRoot, events, library, controller, new ReadingSettingsStore());
-		const catalogue = new DreamPanel(catalogueRoot, events, store, dreams, library, "catalogue");
+		const catalogue = new DreamPanel(catalogueRoot, events, store, dreams, library, "catalogue", catalogueOwner, saveOwner, clarityOwner, exportOwner, explorerOwner);
 		try
 		{
 			await events.PublishAsync("library.text-opened", {});
@@ -270,7 +287,11 @@ describe("Dream passage matching", function PassageTests()
 			expect(store.GetSearchText()).toBe("");
 			expect(store.GetPassageFilter()).toBeNull();
 			expect(store.GetActiveDream()?.id).toBe(dream.id);
-			list.mockResolvedValue([dream]);
+			list.mockResolvedValue({
+				dreams: [dream],
+				folders: [],
+				locations: [{ dreamId: dream.id, workId: dream.workId, folderPath: "" }]
+			});
 			library.Open(otherText, null);
 			await events.PublishAsync("library.text-opened", {});
 			expect(catalogueRoot.querySelectorAll("[data-dream-id]")).toHaveLength(0);
@@ -279,6 +300,10 @@ describe("Dream passage matching", function PassageTests()
 		{
 			reader.Dispose();
 			catalogue.Dispose();
+			explorerOwner.Dispose();
+			catalogueOwner.Dispose();
+			clarityOwner.Dispose();
+			saveOwner.Dispose();
 			store.Dispose();
 			readingRoot.remove();
 			catalogueRoot.remove();
@@ -292,10 +317,10 @@ describe("Dream passage matching", function PassageTests()
 		const store = new DreamStore(sessions);
 		const dream = CreateDream();
 		dream.source.end.offset = 0;
-		store.SetCatalogue([dream]);
+		store.SetCatalogue([dream], [], [{ dreamId: dream.id, workId: dream.workId, folderPath: "" }]);
 		expect([...store.GetPassageCounts(text)]).toEqual([["s1", 1], ["s3", 1]]);
 		dream.source.start.segmentKey = "missing";
-		store.SetCatalogue([dream]);
+		store.SetCatalogue([dream], [], [{ dreamId: dream.id, workId: dream.workId, folderPath: "" }]);
 		expect(store.GetPassageCounts(text).size).toBe(0);
 	});
 
@@ -308,7 +333,10 @@ describe("Dream passage matching", function PassageTests()
 		single.id = "single";
 		single.source.end = { segmentKey: "s1", offset: 4 };
 		single.source.locatorEnd = single.source.locatorStart;
-		store.SetCatalogue([dream, single]);
+		store.SetCatalogue([dream, single], [], [
+			{ dreamId: dream.id, workId: dream.workId, folderPath: "" },
+			{ dreamId: single.id, workId: single.workId, folderPath: "" }
+		]);
 		store.SetSearchText("old query");
 		const events = new ChoraEventBus<ChoraEvents>();
 		const errors = new ErrorManager(events);
@@ -317,51 +345,32 @@ describe("Dream passage matching", function PassageTests()
 		const library = new LibraryStore();
 		library.Open(text, null);
 		const gateway = new DreamGateway();
-		vi.spyOn(gateway, "ListAsync").mockImplementation(async function ListDreamsAsync(): Promise<Dream[]>
+		vi.spyOn(gateway, "ListAsync").mockImplementation(async function ListDreamCatalogueAsync()
 		{
 			const catalogue = store.GetCatalogue();
-			return [...catalogue];
+			return {
+				dreams: [...catalogue],
+				folders: [],
+				locations: catalogue.map(function CreateLocation(candidate)
+				{
+					return { dreamId: candidate.id, workId: candidate.workId, folderPath: "" };
+				})
+			};
 		});
-		const controller = new DreamController(events, errors, library, store, gateway);
-		const ideaStore = new IdeaStore(new SessionStore());
-		const signalStore = new SignalStore();
-		const ideaSignal: SignalRecord = {
-			id: "idea-signal",
-			workId: text.id,
-			sourceRef: "s3",
-			selections: [{
-				documentId: text.id,
-				start: { segmentKey: "s3", offset: 1 },
-				end: { segmentKey: "s3", offset: 4 },
-				selectedText: "nop",
-				locatorStart: { scheme: "Stephanus", value: "340b" },
-				locatorEnd: { scheme: "Stephanus", value: "340b" }
-			}],
-			text: "nop",
-			description: "",
-			createdAt: "2026-09-07",
-			updatedAt: "2026-09-07"
-		};
-		const idea: IdeaRecord = {
-			id: "idea",
-			workId: text.id,
-			title: "Speech and Return",
-			content: "",
-			originSignal: { signalId: ideaSignal.id },
-			relatedSignals: [{ signalId: ideaSignal.id }],
-			createdAt: "2026-09-07",
-			updatedAt: "2026-09-07"
-		};
-		ideaStore.SetWork(text.id, [idea]);
-		signalStore.SetWork(text.id, [ideaSignal]);
 		const libraryGateway = new LibraryGateway();
-		const libraryController = new LibraryController(events, errors, library, libraryGateway);
+		const saveOwner = new DreamSaveCoordinator(events, errors, store, gateway);
+		const clarityOwner = new DreamClarityCheckController(events, errors, library, store, gateway, saveOwner);
+		const catalogueOwner = new DreamCatalogueController(events, errors, library, store, gateway, saveOwner, clarityOwner);
+		const explorerOwner = new DreamExplorerController(store, library, gateway, events, errors, catalogueOwner, { HasUncommittedChanges: function HasUncommittedChanges(): boolean { return false; } });
+		const exportOwner = new DreamExportController(store, library, libraryGateway);
+		const controller = new DreamController(events, errors, library, store, gateway, libraryGateway, saveOwner);
+		const libraryController = new LibraryController(events, errors, library, libraryGateway, store);
 		const readingRoot = document.createElement("div");
 		const catalogueRoot = document.createElement("div");
 		document.body.append(readingRoot, catalogueRoot);
 		const documentPanel = new DocumentPanel(readingRoot, events, library, libraryController, new ReadingSettingsStore());
-		const passagePanel = new DreamPassagePanel(readingRoot, events, library, controller, ideaStore, signalStore);
-		const cataloguePanel = new DreamPanel(catalogueRoot, events, store, controller, library, "catalogue");
+		const passagePanel = new DreamPassagePanel(readingRoot, events, library, catalogueOwner);
+		const cataloguePanel = new DreamPanel(catalogueRoot, events, store, controller, library, "catalogue", catalogueOwner, saveOwner, clarityOwner, exportOwner, explorerOwner);
 		try
 		{
 			await events.PublishAsync("library.text-opened", {});
@@ -378,9 +387,6 @@ describe("Dream passage matching", function PassageTests()
 			expect(button?.getAttribute("aria-label")).toBe("1 Dream for 340b:\nAttention");
 			expect(button?.title).toBe("1 Dream for 340b:\nAttention");
 			expect(button?.innerHTML).toBe(DocumentIcon);
-			const ideaButton = readingRoot.querySelector<HTMLButtonElement>('[data-passage-ideas="s3"]');
-			expect(ideaButton?.getAttribute("aria-label")).toBe("1 Idea for 340b:\nSpeech and Return");
-			expect(ideaButton?.innerHTML).toBe(IdeaIcon);
 			button?.click();
 			await vi.waitFor(function FilterRendered(): void
 			{
@@ -404,7 +410,7 @@ describe("Dream passage matching", function PassageTests()
 			expect(singleLocation?.getAttribute("title")).toBe("Republic · 340a");
 
 			await events.PublishAsync("dream.passage-filter-requested", { workId: text.id, segmentKey: "s3" });
-			store.SetCatalogue([single]);
+			store.SetCatalogue([single], [], [{ dreamId: single.id, workId: single.workId, folderPath: "" }]);
 			await events.PublishAsync("dream.saved", {});
 			expect(readingRoot.querySelector('[data-passage-dreams="s3"]')).toBeNull();
 			expect(catalogueRoot.querySelector(".dream-empty")?.textContent).toBe("No matching Dreams.");
@@ -424,6 +430,10 @@ describe("Dream passage matching", function PassageTests()
 			passagePanel.Dispose();
 			documentPanel.Dispose();
 			cataloguePanel.Dispose();
+			explorerOwner.Dispose();
+			catalogueOwner.Dispose();
+			clarityOwner.Dispose();
+			saveOwner.Dispose();
 			store.Dispose();
 			readingRoot.remove();
 			catalogueRoot.remove();

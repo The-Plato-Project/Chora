@@ -48,13 +48,23 @@ describe("LibraryController", function LibraryControllerTests()
 		const errors = new ErrorManager(events);
 		vi.stubGlobal("window", {
 			chora: {
-				ListLibraryTexts: vi.fn(async () => [summary]),
-				LoadLibraryText: vi.fn(async () => document),
-				GetSourceNotice: vi.fn(async () => sourceNotice)
+				ListLibraryTexts: vi.fn(async () => ({ ok: true, value: [summary] })),
+				LoadLibraryText: vi.fn(async () => ({ ok: true, value: document })),
+				GetSourceNotice: vi.fn(async () => ({ ok: true, value: sourceNotice }))
 			}
 		});
 		store = new LibraryStore();
-		controller = new LibraryController(events, errors, store, new LibraryGateway());
+		const dreams = {
+			GetActiveDream: function GetActiveDream(): null
+			{
+				return null;
+			},
+			GetSelectedSignal: function GetSelectedSignal(): null
+			{
+				return null;
+			}
+		};
+		controller = new LibraryController(events, errors, store, new LibraryGateway(), dreams);
 	});
 
 	it("loads the library and opens the preferred text", async function OpensPreferredText()

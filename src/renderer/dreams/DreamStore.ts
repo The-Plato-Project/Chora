@@ -4,6 +4,7 @@ import type { TextSelection } from "../../shared/text/TextSelection.js";
 import { SessionStore } from "../core/session/SessionStore.js";
 import { TextDocument } from "../../shared/library/LibraryTypes.js";
 import { GetCoveredPassageKeys } from "../library/PassageCoverage.js";
+import type { DreamFolderSnapshot, DreamLocationSnapshot } from "../../shared/dreams/DreamTypes.js";
 
 // Identifies the source passage restricting the DreamView catalogue.
 export interface DreamPassageFilter
@@ -26,9 +27,13 @@ interface DreamSessionSnapshot
 	dream: DreamView;
 	// Whether the active DreamView had unsaved changes at the time of the snapshot.
 	isDirty: boolean;
+	// Mutation revision used to reject stale save responses.
 	revision: number;
+	// Lifecycle of the tab's most recent save attempt.
 	saveState: DreamSaveState;
+	// Signal selected within this tab.
 	selectedSignalId: string | null;
+	// Inner editor tab selected within this Dream.
 	editorTabId: string;
 }
 
@@ -65,26 +70,22 @@ export class DreamStore
 	private static readonly PersistenceDelayMilliseconds = 400;
 	// All Dreams visible to the reader.
 	private catalogue: DreamView[] = [];
-	// The DreamView currently open for editing, or null when none is open.
-	private activeDream: DreamView | null = null;
-	// Whether the active DreamView has unsaved changes.
-	private isDirty = false;
-	// Increments on every mutation so a stale save result can be detected.
-	private revision = 0;
-	// Lifecycle of the active DreamView's most recent save attempt.
-	private saveState: DreamSaveState = "idle";
+	// Filesystem-backed folders visible in the Dream Explorer.
+	private folders: DreamFolderSnapshot[] = [];
+	// Canonical work-relative placement of every Dream.
+	private locations: DreamLocationSnapshot[] = [];
 	// Ordered per-DreamView editing sessions represented by the editor tab strip.
 	private openTabs: DreamSessionSnapshot[] = [];
-	// Signal selected in the active DreamView session.
-	private selectedSignalId: string | null = null;
-	// Inner editor tab selected in the active DreamView session.
-	private editorTabId = "signals";
+	// Stable identity of the active editing session without duplicating its Dream state.
+	private activeDreamId: string | null = null;
 	// Pending session-persistence timer, or null when nothing is scheduled.
 	private persistenceTimer: ReturnType<typeof setTimeout> | null = null;
 	// Catalogue search query entered by the reader.
 	private searchText = "";
 	// Optional source-passage restriction, independent of keyword search.
 	private passageFilter: DreamPassageFilter | null = null;
+	// Work-scoped folder currently selected in the Explorer.
+	private selectedFolder: { readonly workId: string; readonly path: string } | null = null;
 	// Returns a snapshot of the active source restriction.
 	public GetPassageFilter(): DreamPassageFilter | null
 	{
@@ -107,14 +108,13 @@ export class DreamStore
 		{
 			this.openTabs = structuredClone(snapshot.tabs);
 			const active = this.openTabs.find(function FindActive(tab): boolean { return tab.dream.id === snapshot.activeDreamId; }) ?? this.openTabs[0] ?? null;
-			if (active !== null) this.RestoreTab(active);
+			this.activeDreamId = active?.dream.id ?? null;
 		}
 	}
 
 	// Returns ordered descriptors for every open DreamView editor tab.
 	public GetOpenTabs(): readonly DreamTab[]
 	{
-		this.CaptureActiveTab();
 		const tabs = this.openTabs.map(function CreateDescriptor(tab): DreamTab
 		{
 			return { dreamId: tab.dream.id, title: tab.dream.title || "Untitled", isDirty: tab.isDirty };
@@ -126,7 +126,6 @@ export class DreamStore
 	// Remembers the selected Signal for one open DreamView tab.
 	public SetSelectedSignal(dreamId: string, signalId: string | null): void
 	{
-		if (this.activeDream?.id === dreamId) this.selectedSignalId = signalId;
 		const tab = this.openTabs.find(function FindTab(candidate): boolean { return candidate.dream.id === dreamId; });
 		if (tab !== undefined) tab.selectedSignalId = signalId;
 		this.Persist();
@@ -136,7 +135,7 @@ export class DreamStore
 	public GetSelectedSignal(dreamId: string): string | null
 	{
 		const tab = this.openTabs.find(function FindTab(candidate): boolean { return candidate.dream.id === dreamId; });
-		const signalId = this.activeDream?.id === dreamId ? this.selectedSignalId : tab?.selectedSignalId ?? null;
+		const signalId = tab?.selectedSignalId ?? null;
 
 		return signalId;
 	}
@@ -144,7 +143,6 @@ export class DreamStore
 	// Remembers the selected inner editor tab for one open DreamView.
 	public SetEditorTab(dreamId: string, tabId: string): void
 	{
-		if (this.activeDream?.id === dreamId) this.editorTabId = tabId;
 		const tab = this.openTabs.find(function FindTab(candidate): boolean { return candidate.dream.id === dreamId; });
 		if (tab !== undefined) tab.editorTabId = tabId;
 		this.Persist();
@@ -154,7 +152,7 @@ export class DreamStore
 	public GetEditorTab(dreamId: string): string
 	{
 		const tab = this.openTabs.find(function FindTab(candidate): boolean { return candidate.dream.id === dreamId; });
-		const tabId = this.activeDream?.id === dreamId ? this.editorTabId : tab?.editorTabId ?? "signals";
+		const tabId = tab?.editorTabId ?? "signals";
 
 		return tabId;
 	}
@@ -171,12 +169,61 @@ export class DreamStore
 		this.searchText = value;
 	}
 
+	// Selects one Explorer folder, or clears folder selection.
+	public SetSelectedFolder(workId: string, folderPath: string | null): void
+	{
+		this.selectedFolder = folderPath === null ? null : { workId, path: folderPath };
+	}
+
+	// Returns the selected folder for one work, using null when another work owns the selection.
+	public GetSelectedFolder(workId: string): string | null
+	{
+		const folderPath = this.selectedFolder?.workId === workId
+			? this.selectedFolder.path
+			: null;
+
+		return folderPath;
+	}
+
 	// Returns an immutable snapshot of every DreamView visible to the reader.
 	public GetCatalogue(): readonly DreamView[]
 	{
 		const catalogue = structuredClone(this.catalogue);
 
 		return catalogue;
+	}
+
+	// Returns all folders belonging to one work.
+	public GetFolders(workId: string): readonly DreamFolderSnapshot[]
+	{
+		const folders = this.folders.filter(function MatchesWork(folder): boolean
+		{
+			return folder.workId === workId;
+		});
+
+		return structuredClone(folders);
+	}
+
+	// Returns the complete canonical folder and placement state for change detection.
+	public GetFolderState(): { readonly folders: readonly DreamFolderSnapshot[]; readonly locations: readonly DreamLocationSnapshot[] }
+	{
+		const state = {
+			folders: structuredClone(this.folders),
+			locations: structuredClone(this.locations)
+		};
+
+		return state;
+	}
+
+	// Returns one Dream's relative folder path, using the work root when no placement exists.
+	public GetDreamFolder(dreamId: string): string
+	{
+		const folderPath = this.locations.find(function MatchesDream(location): boolean
+		{
+			return location.dreamId === dreamId;
+		})?.folderPath ?? "";
+
+		return folderPath;
 	}
 
 	// Returns Dreams matching the given search query, ordered by their position in the source text.
@@ -283,7 +330,8 @@ export class DreamStore
 	// Returns an immutable snapshot of the active DreamView, or null when none is open.
 	public GetActiveDream(): DreamView | null
 	{
-		const dream = this.activeDream === null ? null : structuredClone(this.activeDream);
+		const tab = this.GetActiveTab();
+		const dream = tab === null ? null : structuredClone(tab.dream);
 
 		return dream;
 	}
@@ -291,90 +339,218 @@ export class DreamStore
 	// Returns whether the active DreamView has unsaved changes.
 	public GetIsDirty(): boolean
 	{
-		const dirty = this.isDirty;
+		const dirty = this.GetActiveTab()?.isDirty ?? false;
+		return dirty;
+	}
+
+	// Reports unsaved drafts across all open tabs, including inactive editors.
+	public HasUnsavedChanges(): boolean
+	{
+		const dirty = this.openTabs.some(function HasDraft(tab): boolean
+		{
+			return tab.isDirty || tab.saveState === "saving";
+		});
+
 		return dirty;
 	}
 
 	// Returns the lifecycle of the active DreamView's most recent save attempt.
 	public GetSaveState(): DreamSaveState
 	{
-		return this.saveState;
+		const state = this.GetActiveTab()?.saveState ?? "idle";
+
+		return state;
 	}
 
 	// Returns the current mutation revision of the active DreamView.
 	public GetRevision(): number
 	{
-		return this.revision;
+		const revision = this.GetActiveTab()?.revision ?? 0;
+
+		return revision;
 	}
 
 	// Replaces the visible DreamView catalogue with a freshly loaded snapshot.
-	public SetCatalogue(catalogue: DreamView[]): void
+	public SetCatalogue(catalogue: DreamView[], folders: readonly DreamFolderSnapshot[], locations: readonly DreamLocationSnapshot[]): void
 	{
 		this.catalogue = structuredClone(catalogue);
-	}
-
-	// Refreshes canonical Signal fields in every DreamView projection without marking Dreams dirty.
-	public ApplySignal(signal: SignalRecord): string | null
-	{
-		for (const dream of this.catalogue) this.ApplySignalToDream(dream, signal);
-		for (const tab of this.openTabs) this.ApplySignalToDream(tab.dream, signal);
-		const changedActive = this.activeDream === null
-			? false
-			: this.ApplySignalToDream(this.activeDream, signal);
-		const activeDreamId = changedActive ? this.activeDream?.id ?? null : null;
-
-		if (changedActive)
+		this.folders = structuredClone([...folders]);
+		this.locations = structuredClone([...locations]);
+		if (this.selectedFolder !== null)
 		{
-			this.CaptureActiveTab();
-			this.Persist();
+			const selected = this.selectedFolder;
+			const exists = this.folders.some(function MatchesSelectedFolder(folder): boolean
+			{
+				return folder.workId === selected.workId && folder.path === selected.path;
+			});
+			if (!exists) this.selectedFolder = null;
 		}
 
-		return activeDreamId;
+		for (const tab of this.openTabs)
+		{
+			const canonical = this.catalogue.find(function MatchesDream(dream): boolean
+			{
+				return dream.id === tab.dream.id;
+			});
+
+			if (canonical !== undefined)
+			{
+				if (tab.isDirty)
+				{
+					tab.dream.signals = structuredClone(canonical.signals);
+				}
+				else
+				{
+					tab.dream = structuredClone(canonical);
+				}
+			}
+		}
+
+		if (this.activeDreamId !== null) this.Persist();
 	}
 
-	// Removes one deleted Signal from every Dream projection and reports the affected Dream identities.
-	public RemoveSignalEverywhere(signalId: string): readonly string[]
+	// Reconciles clean editor tabs after an explicit disk reload, closing externally removed Dreams.
+	public ApplyReload(catalogue: DreamView[], folders: readonly DreamFolderSnapshot[], locations: readonly DreamLocationSnapshot[]): void
 	{
-		const changedDreamIds = new Set<string>();
+		if (this.HasUnsavedChanges()) throw new Error("Reload conflicts with unsaved Dream edits. Your drafts have been kept.");
+		this.SetCatalogue(catalogue, folders, locations);
+		this.openTabs = this.openTabs.filter(function StillExists(tab): boolean
+		{
+			const exists = catalogue.some(function Matches(dream): boolean { return dream.id === tab.dream.id; });
+			return exists;
+		});
+		const activeId = this.activeDreamId;
+		const hasActive = this.openTabs.some(function MatchesActive(tab): boolean { return tab.dream.id === activeId; });
+		if (!hasActive) this.activeDreamId = this.openTabs[0]?.dream.id ?? null;
+		this.PersistOrRemove();
+	}
+
+	// Inserts or replaces one canonical Dream in the visible catalogue.
+	public UpsertCatalogueDream(dream: DreamView): void
+	{
+		const index = this.catalogue.findIndex(function MatchesDream(candidate): boolean
+		{
+			return candidate.id === dream.id;
+		});
+		const canonical = structuredClone(dream);
+
+		if (index >= 0) this.catalogue[index] = canonical;
+		else
+		{
+			this.catalogue.push(canonical);
+			this.locations.push({ dreamId: dream.id, workId: dream.workId, folderPath: "" });
+		}
+	}
+
+	// Adds one canonical folder returned by the main process.
+	public AddFolder(folder: DreamFolderSnapshot): void
+	{
+		const exists = this.folders.some(function MatchesFolder(candidate): boolean
+		{
+			return candidate.workId === folder.workId && candidate.path === folder.path;
+		});
+		if (!exists) this.folders.push(structuredClone(folder));
+	}
+
+	// Removes one empty canonical folder.
+	public RemoveFolder(workId: string, folderPath: string): void
+	{
+		this.folders = this.folders.filter(function KeepFolder(folder): boolean
+		{
+			return folder.workId !== workId || folder.path !== folderPath;
+		});
+		if (this.selectedFolder?.workId === workId && this.selectedFolder.path === folderPath)
+		{
+			this.selectedFolder = null;
+		}
+	}
+
+	// Applies one canonical Dream placement returned by the main process.
+	public SetDreamLocation(location: DreamLocationSnapshot): void
+	{
+		this.locations = this.locations.filter(function KeepOther(candidate): boolean
+		{
+			return candidate.dreamId !== location.dreamId;
+		});
+		this.locations.push(structuredClone(location));
+	}
+
+	// Removes one deleted Dream from both the catalogue and its editing sessions.
+	public Remove(dreamId: string): void
+	{
+		this.catalogue = this.catalogue.filter(function KeepDream(dream): boolean
+		{
+			return dream.id !== dreamId;
+		});
+		this.locations = this.locations.filter(function KeepLocation(location): boolean
+		{
+			return location.dreamId !== dreamId;
+		});
+		const tabIndex = this.openTabs.findIndex(function MatchesTab(tab): boolean
+		{
+			return tab.dream.id === dreamId;
+		});
+
+		if (tabIndex >= 0)
+		{
+			this.openTabs.splice(tabIndex, 1);
+		}
+
+		if (this.activeDreamId === dreamId)
+		{
+			const nextIndex = Math.min(tabIndex, this.openTabs.length - 1);
+			this.activeDreamId = nextIndex >= 0 ? this.openTabs[nextIndex]?.dream.id ?? null : null;
+		}
+
+		this.PersistOrRemove();
+	}
+
+	// Replaces the canonical Signal collection in every projection of one Dream.
+	public SetOwnedSignals(dreamId: string, signals: readonly SignalRecord[]): void
+	{
 		for (const dream of this.catalogue)
 		{
-			if (this.RemoveSignalFromDream(dream, signalId)) changedDreamIds.add(dream.id);
+			if (dream.id === dreamId) dream.signals = structuredClone([...signals]);
 		}
 		for (const tab of this.openTabs)
 		{
-			if (this.RemoveSignalFromDream(tab.dream, signalId)) changedDreamIds.add(tab.dream.id);
+			if (tab.dream.id === dreamId) tab.dream.signals = structuredClone([...signals]);
 		}
-		const changedActive = this.activeDream === null
-			? false
-			: this.RemoveSignalFromDream(this.activeDream, signalId);
+		if (this.activeDreamId === dreamId) this.Persist();
+	}
 
-		if (this.selectedSignalId === signalId) this.selectedSignalId = null;
-		if (changedActive)
+	// Removes one deleted Signal only from its owning Dream projections.
+	public RemoveOwnedSignal(dreamId: string, signalId: string): void
+	{
+		for (const dream of this.catalogue)
 		{
-			const activeDreamId = this.activeDream?.id;
-			if (activeDreamId !== undefined) changedDreamIds.add(activeDreamId);
-			this.CaptureActiveTab();
-			this.Persist();
+			if (dream.id === dreamId) this.RemoveSignalFromDream(dream, signalId);
 		}
-
-		return [...changedDreamIds];
+		for (const tab of this.openTabs)
+		{
+			if (tab.dream.id === dreamId)
+			{
+				this.RemoveSignalFromDream(tab.dream, signalId);
+				if (tab.selectedSignalId === signalId) tab.selectedSignalId = null;
+			}
+		}
+		if (this.activeDreamId === dreamId) this.Persist();
 	}
 
 	// Opens a DreamView for editing and records whether it starts with unsaved changes.
 	public Open(dream: DreamView, isDirty: boolean): void
 	{
 		this.CancelPersistence();
-		this.CaptureActiveTab();
 		const existing = this.openTabs.find(function FindTab(tab): boolean { return tab.dream.id === dream.id; });
 		if (existing !== undefined)
 		{
-			this.RestoreTab(existing);
+			this.activeDreamId = existing.dream.id;
 		}
 		else
 		{
 			const snapshot: DreamSessionSnapshot = { dream: structuredClone(dream), isDirty, revision: 0, saveState: "idle", selectedSignalId: null, editorTabId: "signals" };
 			this.openTabs.push(snapshot);
-			this.RestoreTab(snapshot);
+			this.activeDreamId = snapshot.dream.id;
 		}
 		this.Persist();
 	}
@@ -383,11 +559,10 @@ export class DreamStore
 	public ActivateTab(dreamId: string): DreamView | null
 	{
 		this.CancelPersistence();
-		this.CaptureActiveTab();
 		const tab = this.openTabs.find(function FindTab(candidate): boolean { return candidate.dream.id === dreamId; });
 		if (tab !== undefined)
 		{
-			this.RestoreTab(tab);
+			this.activeDreamId = tab.dream.id;
 			this.Persist();
 		}
 		const dream = tab === undefined ? null : structuredClone(tab.dream);
@@ -399,19 +574,19 @@ export class DreamStore
 	public Close(): void
 	{
 		this.CancelPersistence();
-		const activeId = this.activeDream?.id;
+		const activeId = this.activeDreamId;
 		const activeIndex = this.openTabs.findIndex(function FindActive(tab): boolean { return tab.dream.id === activeId; });
 		if (activeIndex >= 0) this.openTabs.splice(activeIndex, 1);
 		const nextIndex = Math.min(activeIndex, this.openTabs.length - 1);
 		const next = nextIndex >= 0 ? this.openTabs[nextIndex] ?? null : null;
 		if (next === null)
 		{
-			this.ClearActiveTab();
+			this.activeDreamId = null;
 			this.sessions.Remove(DreamStore.SessionKey);
 		}
 		else
 		{
-			this.RestoreTab(next);
+			this.activeDreamId = next.dream.id;
 			this.Persist();
 		}
 	}
@@ -420,10 +595,11 @@ export class DreamStore
 	public UpdateTitle(title: string): DreamChange | null
 	{
 		let change: DreamChange | null = null;
+		const tab = this.GetActiveTab();
 
-		if (this.activeDream !== null)
+		if (tab !== null)
 		{
-			this.activeDream.title = title;
+			tab.dream.title = title;
 			change = this.RecordChange();
 		}
 
@@ -434,70 +610,26 @@ export class DreamStore
 	public UpdateReflection(reflection: string): DreamChange | null
 	{
 		let change: DreamChange | null = null;
+		const tab = this.GetActiveTab();
 
-		if (this.activeDream !== null)
+		if (tab !== null)
 		{
-			this.activeDream.reflection = reflection;
+			tab.dream.reflection = reflection;
 			change = this.RecordChange();
 		}
 
 		return change;
 	}
 
+	// Updates the active DreamView Clarity Check and records one authoritative state change.
 	public UpdateSynopticView(synopticView: string): DreamChange | null
 	{
 		let change: DreamChange | null = null;
+		const tab = this.GetActiveTab();
 
-		if (this.activeDream !== null)
+		if (tab !== null)
 		{
-			this.activeDream.synopticView = synopticView;
-			change = this.RecordChange();
-		}
-
-		return change;
-	}
-
-	// Replaces the active DreamView signals after the controller has calculated source order.
-	public ReplaceSignals(signals: SignalRecord[]): DreamChange | null
-	{
-		let change: DreamChange | null = null;
-
-		if (this.activeDream !== null)
-		{
-			this.activeDream.signals = structuredClone(signals);
-			this.activeDream.signalIds = signals.map(function GetSignalId(signal): string
-			{
-				return signal.id;
-			});
-			change = this.RecordChange();
-		}
-
-		return change;
-	}
-
-	// Updates one existing signal description and records the change when it exists.
-	public UpdateSignalDescription(signalId: string, description: string): DreamChange | null
-	{
-		let change: DreamChange | null = null;
-		let signalIndex = -1;
-
-		for (let index = 0; index < (this.activeDream?.signals.length ?? 0); index += 1)
-		{
-			if (this.activeDream?.signals[index]?.id === signalId)
-			{
-				signalIndex = index;
-				break;
-			}
-		}
-
-		if (this.activeDream !== null && signalIndex >= 0)
-		{
-			const signal = this.activeDream.signals[signalIndex];
-
-			if (signal !== undefined)
-			{
-				this.activeDream.signals[signalIndex] = { ...signal, description };
-			}
+			tab.dream.synopticView = synopticView;
 			change = this.RecordChange();
 		}
 
@@ -508,10 +640,11 @@ export class DreamStore
 	public ReplaceSource(source: TextSelection): DreamChange | null
 	{
 		let change: DreamChange | null = null;
+		const tab = this.GetActiveTab();
 
-		if (this.activeDream !== null)
+		if (tab !== null)
 		{
-			this.activeDream.source = structuredClone(source);
+			tab.dream.source = structuredClone(source);
 			change = this.RecordChange();
 		}
 
@@ -521,20 +654,34 @@ export class DreamStore
 	// Commits a successful save when no further mutation has occurred since it began.
 	public MarkSaved(dream: DreamView, savedRevision: number): void
 	{
-		if (savedRevision === this.revision && this.activeDream?.id === dream.id)
+		const tab = this.openTabs.find(function MatchesDream(candidate): boolean
+		{
+			return candidate.dream.id === dream.id;
+		});
+
+		if (tab !== undefined && savedRevision === tab.revision)
 		{
 			this.CancelPersistence();
-			this.SetActiveDream(structuredClone(dream));
-			this.isDirty = false;
-			this.saveState = "idle";
+			tab.dream = structuredClone(dream);
+			tab.isDirty = false;
+			tab.saveState = "idle";
+			this.UpsertCatalogueDream(dream);
 			this.Persist();
 		}
 	}
 
-	// Records the lifecycle of the active DreamView's most recent save attempt.
-	public SetSaveState(saveState: DreamSaveState): void
+	// Records save state for the Dream captured by the persistence owner, independently of active-tab changes.
+	public SetSaveState(dreamId: string, saveState: DreamSaveState): void
 	{
-		this.saveState = saveState;
+		const tab = this.openTabs.find(function MatchesDream(candidate): boolean
+		{
+			return candidate.dream.id === dreamId;
+		});
+
+		if (tab !== undefined)
+		{
+			tab.saveState = saveState;
+		}
 	}
 
 	// Flushes any pending session persistence before the store is torn down.
@@ -543,93 +690,35 @@ export class DreamStore
 		this.FlushPersistence();
 	}
 
-	// Sole assignment point for the active DreamView, so every write path is traceable to one place.
-	private SetActiveDream(dream: DreamView | null): void
-	{
-		this.activeDream = dream === null ? null : structuredClone(dream);
-	}
-
-	// Applies one canonical Signal snapshot to a DreamView projection.
-	private ApplySignalToDream(dream: DreamView, signal: SignalRecord): boolean
-	{
-		let changed = false;
-
-		for (let index = 0; index < dream.signals.length; index += 1)
-		{
-			const candidate = dream.signals[index];
-
-			if (candidate !== undefined && candidate.id === signal.id)
-			{
-				dream.signals[index] = structuredClone(signal);
-				changed = true;
-			}
-		}
-
-		return changed;
-	}
-
 	// Removes one Signal identity and resolved record from one Dream projection.
 	private RemoveSignalFromDream(dream: DreamView, signalId: string): boolean
 	{
-		const signalIds = dream.signalIds.filter(function KeepSignal(candidate): boolean
-		{
-			return candidate !== signalId;
-		});
 		const signals = dream.signals.filter(function KeepSignal(candidate): boolean
 		{
 			return candidate.id !== signalId;
 		});
-		const changed = signalIds.length !== dream.signalIds.length || signals.length !== dream.signals.length;
+		const changed = signals.length !== dream.signals.length;
 
 		if (changed)
 		{
-			dream.signalIds = signalIds;
 			dream.signals = signals;
 		}
 
 		return changed;
 	}
 
-	// Captures the mutable active fields into their ordered tab snapshot.
-	private CaptureActiveTab(): void
+	// Returns the one tab that owns the active Dream editing state.
+	private GetActiveTab(): DreamSessionSnapshot | null
 	{
-		const dream = this.activeDream;
-		if (dream !== null)
-		{
-			const snapshot: DreamSessionSnapshot = {
-				dream: structuredClone(dream),
-				isDirty: this.isDirty,
-				revision: this.revision,
-				saveState: this.saveState,
-				selectedSignalId: this.selectedSignalId,
-				editorTabId: this.editorTabId
-			};
-			const index = this.openTabs.findIndex(function FindTab(tab): boolean { return tab.dream.id === dream.id; });
-			if (index >= 0) this.openTabs[index] = snapshot;
-			else this.openTabs.push(snapshot);
-		}
-	}
+		const activeDreamId = this.activeDreamId;
+		const tab = activeDreamId === null
+			? null
+			: this.openTabs.find(function FindActive(candidate): boolean
+			{
+				return candidate.dream.id === activeDreamId;
+			}) ?? null;
 
-	// Restores one tab snapshot into the active DreamView fields.
-	private RestoreTab(snapshot: DreamSessionSnapshot): void
-	{
-		this.SetActiveDream(structuredClone(snapshot.dream));
-		this.isDirty = snapshot.isDirty;
-		this.revision = snapshot.revision;
-		this.saveState = snapshot.saveState;
-		this.selectedSignalId = snapshot.selectedSignalId;
-		this.editorTabId = snapshot.editorTabId;
-	}
-
-	// Clears every active field after the final DreamView tab closes.
-	private ClearActiveTab(): void
-	{
-		this.SetActiveDream(null);
-		this.isDirty = false;
-		this.revision = 0;
-		this.saveState = "idle";
-		this.selectedSignalId = null;
-		this.editorTabId = "signals";
+		return tab;
 	}
 
 	// Returns whether the given DreamView matches the reader's normalized search query.
@@ -677,12 +766,19 @@ export class DreamStore
 	// Advances authoritative mutation metadata and returns an immutable result.
 	private RecordChange(): DreamChange
 	{
-		const wasDirty = this.isDirty;
-		this.isDirty = true;
-		this.revision += 1;
-		this.saveState = "idle";
+		const tab = this.GetActiveTab();
+
+		if (tab === null)
+		{
+			throw new Error("No active Dream editing session");
+		}
+
+		const wasDirty = tab.isDirty;
+		tab.isDirty = true;
+		tab.revision += 1;
+		tab.saveState = "idle";
 		this.SchedulePersistence();
-		const dream = structuredClone(this.activeDream as DreamView);
+		const dream = structuredClone(tab.dream);
 		const change: DreamChange = { dream, becameDirty: !wasDirty };
 
 		return change;
@@ -711,11 +807,17 @@ export class DreamStore
 	// Writes the active DreamView editing session to session storage.
 	private Persist(): void
 	{
-		if (this.activeDream !== null)
+		if (this.activeDreamId !== null)
 		{
-			this.CaptureActiveTab();
-			const snapshot: DreamTabsSnapshot = { tabs: structuredClone(this.openTabs), activeDreamId: this.activeDream.id };
+			const snapshot: DreamTabsSnapshot = { tabs: structuredClone(this.openTabs), activeDreamId: this.activeDreamId };
 			this.sessions.Save(DreamStore.SessionKey, snapshot);
 		}
+	}
+
+	// Persists remaining tabs or removes the session after the final tab disappears.
+	private PersistOrRemove(): void
+	{
+		if (this.activeDreamId === null) this.sessions.Remove(DreamStore.SessionKey);
+		else this.Persist();
 	}
 }

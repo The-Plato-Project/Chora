@@ -57,9 +57,9 @@ describe("MarkdownEditor", function MarkdownEditorTests()
 		const dream: DreamView = {
 			id: "dream", workId: "republic", dialogue: "Republic", title: "Descent",
 			source: selection,
-			signalIds: ["signal"],
 			signals: [{
 				id: "signal",
+				dreamId: "dream",
 				workId: "republic",
 				sourceRef: "s1",
 				text: "κατέβην",
@@ -71,7 +71,7 @@ describe("MarkdownEditor", function MarkdownEditorTests()
 			reflection: "A reflection", synopticView: "", linkedDreamIds: ["another"], createdAt: "2026-01-01", updatedAt: "2026-01-01"
 		};
 		const signal = dream.signals[0]!;
-		const markdown = SignalMarkdownDocument.Serialize(dream, signal);
+		const markdown = SignalMarkdownDocument.SerializeSection(dream, signal, 1);
 		expect(markdown).toContain("# Signal");
 		expect(markdown).toContain("> κατέβην");
 		expect(markdown).toContain("Source: Republic · s1");
@@ -265,9 +265,10 @@ describe("MarkdownEditor", function MarkdownEditorTests()
 		const dream: DreamView = {
 			id: "formatted", workId: "republic", dialogue: "Republic", title: "Formatting",
 			source: selection,
-			signalIds: ["one"],
+
 			signals: [{
 				id: "one",
+				dreamId: "formatted",
 				workId: "republic",
 				sourceRef: "s1",
 				selections: [selection],

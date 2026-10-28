@@ -1,3 +1,4 @@
+import { IpcErrorBoundary } from "../diagnostics/IpcErrorBoundary.js";
 import { clipboard, ipcMain } from "electron";
 import { IPC_CHANNELS } from "../../shared/contracts/IpcChannels.js";
 import { ShowDreamSourceContextMenu, ShowSelectionContextMenu } from "../shell/ContextMenu.js";
@@ -13,12 +14,12 @@ export class LibraryIpcController
 
 	public Register(): void
 	{
-		ipcMain.handle(IPC_CHANNELS.listLibraryTexts, () => this.service.ListAsync());
-		ipcMain.handle(IPC_CHANNELS.loadLibraryText, (_event, textId: string) => this.service.GetAsync(textId));
-		ipcMain.handle(IPC_CHANNELS.getSourceNotice, (_event, textId: string) => this.service.GetSourceNoticeAsync(textId));
-		ipcMain.handle(IPC_CHANNELS.showSelectionContextMenu, (_event, canAddSignal: boolean, canAddToDreamSource: boolean, canAddToCurrentSignal: boolean) => ShowSelectionContextMenu(canAddSignal, canAddToDreamSource, canAddToCurrentSignal));
-		ipcMain.handle(IPC_CHANNELS.showDreamSourceContextMenu, (_event, canAddToSelectedSignal: boolean) => ShowDreamSourceContextMenu(canAddToSelectedSignal));
-		ipcMain.handle(IPC_CHANNELS.copySelectedText, (_event, text: string) => clipboard.writeText(text));
+		IpcErrorBoundary.Register(IPC_CHANNELS.listLibraryTexts, () => this.service.ListAsync());
+		IpcErrorBoundary.Register(IPC_CHANNELS.loadLibraryText, (_event, textId: string) => this.service.GetAsync(textId));
+		IpcErrorBoundary.Register(IPC_CHANNELS.getSourceNotice, (_event, textId: string) => this.service.GetSourceNoticeAsync(textId));
+		IpcErrorBoundary.Register(IPC_CHANNELS.showSelectionContextMenu, (_event, canAddSignal: boolean, canAddToDreamSource: boolean, canAddToCurrentSignal: boolean) => ShowSelectionContextMenu(canAddSignal, canAddToDreamSource, canAddToCurrentSignal));
+		IpcErrorBoundary.Register(IPC_CHANNELS.showDreamSourceContextMenu, (_event, canAddToSelectedSignal: boolean) => ShowDreamSourceContextMenu(canAddToSelectedSignal));
+		IpcErrorBoundary.Register(IPC_CHANNELS.copySelectedText, (_event, text: string) => clipboard.writeText(text));
 	}
 
 	public Unregister(): void

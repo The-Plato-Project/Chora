@@ -24,6 +24,24 @@ function CreateSignal(id: string, segmentKey: string): SignalRecord
 	return signal;
 }
 
+// Adds a later passage without changing the Signal's original main passage.
+function AddPassage(signal: SignalRecord, segmentKey: string): SignalRecord
+{
+	const updated: SignalRecord = {
+		...signal,
+		selections: [
+			...signal.selections,
+			{
+				documentId: "republic",
+				start: { segmentKey, offset: 0 },
+				end: { segmentKey, offset: 3 }
+			}
+		]
+	};
+
+	return updated;
+}
+
 // Creates a text whose segment sequence defines canonical Signal order.
 function CreateDocument(): TextDocument
 {
@@ -62,5 +80,20 @@ describe("Signal order", function SignalOrderTests()
 		});
 
 		expect(identities).toEqual(["first-signal", "second-signal", "third-signal"]);
+	});
+
+	it("does not reorder a Signal by a passage added after its main passage", function PreservesMainPassageOrder(): void
+	{
+		const signals = [
+			AddPassage(CreateSignal("third-signal", "third"), "first"),
+			CreateSignal("second-signal", "second")
+		];
+		const ordered = OrderSignalsByText(CreateDocument(), signals);
+		const identities = ordered.map(function SelectIdentity(signal): string
+		{
+			return signal.id;
+		});
+
+		expect(identities).toEqual(["second-signal", "third-signal"]);
 	});
 });

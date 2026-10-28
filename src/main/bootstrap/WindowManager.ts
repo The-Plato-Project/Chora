@@ -1,3 +1,4 @@
+import { IpcErrorBoundary } from "../diagnostics/IpcErrorBoundary.js";
 import { app, BrowserWindow, type ContextMenuParams, type Event, type RenderProcessGoneDetails } from "electron";
 import path from "node:path";
 import { Errors } from "../diagnostics/MainErrorManager.js";
@@ -83,8 +84,16 @@ export class ChoraWindowManager
 		{
 			if (params.formControlType === "none")
 			{
-				const action = await ShowFormattingContextMenu(window, params);
-				if (!window.isDestroyed()) window.webContents.send(IPC_CHANNELS.showFormattingContextMenu, action);
+				try
+				{
+					const action = await ShowFormattingContextMenu(window, params);
+					if (!window.isDestroyed()) window.webContents.send(IPC_CHANNELS.showFormattingContextMenu, { ok: true, value: action });
+				}
+				catch (error)
+				{
+					const failure = IpcErrorBoundary.Capture(IPC_CHANNELS.showFormattingContextMenu, error);
+					if (!window.isDestroyed()) window.webContents.send(IPC_CHANNELS.showFormattingContextMenu, { ok: false, error: failure });
+				}
 			}
 			else ShowEditContextMenu(window, params);
 		}

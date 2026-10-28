@@ -5,22 +5,21 @@ import type { TextSelection } from "../../shared/text/TextSelection.js";
 import type { ErrorManager } from "../core/diagnostics/RendererErrorManager.js";
 import { LayoutSettings } from "../core/settings/LayoutSettingsStore.js";
 import { EscapeHtml } from "../ui/Html.js";
-import { AddIcon, CloseIcon, DocumentIcon, SearchIcon, SignalIcon, TextQuoteIcon, TrashIcon } from "../ui/Icons.js";
+import { CloseIcon, DocumentIcon, OpenIcon, SearchIcon, SignalIcon, TextQuoteIcon, TrashIcon } from "../ui/Icons.js";
 import { MarkdownEditor } from "../ui/MarkdownEditor.js";
 import { TabPanel } from "../ui/TabPanel.js";
-import { SignalRemovalConfirmation, type SignalAssociationOwner } from "./SignalRemovalConfirmation.js";
+import { SignalRemovalConfirmation } from "./SignalRemovalConfirmation.js";
 
 // Represents the common Signal shape displayed by document editors.
 export type SignalViewRecord = SignalRecord;
+export type SignalPassageKind = "source" | "external";
 
-// Owns the shared Signal navigation and description presentation.
+// Owns Dream Signal navigation and description presentation.
 export abstract class SignalViewPanel extends TabPanel
 {
 	// Contains Signal navigation rows.
 	private readonly list: HTMLElement = document.createElement("div");
-	// Contains the shared Signal title and connected-Signal search.
-	private readonly header: HTMLElement = document.createElement("header");
-	// Filters Signals already connected to the owning document.
+	// Filters Signals already connected to the Dream.
 	private readonly search: HTMLElement = document.createElement("label");
 	// Contains the bounded Signal navigation and editor panes.
 	private readonly body: HTMLElement = document.createElement("div");
@@ -52,54 +51,31 @@ export abstract class SignalViewPanel extends TabPanel
 	private readonly resizeUpHandler = this.HandleResizePointerUp.bind(this);
 	// Supports keyboard resizing from the Signal divider.
 	private readonly resizeKeyHandler = this.HandleResizeKeyDown.bind(this);
-	// Identifies the selected Signal.
-	private selectedSignalId: string | null = null;
+	// Identifies the selected exact passage within one Signal.
+	private selectedPassage: { signalId: string; selectionIndex: number } | null = null;
 	// Contains the latest connected Signals in display order.
 	private records: readonly SignalViewRecord[] = [];
 	// Contains the source text used to reconstruct exact passage labels.
 	private textDocument: TextDocument | null = null;
 	// Contains an active Signal navigation resize gesture.
 	private resizeDrag: { pointerId: number; x: number; width: number } | null = null;
-	// Ensures only the latest reveal request may scroll.
-	private revealVersion = 0;
-	// Contains the optional owner-specific add action.
-	private readonly addButton: HTMLButtonElement | null;
-	// Confirms removal of the selected Signal from its current document.
+	// Confirms removal of the selected Signal from its Dream.
 	private readonly removalConfirmation = new SignalRemovalConfirmation();
 
 	// Creates one reusable Signal list/detail panel.
-	protected constructor(errors: ErrorManager, showAddSignal = true, showHeader = true)
+	protected constructor(errors: ErrorManager)
 	{
 		super("signals", "Signals");
 		this.errors = errors;
 		this.Root.classList.add("signal-view-panel");
-		this.header.className = "signal-view-header";
 		this.search.className = "signal-view-search dream-search";
 		this.search.innerHTML = `${SearchIcon}<input data-signal-view-search type="search" aria-label="Search connected Signals" placeholder="Search">`;
-		this.header.innerHTML = "<h3>Signals</h3>";
 		this.body.className = "signal-view-body";
 		const navigationWidth = LayoutSettings.GetDimension("signalNavigationWidth", 0);
 		if (navigationWidth > 0) this.body.style.setProperty("--signal-navigation-width", `${navigationWidth}px`);
 		this.list.className = "signal-list";
 		this.list.setAttribute("aria-label", "Signals");
 		this.list.append(this.search);
-		let addButton: HTMLButtonElement | null = null;
-		if (showAddSignal)
-		{
-			addButton = document.createElement("button");
-			addButton.type = "button";
-			addButton.className = "signal-view-add button-control";
-			addButton.dataset.signalViewAdd = "";
-			addButton.innerHTML = `${AddIcon}<span>Add new</span>`;
-			addButton.title = "Add new Signal";
-			addButton.setAttribute("aria-label", "Add new Signal");
-			this.header.append(addButton);
-		}
-		this.addButton = addButton;
-		if (!showHeader)
-		{
-			this.Root.classList.add("signal-view-panel-without-header");
-		}
 		this.divider.className = "signal-view-divider";
 		this.divider.setAttribute("role", "separator");
 		this.divider.setAttribute("aria-label", "Resize Signal list");
@@ -107,10 +83,9 @@ export abstract class SignalViewPanel extends TabPanel
 		this.divider.tabIndex = 0;
 		this.detail.className = "signal-detail";
 		this.empty.className = "signal-view-empty-state";
-		this.empty.innerHTML = `<span class="signal-view-empty-icon" aria-hidden="true">${DocumentIcon}</span><strong>No Signals.</strong><span>Add signals to capture key readings, words, or ideas.</span>`;
+		this.empty.innerHTML = `<span class="signal-view-empty-icon" aria-hidden="true">${DocumentIcon}</span><strong>No Signals.</strong><span>Add signals to capture key readings, words, or phrases.</span>`;
 		this.detail.append(this.empty);
 		this.body.append(this.list, this.divider, this.detail);
-		if (showHeader) this.Root.append(this.header);
 		this.Root.append(this.body);
 		this.Root.addEventListener("click", this.clickHandler);
 		this.Root.addEventListener("input", this.inputHandler);
@@ -127,24 +102,11 @@ export abstract class SignalViewPanel extends TabPanel
 	// Reports application failures from Signal description editors.
 	private readonly errors: ErrorManager;
 
-	// Moves the optional add action into the owner-provided header.
-	public AttachAddSignalAction(host: HTMLElement): void
-	{
-		if (this.addButton !== null)
-		{
-			host.append(this.addButton);
-			this.addButton.addEventListener("click", this.clickHandler);
-		}
-	}
-
 	// Returns the owner-remembered Signal selection.
 	protected abstract GetRememberedSignal(): string | null;
 
-	// Records a changed Signal selection with the owning document.
+	// Records a changed Signal selection with the Dream.
 	protected abstract RememberSignal(signalId: string | null): void;
-
-	// Publishes the Signal that may receive another source component.
-	protected abstract NotifyActiveSignal(signalId: string | null, selections: readonly TextSelection[]): void;
 
 	// Navigates the reader to one Signal.
 	protected abstract ViewSignalAsync(signalId: string): Promise<void>;
@@ -152,29 +114,16 @@ export abstract class SignalViewPanel extends TabPanel
 	// Navigates the reader to one exact passage inside a Signal.
 	protected abstract ViewSignalSelection(selection: TextSelection): void;
 
-	// Returns the document type that owns the displayed Signal association.
-	protected abstract GetAssociationOwner(): SignalAssociationOwner;
-
-	// Removes one Signal association from the owning document.
-	protected abstract RemoveSignalAssociation(signalId: string): void;
-
-	// Deletes one Signal from every owning document.
-	protected abstract DeleteSignalEverywhereAsync(signalId: string): Promise<boolean>;
-
-	// Appends owner-specific commands to one Signal action row.
-	protected AppendSignalActions(_actions: HTMLElement, _signalId: string): void
+	// Classifies one passage relative to the Dream source.
+	protected GetPassageKind(_selection: TextSelection): SignalPassageKind
 	{
+		return "external";
 	}
 
-	// Handles an owner-specific Signal command.
-	protected HandleSignalAction(_target: HTMLElement | null): boolean
-	{
-		const handled = false;
+	// Deletes one Signal from its owning Dream.
+	protected abstract DeleteSignalAsync(signalId: string): Promise<boolean>;
 
-		return handled;
-	}
-
-	// Persists one shared Signal description.
+	// Persists one Dream-owned Signal description.
 	protected abstract UpdateSignalDescription(signalId: string, description: string): void;
 
 	// Persists one reader-authored Signal title.
@@ -182,11 +131,6 @@ export abstract class SignalViewPanel extends TabPanel
 
 	// Removes one passage while retaining the Signal and its remaining passages.
 	protected abstract RemoveSignalSelection(signalId: string, selectionIndex: number): void;
-
-	// Starts an optional owner-specific workflow for adding a Signal.
-	protected AddSignal(): void
-	{
-	}
 
 	// Reconciles Signal rows while preserving selection and editor state.
 	protected UpdateSignals(signals: readonly SignalViewRecord[], document: TextDocument | null = null): void
@@ -201,6 +145,7 @@ export abstract class SignalViewPanel extends TabPanel
 		{
 			if (!ids.has(id))
 			{
+				if (this.selectedPassage?.signalId === id) this.selectedPassage = null;
 				this.editors.get(id)?.Dispose();
 				this.editors.delete(id);
 				row.remove();
@@ -257,50 +202,25 @@ export abstract class SignalViewPanel extends TabPanel
 			if (titleInput !== null && document.activeElement !== titleInput) titleInput.value = title;
 			this.RenderPassages(signal, row);
 			this.editors.get(signal.id)?.SetMarkdown(signal.description);
-			if (this.selectedSignalId === signal.id) this.NotifyActiveSignal(signal.id, signal.selections);
 		}
 	}
 
-	// Selects and optionally reveals one Signal after its editor is ready.
-	public async ShowSignalAsync(signalId: string, reveal = true): Promise<void>
+	// Selects one explicitly requested Signal without scrolling or moving focus.
+	public async ShowSignalAsync(signalId: string): Promise<void>
 	{
 		const row = this.rows.get(signalId);
 		const header = this.navigation.get(signalId);
-		this.revealVersion += 1;
-		const version = this.revealVersion;
 
 		if (row !== undefined && header !== undefined)
 		{
 			this.SelectSignal(signalId);
-			const editor = this.editors.get(signalId);
-
-			if (editor !== undefined)
-			{
-				await editor.Ready;
-				const canReveal = version === this.revealVersion
-					&& row.isConnected
-					&& header.isConnected
-					&& !this.Root.hidden
-					&& !row.hidden;
-
-				if (canReveal)
-				{
-					editor.Focus();
-
-					if (reveal)
-					{
-						header.scrollIntoView({ block: "nearest", behavior: "smooth" });
-						row.scrollIntoView({ block: "nearest", behavior: "smooth" });
-					}
-				}
-			}
+			await Promise.resolve();
 		}
 	}
 
 	// Releases Signal editors and retained browser listeners.
 	public override Dispose(): void
 	{
-		this.revealVersion += 1;
 		this.Root.removeEventListener("click", this.clickHandler);
 		this.Root.removeEventListener("input", this.inputHandler);
 		this.Root.removeEventListener("change", this.changeHandler);
@@ -311,7 +231,6 @@ export abstract class SignalViewPanel extends TabPanel
 		this.divider.removeEventListener("pointercancel", this.resizeUpHandler);
 		this.divider.removeEventListener("lostpointercapture", this.resizeUpHandler);
 		this.divider.removeEventListener("keydown", this.resizeKeyHandler);
-		this.addButton?.removeEventListener("click", this.clickHandler);
 		this.removalConfirmation.Dispose();
 
 		for (const editor of this.editors.values()) editor.Dispose();
@@ -425,16 +344,22 @@ export abstract class SignalViewPanel extends TabPanel
 			identity.innerHTML = `<label class="signal-title-field"><span>Signal title</span><input data-signal-title="${EscapeHtml(signal.id)}" type="text" value="${EscapeHtml(this.GetSignalTitle(signal))}" aria-label="Signal title"></label><section class="signal-passages" aria-label="Signal passages"><strong>Passages</strong><div data-signal-passages="${EscapeHtml(signal.id)}"></div></section>`;
 			const actions = document.createElement("div");
 			actions.className = "signal-editor-actions";
-			this.AppendSignalActions(actions, signal.id);
-			const removeLabel = `Remove from ${this.GetAssociationOwner()}`;
+			const jumpButton = document.createElement("button");
+			jumpButton.type = "button";
+			jumpButton.className = "signal-jump button-control";
+			jumpButton.dataset.jumpSignal = signal.id;
+			jumpButton.title = "Jump to Signal in text";
+			jumpButton.setAttribute("aria-label", "Jump to Signal in text");
+			jumpButton.innerHTML = OpenIcon;
+			const removeLabel = "Delete Signal";
 			const removeButton = document.createElement("button");
 			removeButton.type = "button";
-			removeButton.className = "signal-remove-association button-control";
-			removeButton.dataset.removeSignalAssociation = signal.id;
+			removeButton.className = "signal-delete button-control";
+			removeButton.dataset.deleteSignal = signal.id;
 			removeButton.title = removeLabel;
 			removeButton.setAttribute("aria-label", removeLabel);
 			removeButton.innerHTML = TrashIcon;
-			actions.append(removeButton);
+			actions.append(jumpButton, removeButton);
 			identity.append(actions);
 			body.append(identity);
 			this.RenderPassages(signal, row);
@@ -454,10 +379,7 @@ export abstract class SignalViewPanel extends TabPanel
 	// Selects one Signal and updates navigation accessibility state.
 	private SelectSignal(signalId: string | null): void
 	{
-		this.selectedSignalId = signalId;
 		this.RememberSignal(signalId);
-		const signal = this.records.find((candidate) => candidate.id === signalId);
-		this.NotifyActiveSignal(signalId, signal?.selections ?? []);
 
 		for (const [id, row] of this.rows)
 		{
@@ -496,18 +418,16 @@ export abstract class SignalViewPanel extends TabPanel
 
 		if (title !== null) title.textContent = this.records.length === 0 ? "No Signals." : "No matching Signals.";
 		if (explanation !== null) explanation.textContent = this.records.length === 0
-			? "Add signals to capture key readings, words, or ideas."
+			? "Add signals to capture key readings, words, or phrases."
 			: "Try a different search.";
 
 		const remembered = this.GetRememberedSignal();
 		const selected = remembered !== null && matchingIds.has(remembered)
 			? remembered
-			: this.selectedSignalId !== null && matchingIds.has(this.selectedSignalId)
-				? this.selectedSignalId
-				: this.records.find(function FindMatching(signal): boolean
-				{
-					return matchingIds.has(signal.id);
-				})?.id ?? null;
+			: this.records.find(function FindMatching(signal): boolean
+			{
+				return matchingIds.has(signal.id);
+			})?.id ?? null;
 		this.SelectSignal(selected);
 	}
 
@@ -545,32 +465,57 @@ export abstract class SignalViewPanel extends TabPanel
 		}
 	}
 
-	// Routes Signal selection and removal commands.
+	// Routes Signal selection, explicit navigation, and removal commands.
 	private HandleClick(event: Event): void
 	{
 		const target = event.target as HTMLElement | null;
-		const passageButton = target?.closest<HTMLButtonElement>("[data-view-signal-passage]") ?? null;
+		const passage = target?.closest<HTMLElement>("[data-signal-passage-index]") ?? null;
+		const jumpPassageButton = target?.closest<HTMLButtonElement>("[data-jump-signal-passage]") ?? null;
 		const removePassageButton = target?.closest<HTMLButtonElement>("[data-remove-signal-passage]") ?? null;
-		const removeButton = target?.closest<HTMLButtonElement>("[data-remove-signal-association]") ?? null;
-		let handled = removeButton !== null || passageButton !== null || removePassageButton !== null;
+		const jumpSignalButton = target?.closest<HTMLButtonElement>("[data-jump-signal]") ?? null;
+		const removeButton = target?.closest<HTMLButtonElement>("[data-delete-signal]") ?? null;
+		const handled = removeButton !== null
+			|| passage !== null
+			|| removePassageButton !== null
+			|| jumpSignalButton !== null;
 
-		if (passageButton !== null)
-		{
-			const signalId = passageButton.dataset.signalId;
-			const selectionIndex = Number.parseInt(passageButton.dataset.viewSignalPassage ?? "", 10);
-			const signal = this.records.find((candidate) => candidate.id === signalId);
-			const selection = signal?.selections[selectionIndex];
-			if (selection !== undefined) this.ViewSignalSelection(selection);
-		}
-		else if (removePassageButton !== null)
+		if (removePassageButton !== null)
 		{
 			const signalId = removePassageButton.dataset.signalId;
 			const selectionIndex = Number.parseInt(removePassageButton.dataset.removeSignalPassage ?? "", 10);
 			if (signalId !== undefined && Number.isInteger(selectionIndex)) this.RemoveSignalSelection(signalId, selectionIndex);
 		}
+		else if (jumpPassageButton !== null && passage !== null)
+		{
+			const signalId = passage.dataset.signalId;
+			const selectionIndex = Number.parseInt(passage.dataset.signalPassageIndex ?? "", 10);
+			const signal = this.records.find((candidate) => candidate.id === signalId);
+			const selection = signal?.selections[selectionIndex];
+
+			if (signalId !== undefined && selection !== undefined)
+			{
+				this.SelectPassage(signalId, selectionIndex);
+				this.ViewSignalSelection(selection);
+			}
+		}
+		else if (passage !== null && !this.HasSelectedText(passage))
+		{
+			const signalId = passage.dataset.signalId;
+			const selectionIndex = Number.parseInt(passage.dataset.signalPassageIndex ?? "", 10);
+
+			if (signalId !== undefined && Number.isInteger(selectionIndex))
+			{
+				this.SelectPassage(signalId, selectionIndex);
+			}
+		}
+		else if (jumpSignalButton !== null)
+		{
+			const signalId = jumpSignalButton.dataset.jumpSignal;
+			if (signalId !== undefined) void this.ViewSignalAsync(signalId);
+		}
 		else if (removeButton !== null)
 		{
-			const signalId = removeButton.dataset.removeSignalAssociation;
+			const signalId = removeButton.dataset.deleteSignal;
 			const signal = this.records.find(function FindSignal(candidate): boolean
 			{
 				return candidate.id === signalId;
@@ -580,29 +525,19 @@ export abstract class SignalViewPanel extends TabPanel
 			{
 				this.removalConfirmation.Open(
 					signal.text,
-					this.GetAssociationOwner(),
 					removeButton,
-					this.RemoveSignalAssociation.bind(this, signalId),
-					this.DeleteSignalEverywhereAsync.bind(this, signalId));
+					this.DeleteSignalAsync.bind(this, signalId));
 			}
 		}
-		else
-		{
-			handled = this.HandleSignalAction(target);
-		}
-		const addSignal = target?.closest("[data-signal-view-add]") !== null;
-
-		if (!handled && addSignal) this.AddSignal();
 		const toggleButton = target?.closest<HTMLButtonElement>("[data-signal-toggle]");
 
-		if (!handled && !addSignal && toggleButton !== null && toggleButton !== undefined)
+		if (!handled && toggleButton !== null && toggleButton !== undefined)
 		{
 			const signalId = toggleButton.dataset.signalToggle;
 
 			if (signalId !== undefined)
 			{
-				void this.ShowSignalAsync(signalId, false);
-				void this.ViewSignalAsync(signalId);
+				void this.ShowSignalAsync(signalId);
 			}
 		}
 	}
@@ -624,23 +559,66 @@ export abstract class SignalViewPanel extends TabPanel
 		if (host !== null)
 		{
 			host.replaceChildren();
+			if (this.selectedPassage?.signalId === signal.id
+				&& this.selectedPassage.selectionIndex >= signal.selections.length)
+			{
+				this.selectedPassage = null;
+			}
 
 			for (const [index, selection] of signal.selections.entries())
 			{
 				const passage = document.createElement("div");
-				passage.className = "signal-passage";
+				const kind = this.GetPassageKind(selection);
+				const selected = this.selectedPassage?.signalId === signal.id
+					&& this.selectedPassage.selectionIndex === index;
+				const removable = signal.selections.length > 1;
+				passage.className = `signal-passage signal-passage-${kind}${removable ? " signal-passage-removable" : ""}${selected ? " selected" : ""}`;
+				passage.dataset.signalId = signal.id;
+				passage.dataset.signalPassageIndex = `${index}`;
+				passage.dataset.signalPassageKind = kind;
+				passage.setAttribute("aria-current", String(selected));
 				const text = this.textDocument?.id === selection.documentId
 					? this.textDocument.ReconstructText(selection)
 					: index === 0
 						? signal.text
 						: `Passage ${index + 1}`;
-				const removePassage = signal.selections.length > 1
+				const passageLabel = kind === "source" ? "Dream source passage" : "External passage";
+				const icon = kind === "source" ? TextQuoteIcon : OpenIcon;
+				const removePassage = removable
 					? `<button class="signal-passage-remove button-control" data-remove-signal-passage="${index}" data-signal-id="${EscapeHtml(signal.id)}" type="button" title="Remove passage" aria-label="Remove passage">${CloseIcon}</button>`
 					: "";
-				passage.innerHTML = `<span class="signal-passage-icon" aria-hidden="true">${TextQuoteIcon}</span><button class="signal-passage-text" data-view-signal-passage="${index}" data-signal-id="${EscapeHtml(signal.id)}" type="button" title="View passage in text">${EscapeHtml(text)}</button>${removePassage}`;
+				passage.innerHTML = `<span class="signal-passage-text" title="${passageLabel}">${EscapeHtml(text)}</span><button class="signal-passage-navigation button-control" data-jump-signal-passage type="button" title="Jump to ${passageLabel.toLocaleLowerCase()} in text" aria-label="Jump to ${passageLabel.toLocaleLowerCase()} in text">${icon}</button>${removePassage}`;
 				host.append(passage);
 			}
 		}
+	}
+
+	// Selects one passage row without changing its Signal identity.
+	private SelectPassage(signalId: string, selectionIndex: number): void
+	{
+		this.selectedPassage = { signalId, selectionIndex };
+		const passages = this.Root.querySelectorAll<HTMLElement>("[data-signal-passage-index]");
+
+		for (const passage of Array.from(passages))
+		{
+			const selected = passage.dataset.signalId === signalId
+				&& Number.parseInt(passage.dataset.signalPassageIndex ?? "", 10) === selectionIndex;
+			passage.classList.toggle("selected", selected);
+			passage.setAttribute("aria-current", String(selected));
+		}
+	}
+
+	// Preserves native browser selection instead of treating a completed drag as navigation.
+	private HasSelectedText(passage: HTMLElement): boolean
+	{
+		const selection = window.getSelection();
+		const hasSelection = selection !== null
+			&& !selection.isCollapsed
+			&& selection.toString().length > 0;
+		const anchorInside = hasSelection && selection?.anchorNode !== null && passage.contains(selection.anchorNode);
+		const focusInside = hasSelection && selection?.focusNode !== null && passage.contains(selection.focusNode);
+
+		return anchorInside || focusInside;
 	}
 
 	// Routes one description edit to the owning workflow.

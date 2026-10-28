@@ -8,9 +8,7 @@
 	--side-panel-background: #f8f9fb;
 	--signal-observation-background: #f3f4f7;
 	--signal-toolbar-background: #eceef2;
-	--idea-raised-background: #edf1f4;
-	--idea-input-background: #ffffff;
-	--idea-accent-foreground: #ffffff;
+	--editor-input-background: #ffffff;
 	--dream-background: #ffffff;
 	--dream-raised: #f7f8fa;
 	--dream-divider: #e3e4e8;
@@ -175,12 +173,6 @@ body {
 	color: #42444a;
 }
 
-.dream-action-link {
-	color: #0967c9;
-	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-	font-weight: 500;
-}
-
 .signal-list {
 	gap: 0;
 	border-top: 1px solid #e8e8ea;
@@ -210,12 +202,6 @@ body {
 .dream-field textarea:focus {
 	border-color: #78aeea;
 	outline: 3px solid rgba(88, 156, 231, 0.15);
-}
-
-.idea-panel {
-	background: var(--side-panel-background);
-	color: var(--app-text);
-	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 .app-setting-stepper {
@@ -561,8 +547,7 @@ html {
 	color: var(--muted-text);
 }
 
-.shell .passage-dream-button,
-.shell .passage-idea-button {
+.shell .passage-dream-button {
 	width: 16px;
 	height: 16px;
 	flex: 0 0 16px;
@@ -571,14 +556,12 @@ html {
 	color: var(--app-text);
 }
 
-.shell .passage-dream-button svg,
-.shell .passage-idea-button svg {
+.shell .passage-dream-button svg {
 	width: 11px;
 	height: 11px;
 }
 
-.shell .passage-dream-button:focus-visible,
-.shell .passage-idea-button:focus-visible {
+.shell .passage-dream-button:focus-visible {
 	color: var(--accent);
 }
 
