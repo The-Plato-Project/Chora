@@ -1,14 +1,23 @@
+import type { ChatConversationSnapshot, SendChatMessageCommand } from "../shared/chat/ChatTypes.js";
+import type { AvailableModel } from "../shared/models/ModelSelection.js";
 import type { OperationResult } from "../shared/diagnostics/OperationResult.js";
 import type { ErrorRecord } from "../shared/diagnostics/DiagnosticManager.js";
 import type { DreamTrashSnapshot } from "../shared/dreams/DreamTrashTypes.js";
 import { contextBridge, ipcRenderer } from "electron";
 import type { SelectionAction } from "../shared/text/TextSelection.js";
 import type { TextDocument, LibraryTextSummary, SourceNotice } from "../shared/library/LibraryTypes.js";
-import type { CreateDreamCommand, CreateDreamFolderCommand, DeleteDreamFolderCommand, DreamCatalogueSnapshot, DreamFolderSnapshot, DreamLocationSnapshot, DreamSnapshot, DreamSynopticViewRequest, MoveDreamCommand, UpdateDreamCommand } from "../shared/dreams/DreamTypes.js";
+import type { CreateDreamCommand, CreateDreamFolderCommand, DeleteDreamFolderCommand, DreamCatalogueSnapshot, DreamFolderSnapshot, DreamLocationSnapshot, DreamSnapshot, MoveDreamCommand, UpdateDreamCommand } from "../shared/dreams/DreamTypes.js";
 import type { CreateSignalCommand, DeleteSignalCommand, SignalRecord, UpdateSignalCommand } from "../shared/signals/SignalTypes.js";
 import { IPC_CHANNELS } from "../shared/contracts/IpcChannels.js";
 import type { ApiSubscription, ChoraApi, FormattingAction } from "../shared/contracts/ChoraApi.js";
 import type { LookupBounds, LookupCommand, LookupState } from "../shared/library/LookupTypes.js";
+
+// Lists models without exposing credentials or accepting renderer-controlled configuration.
+async function ListModels(): Promise<OperationResult<readonly AvailableModel[]>>
+{
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.listModels);
+	return result as OperationResult<readonly AvailableModel[]>;
+}
 
 async function ListLibraryTexts(): Promise<OperationResult<LibraryTextSummary[]>>
 {
@@ -188,19 +197,6 @@ async function MoveDream(command: MoveDreamCommand): Promise<OperationResult<Dre
 	return result as OperationResult<DreamLocationSnapshot>;
 }
 
-async function CreateDreamSynopticView(request: DreamSynopticViewRequest): Promise<OperationResult<string>>
-{
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.createDreamSynopticView, request);
-
-	return result as OperationResult<string>;
-}
-
-async function CancelDreamSynopticView(dreamId: string): Promise<OperationResult<void>>
-{
-	const response = await ipcRenderer.invoke(IPC_CHANNELS.cancelDreamSynopticView, dreamId);
-	return response as OperationResult<void>;
-}
-
 // Invokes the narrow ListDreamTrash command.
 async function ListDreamTrash(): Promise<OperationResult<readonly DreamTrashSnapshot[]>>
 {
@@ -252,7 +248,32 @@ function SubscribeDiagnostics(callback: (record: ErrorRecord) => void): ApiSubsc
 	return Unsubscribe;
 }
 
+// Opens only the conversation belonging to a canonical feature identifier.
+async function OpenChat(id: string): Promise<OperationResult<ChatConversationSnapshot | null>>
+{
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.openChat, id);
+	return result as OperationResult<ChatConversationSnapshot | null>;
+}
+
+// Transports the narrow reader turn without assembling model instructions.
+async function SendChat(command: SendChatMessageCommand): Promise<OperationResult<ChatConversationSnapshot>>
+{
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.sendChat, command);
+	return result as OperationResult<ChatConversationSnapshot>;
+}
+
+// Requests cancellation independently of the active send invocation.
+async function CancelChat(id: string): Promise<OperationResult<void>>
+{
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.cancelChat, id);
+	return result as OperationResult<void>;
+}
+
 const api: ChoraApi = {
+	OpenChat,
+	SendChat,
+	CancelChat,
+	ListModels,
 	RecordDiagnostic,
 	SubscribeDiagnostics,
 	ListLibraryTexts,
@@ -282,9 +303,7 @@ const api: ChoraApi = {
 	ListDreamCatalogue,
 	CreateDreamFolder,
 	DeleteDreamFolder,
-	MoveDream,
-	CreateDreamSynopticView,
-	CancelDreamSynopticView
+	MoveDream
 };
 
 contextBridge.exposeInMainWorld("chora", api);

@@ -14,7 +14,6 @@ function BuildDreamSnapshot(record: ParsedDreamData): DreamSnapshot | null
 		&& record.id !== undefined
 		&& record.workId !== undefined
 		&& record.dialogue !== undefined
-		&& typeof record.synopticView === "string"
 		&& Array.isArray(record.linkedDreamIds)
 		&& typeof record.createdAt === "string"
 		&& typeof record.updatedAt === "string";
@@ -30,7 +29,6 @@ function BuildDreamSnapshot(record: ParsedDreamData): DreamSnapshot | null
 			source: DecodeTextSelection(source),
 			signals: [],
 			reflection: record.reflection,
-			synopticView: record.synopticView,
 			linkedDreamIds: Array.from(new Set(record.linkedDreamIds)),
 			createdAt: record.createdAt,
 			updatedAt: record.updatedAt
@@ -74,7 +72,6 @@ export function SerializeDreamMarkdown(dream: DreamSnapshot): string
 		workId: dream.workId,
 		dialogue: dream.dialogue,
 		source: dream.source,
-		synopticView: dream.synopticView,
 		linkedDreamIds: dream.linkedDreamIds,
 		createdAt: dream.createdAt,
 		updatedAt: dream.updatedAt

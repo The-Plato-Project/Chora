@@ -47,7 +47,6 @@ function CreateDream(id = "dream-1", title = "Descent"): DreamSnapshot
 		},
 		signals: [],
 		reflection: "",
-		synopticView: "",
 		linkedDreamIds: [],
 		createdAt: "2026-01-01T00:00:00.000Z",
 		updatedAt: "2026-01-01T00:00:00.000Z"
@@ -206,12 +205,12 @@ describe("DreamLibrary", function DreamLibraryTests()
 			await blocked;
 			await save(record, previous);
 		});
-		const update = context.library.UpdateAsync({ dreamId: owner.id, title: "", source: owner.source, reflection: "New reflection", synopticView: "", linkedDreamIds: [] });
+		const update = context.library.UpdateAsync({ dreamId: owner.id, title: "", source: owner.source, reflection: "New reflection", linkedDreamIds: [] });
 		await entered;
 		const signal = context.library.CreateSignalAsync({ dreamId: owner.id, selection: owner.source });
 		try
 		{
-			await context.library.UpdateAsync({ dreamId: other.id, title: "Independent", source: other.source, reflection: "", synopticView: "", linkedDreamIds: [] });
+			await context.library.UpdateAsync({ dreamId: other.id, title: "Independent", source: other.source, reflection: "", linkedDreamIds: [] });
 		}
 		finally
 		{
@@ -231,7 +230,7 @@ describe("DreamLibrary", function DreamLibraryTests()
 		const owner = await context.library.CreateAsync({ workId: "republic", dialogue: "Republic", source: CreateDream().source, folderPath: "" });
 		const failure = new Error("Disk unavailable");
 		vi.spyOn(context.dreams, "SaveAsync").mockRejectedValueOnce(failure);
-		const command = { dreamId: owner.id, title: "", source: owner.source, reflection: "", synopticView: "", linkedDreamIds: [] };
+		const command = { dreamId: owner.id, title: "", source: owner.source, reflection: "", linkedDreamIds: [] };
 		const failed = context.library.UpdateAsync({ ...command, reflection: "Failed" });
 		const next = context.library.UpdateAsync({ ...command, reflection: "Recovered" });
 		const results = await Promise.allSettled([failed, next]);
@@ -275,7 +274,6 @@ describe("DreamLibrary", function DreamLibraryTests()
 			title: "Attention",
 			source: created.source,
 			reflection: created.reflection,
-			synopticView: created.synopticView,
 			linkedDreamIds: created.linkedDreamIds
 		});
 

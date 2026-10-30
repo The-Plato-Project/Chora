@@ -3,26 +3,26 @@
 
 :root[data-theme="dark"] {
 	color-scheme: dark;
-	--app-background: #0f171d;
-	--panel-background: #10181e;
-	--side-panel-background: #172229;
-	--signal-observation-background: #141e24;
-	--signal-toolbar-background: #111a20;
-	--editor-input-background: #111b22;
-	--dream-background: #10181e;
-	--dream-raised: #172128;
-	--dream-divider: #25343e;
-	--dream-muted: #95a8b9;
-	--dream-accent: #60bbf0;
-	--dream-selection: #1b3042;
-	--panel-border: #25343e;
-	--app-text: #e1e5e9;
-	--muted-text: #9babb9;
-	--accent: #60bbf0;
-	--accent-soft: #1b3042;
+	--app-background: #101010;
+	--panel-background: #191919;
+	--side-panel-background: #202020;
+	--signal-observation-background: #191919;
+	--signal-toolbar-background: #262626;
+	--editor-input-background: #303030;
+	--dream-background: #191919;
+	--dream-raised: #262626;
+	--dream-divider: #444444;
+	--dream-muted: #aaaaaa;
+	--dream-accent: #cccccc;
+	--dream-selection: #414141;
+	--panel-border: #444444;
+	--app-text: #e8e8e8;
+	--muted-text: #aaaaaa;
+	--accent: #cccccc;
+	--accent-soft: #414141;
 	--danger: #ff8c8c;
-	--reader-background: #10181e;
-	--reader-foreground: #e1e5e9;
+	--reader-background: #151515;
+	--reader-foreground: #e8e8e8;
 }
 
 :root[data-theme="dark"] .shell,
@@ -119,5 +119,38 @@
 }
 
 :root[data-theme="dark"] .signal-row {
-	background: var(--dream-raised);
+	background: transparent;
+}
+
+/* Keep the Dream canvas, source cards, and writing boxes visibly distinct. */
+:root[data-theme="dark"] .right-panel,
+:root[data-theme="dark"] .dream-panel,
+:root[data-theme="dark"] .dream-document-bar,
+:root[data-theme="dark"] .dream-document-tabs,
+:root[data-theme="dark"] .dream-document-actions {
+	background: var(--panel-background);
+}
+
+:root[data-theme="dark"] .center-panel,
+:root[data-theme="dark"] #readingPane {
+	background: var(--reader-background);
+}
+
+:root[data-theme="dark"] .workspace-explorer .workspace-search {
+	background: var(--editor-input-background);
+}
+
+:root[data-theme="dark"] .signal-list .signal-view-search {
+	background: transparent;
+}
+
+:root[data-theme="dark"] .document-interpretation input:focus-visible,
+:root[data-theme="dark"] .signal-view-search input:focus-visible,
+:root[data-theme="dark"] .signal-observation .signal-markdown-editor:focus-within {
+	outline: 2px solid var(--accent);
+	outline-offset: 1px;
+}
+:root[data-theme="dark"] .signal-observation .signal-markdown-editor:focus-within {
+	outline: 1px solid rgba(190, 190, 190, 0.3);
+	outline-offset: 0;
 }

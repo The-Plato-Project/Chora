@@ -1,6 +1,6 @@
 import { ReadOperationAsync } from "../../shared/diagnostics/OperationResult.js";
 import type { DreamTrashSnapshot } from "../../shared/dreams/DreamTrashTypes.js";
-import type { CreateDreamCommand, CreateDreamFolderCommand, DeleteDreamFolderCommand, DreamCatalogueSnapshot, DreamFolderSnapshot, DreamLocationSnapshot, DreamSnapshot, DreamSynopticViewRequest, MoveDreamCommand, UpdateDreamCommand } from "../../shared/dreams/DreamTypes.js";
+import type { CreateDreamCommand, CreateDreamFolderCommand, DeleteDreamFolderCommand, DreamCatalogueSnapshot, DreamFolderSnapshot, DreamLocationSnapshot, DreamSnapshot, MoveDreamCommand, UpdateDreamCommand } from "../../shared/dreams/DreamTypes.js";
 import type { SelectionAction } from "../../shared/text/TextSelection.js";
 
 // Stateless IPC client for the DreamView use cases exposed by the main process.
@@ -90,13 +90,4 @@ export class DreamGateway
 		return ReadOperationAsync(window.chora.ShowDreamSourceContextMenu(canAddToSelectedSignal));
 	}
 
-	public CreateSynopticViewAsync(request: DreamSynopticViewRequest): Promise<string>
-	{
-		return ReadOperationAsync(window.chora.CreateDreamSynopticView(request));
-	}
-
-	public CancelSynopticViewAsync(dreamId: string): Promise<void>
-	{
-		return ReadOperationAsync(window.chora.CancelDreamSynopticView(dreamId));
-	}
 }

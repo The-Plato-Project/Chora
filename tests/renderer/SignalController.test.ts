@@ -45,7 +45,6 @@ function CreateDream(signals: SignalRecord[] = []): DreamView
 		source,
 		signals,
 		reflection: "",
-		synopticView: "",
 		linkedDreamIds: [],
 		createdAt: "2026-01-01",
 		updatedAt: "2026-01-01"

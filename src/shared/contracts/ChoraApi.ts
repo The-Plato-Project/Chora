@@ -1,9 +1,11 @@
+import type { ChatConversationSnapshot, SendChatMessageCommand } from "../chat/ChatTypes.js";
+import type { AvailableModel } from "../models/ModelSelection.js";
 import type { OperationResult } from "../diagnostics/OperationResult.js";
 import type { ErrorRecord } from "../diagnostics/DiagnosticManager.js";
 import type { DreamTrashSnapshot } from "../dreams/DreamTrashTypes.js";
 import type { TextDocumentSnapshot, LibraryTextSummary, SourceNotice } from "../library/LibraryTypes.js";
 import type { SelectionAction } from "../text/TextSelection.js";
-import type { CreateDreamCommand, CreateDreamFolderCommand, DeleteDreamFolderCommand, DreamCatalogueSnapshot, DreamFolderSnapshot, DreamLocationSnapshot, DreamSnapshot, DreamSynopticViewRequest, MoveDreamCommand, UpdateDreamCommand } from "../dreams/DreamTypes.js";
+import type { CreateDreamCommand, CreateDreamFolderCommand, DeleteDreamFolderCommand, DreamCatalogueSnapshot, DreamFolderSnapshot, DreamLocationSnapshot, DreamSnapshot, MoveDreamCommand, UpdateDreamCommand } from "../dreams/DreamTypes.js";
 import type { LookupBounds, LookupCommand, LookupState } from "../library/LookupTypes.js";
 import type { CreateSignalCommand, DeleteSignalCommand, SignalRecord, UpdateSignalCommand } from "../signals/SignalTypes.js";
 
@@ -13,6 +15,14 @@ export type FormattingAction = "bold" | "italic" | "bullet_list" | "ordered_list
 
 export interface ChoraApi
 {
+	// Loads saved conversation history after validating the owning feature identity.
+	OpenChat(id: string): Promise<OperationResult<ChatConversationSnapshot | null>>;
+	// Sends one reader message with an idempotency key and selected model.
+	SendChat(command: SendChatMessageCommand): Promise<OperationResult<ChatConversationSnapshot>>;
+	// Stops one active provider request.
+	CancelChat(id: string): Promise<OperationResult<void>>;
+	// Lists model choices exposed by the configured provider.
+	ListModels(): Promise<OperationResult<readonly AvailableModel[]>>;
 	// Stores one bounded renderer diagnostic in the main-process log.
 	RecordDiagnostic(record: ErrorRecord): Promise<OperationResult<void>>;
 	// Subscribes to explicitly reported main-process diagnostics.
@@ -50,6 +60,4 @@ export interface ChoraApi
 	CreateDreamFolder(command: CreateDreamFolderCommand): Promise<OperationResult<DreamFolderSnapshot>>;
 	DeleteDreamFolder(command: DeleteDreamFolderCommand): Promise<OperationResult<void>>;
 	MoveDream(command: MoveDreamCommand): Promise<OperationResult<DreamLocationSnapshot>>;
-	CreateDreamSynopticView(request: DreamSynopticViewRequest): Promise<OperationResult<string>>;
-	CancelDreamSynopticView(dreamId: string): Promise<OperationResult<void>>;
 }

@@ -69,7 +69,7 @@ export abstract class SignalViewPanel extends TabPanel
 		this.errors = errors;
 		this.Root.classList.add("signal-view-panel");
 		this.search.className = "signal-view-search dream-search";
-		this.search.innerHTML = `${SearchIcon}<input data-signal-view-search type="search" aria-label="Search connected Signals" placeholder="Search">`;
+		this.search.innerHTML = `<span>Find a Signal</span>${SearchIcon}<input data-signal-view-search type="search" aria-label="Search connected Signals" placeholder="Filter Signals…">`;
 		this.body.className = "signal-view-body";
 		const navigationWidth = LayoutSettings.GetDimension("signalNavigationWidth", 0);
 		if (navigationWidth > 0) this.body.style.setProperty("--signal-navigation-width", `${navigationWidth}px`);
@@ -371,6 +371,7 @@ export abstract class SignalViewPanel extends TabPanel
 
 			const observation = document.createElement("section");
 			observation.className = "signal-observation";
+			observation.innerHTML = '<h3 class="signal-observation-heading">What do you see?</h3><p class="signal-observation-help">Describe the Signal and what it may signify.</p>';
 			observation.append(editor.Root);
 			body.append(observation);
 		}

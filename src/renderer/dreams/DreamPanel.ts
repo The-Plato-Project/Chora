@@ -4,7 +4,7 @@ import { ChoraEventBus, type Unsubscribe } from "../core/events/ChoraEventBus.js
 import { DreamController } from "./DreamController.js";
 import type { DreamCatalogueController, DreamCatalogueGroup } from "./DreamCatalogueController.js";
 import type { DreamSaveCoordinator } from "./DreamSaveCoordinator.js";
-import type { DreamClarityCheckController } from "./DreamClarityCheckController.js";
+import { ChatStore } from "../chat/ChatStore.js";
 import type { DreamExportController } from "./DreamExportController.js";
 import type { DreamExplorerController } from "../workspace/DreamExplorerController.js";
 import { DreamStore, type DreamSaveState } from "./DreamStore.js";
@@ -15,7 +15,7 @@ import { CloseIcon, EditIcon, AddIcon, SearchIcon, OpenIcon } from "../ui/Icons.
 import { TabControl } from "../ui/TabControl.js";
 import { DreamSignalsPanel } from "./DreamSignalsPanel.js";
 import { DreamReflectionsPanel } from "./DreamReflectionsPanel.js";
-import { DreamSynopticViewPanel } from "./DreamSynopticViewPanel.js";
+import { DreamDiscussionPanel } from "./DreamDiscussionPanel.js";
 import { ErrorManager } from "../core/diagnostics/RendererErrorManager.js";
 import type { SignalController } from "../signals/SignalController.js";
 import { LayoutSettings } from "../core/settings/LayoutSettingsStore.js";
@@ -41,7 +41,9 @@ export class DreamPanel
 	// Signals content owned by the tab control.
 	private signalsPanel: DreamSignalsPanel | null = null;
 	private reflectionsPanel: DreamReflectionsPanel | null = null;
-	private synopticViewPanel: DreamSynopticViewPanel | null = null;
+	// Retains conversation drafts and request identity across Dream tab switches.
+	private readonly chatStates = new Map<string, ChatStore>();
+	private discussionPanel: DreamDiscussionPanel | null = null;
 	// Identity of the DreamView currently mounted in the editor.
 	private mountedDreamId: string | null = null;
 	// Popup containing the explicit DreamView rename workflow.
@@ -69,7 +71,6 @@ export class DreamPanel
 		private readonly mode: DreamPanelMode,
 		private readonly catalogue: DreamCatalogueController,
 		private readonly saves: DreamSaveCoordinator,
-		private readonly clarity: DreamClarityCheckController,
 		private readonly exports: DreamExportController,
 		private readonly explorer: DreamExplorerController,
 		private readonly signalController: SignalController | null = null)
@@ -100,7 +101,6 @@ export class DreamPanel
 		this.subscriptions.push(this.events.Subscribe("dream.structure-changed", this.HandleStructureChanged.bind(this)));
 		this.subscriptions.push(this.events.Subscribe("dream.changed", this.HandleDreamStatusChanged.bind(this)));
 		this.subscriptions.push(this.events.Subscribe("dream.save-state-changed", this.HandleDreamStatusChanged.bind(this)));
-		this.subscriptions.push(this.events.Subscribe("dream.synoptic-view-state-changed", this.HandleSynopticViewStateChanged.bind(this)));
 		this.subscriptions.push(this.events.Subscribe("library.text-opened", this.HandleTextOpened.bind(this)));
 		this.Update();
 	}
@@ -128,7 +128,7 @@ export class DreamPanel
 			this.tabs = null;
 			this.signalsPanel = null;
 			this.reflectionsPanel = null;
-			this.synopticViewPanel = null;
+			this.discussionPanel = null;
 			this.mountedDreamId = null;
 			this.root.replaceChildren();
 		}
@@ -149,11 +149,17 @@ export class DreamPanel
 					this.signalController,
 					this.errors);
 				this.reflectionsPanel = new DreamReflectionsPanel(this.controller, dream.reflection, this.errors);
-				this.synopticViewPanel = new DreamSynopticViewPanel(this.controller, this.clarity, this.exports, dream, this.errors);
+				let chatState = this.chatStates.get(dream.id);
+				if (chatState === undefined)
+				{
+					chatState = new ChatStore();
+					this.chatStates.set(dream.id, chatState);
+				}
+				this.discussionPanel = new DreamDiscussionPanel(dream.id, chatState, this.saves, this.store, this.library, this.errors);
 				const rememberedTab = this.controller.GetEditorTab(dream.id);
 				const selectedTab = rememberedTab === "description" ? "reflections" : rememberedTab;
 				this.tabs = new TabControl(
-					[this.signalsPanel, this.reflectionsPanel, this.synopticViewPanel],
+					[this.signalsPanel, this.reflectionsPanel, this.discussionPanel],
 					"Dream content",
 					this.HandleEditorTabSelected.bind(this));
 				this.tabs.Select(selectedTab);
@@ -163,7 +169,6 @@ export class DreamPanel
 			}
 			this.signalsPanel?.Update(dream, this.library.GetText());
 			this.reflectionsPanel?.Update(dream.reflection);
-			this.synopticViewPanel?.Update(dream);
 			const source = this.root.querySelector<HTMLElement>("[data-dream-source]");
 			const sourceText = this.controller.ResolveSelectionText(dream.source);
 			if (source !== null && source.textContent !== sourceText) source.textContent = sourceText;
@@ -285,7 +290,7 @@ export class DreamPanel
 	{
 		const source = this.RenderDreamSource(dream);
 		const title = EscapeHtml(dream.title);
-		const editor = `<div class="dream-editor-stack"><section class="dream-panel dream-editor document-editor"><section class="dream-interpretation document-interpretation"><label><span>Title</span><input data-dream-editor-title value="${title}" placeholder="Name this Dream"></label></section>${source}<div class="dream-source-divider" data-dream-source-divider role="separator" tabindex="0" aria-label="Resize Source Passage" aria-orientation="horizontal"></div><section class="dream-signals-section document-signals-section" aria-label="Dream content"><div class="dream-tabs-host document-signal-view-host" data-dream-tabs></div></section><footer class="dream-editor-actions document-editor-actions"><div class="document-save-actions"><button class="document-save-button button-control" data-save-dream type="button" aria-label="Save Dream">Save</button></div></footer></section></div>`;
+		const editor = `<div class="dream-editor-stack"><section class="dream-panel dream-editor document-editor"><section class="dream-interpretation document-interpretation"><div class="dream-section-eyebrow">Dream</div><label><span>Title</span><input data-dream-editor-title value="${title}" placeholder="Name this Dream"></label></section>${source}<div class="dream-source-divider" data-dream-source-divider role="separator" tabindex="0" aria-label="Resize Source Passage" aria-orientation="horizontal"></div><section class="dream-signals-section document-signals-section" aria-label="Dream content"><div class="dream-tabs-host document-signal-view-host" data-dream-tabs></div></section></section></div>`;
 
 		return editor;
 	}
@@ -302,7 +307,7 @@ export class DreamPanel
 	{
 		const range = this.FormatSourceRange(dream);
 		const meta = `${EscapeHtml(dream.dialogue ?? dream.workId)} &middot; ${EscapeHtml(range)}`;
-		const height = LayoutSettings.GetDimension("dreamSourceHeight", 144);
+		const height = LayoutSettings.GetDimension("dreamSourceHeight", 116);
 		const sourceText = this.RenderDreamSourceText(dream);
 		const source = `<details class="dream-section dream-source-section" style="height: ${height}px" open><summary>Source Passage <span class="dream-source-meta" data-dream-source-meta>${meta}</span></summary><button class="dream-source-jump button-control" data-jump-source type="button" title="Jump to source passage" aria-label="Jump to source passage">${OpenIcon}</button><blockquote class="dream-source" data-dream-source>${sourceText}</blockquote></details>`;
 
@@ -751,11 +756,6 @@ export class DreamPanel
 	private HandleDreamStatusChanged(): void
 	{
 		this.UpdateStatus();
-	}
-
-	private HandleSynopticViewStateChanged(event: ChoraEvents["dream.synoptic-view-state-changed"]): void
-	{
-		if (this.store.GetActiveDream()?.id === event.dreamId) this.Update();
 	}
 
 	// Re-renders the view when the open library text changes.

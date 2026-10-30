@@ -21,7 +21,7 @@
 
 .dream-editor.document-editor {
 	display: grid;
-	grid-template-rows: auto auto 7px minmax(0, 1fr) auto;
+	grid-template-rows: auto auto auto minmax(0, 1fr);
 	align-content: stretch;
 }
 
@@ -64,10 +64,21 @@
 	height: 9rem;
 	max-height: 70vh;
 	margin: 0;
-	padding: 12px;
-	border: 1px solid var(--panel-border);
-	border-radius: 5px;
-	background: var(--dream-raised);
+	padding: 12px 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+}
+
+.dream-editor.document-editor .dream-source-section:not([open]) {
+	height: auto !important;
+	max-height: none;
+	overflow: hidden;
+	padding-bottom: 8px;
+}
+
+.dream-source-section:not([open]) + .dream-source-divider {
+	display: none;
 }
 
 .dream-source-divider {
@@ -168,7 +179,7 @@
 }
 
 .dream-tabs-host > .tab-control {
-	--signal-navigation-width: 29%;
+	--signal-navigation-width: 39%;
 	--signal-panel-gap: 18px;
 	display: grid;
 	grid-template-columns: minmax(0, var(--signal-navigation-width)) minmax(0, 1fr);
@@ -223,7 +234,7 @@
 	margin-right: 0;
 	border: 0;
 	border-radius: 0;
-	background: var(--dream-raised);
+	background: transparent;
 }
 
 .dream-editor .signal-header {
@@ -287,7 +298,7 @@
 
 .dream-editor .signal-detail,
 .dream-tabs-host .dream-reflections-tab,
-.dream-tabs-host .dream-synoptic-view-tab {
+.dream-tabs-host .dream-discussion-tab {
 	min-width: 0;
 	min-height: 0;
 	border: 0;
@@ -391,7 +402,6 @@
 
 .dream-editor .signal-passage.selected {
 	background: var(--dream-selection);
-	box-shadow: inset 3px 0 var(--accent);
 }
 
 .dream-editor .signal-passage-navigation {
@@ -546,15 +556,14 @@
 }
 
 .dream-tabs-host .dream-reflections-tab,
-.dream-tabs-host .dream-synoptic-view-tab {
+.dream-tabs-host .dream-discussion-tab {
 	grid-column: 1 / -1;
 	grid-row: 2;
 	padding: 8px 4px;
 	overflow: auto;
 }
 
-.dream-editor .dream-reflections-markdown,
-.dream-editor .dream-synoptic-view-markdown {
+.dream-editor .dream-reflections-markdown {
 	display: flex;
 	flex-direction: column;
 	box-sizing: border-box;
@@ -566,40 +575,9 @@
 	background: var(--editor-input-background);
 }
 
-.dream-editor .dream-reflections-markdown .markdown-content,
-.dream-editor .dream-synoptic-view-markdown .markdown-content {
+.dream-editor .dream-reflections-markdown .markdown-content {
 	flex: 1 1 auto;
 	min-height: 0;
-}
-
-.dream-synoptic-view-actions {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	padding: 2px 0 6px;
-	border-bottom: 1px solid var(--panel-border);
-	font: 12px/1.4 var(--ui-font);
-}
-
-.dream-synoptic-view-actions button {
-	min-height: 28px;
-	padding: 4px 8px;
-	border: 1px solid var(--panel-border);
-	border-radius: 3px;
-	background: var(--dream-raised);
-	color: var(--app-text);
-}
-
-.dream-synoptic-view-actions .dream-icon-button {
-	width: 28px;
-	padding: 0;
-	border-color: transparent;
-	background: transparent;
-}
-
-.dream-synoptic-view-actions .progress-bar {
-	width: 8rem;
-	margin-left: auto;
 }
 
 .dream-editor .signal-detail > .dream-empty {
@@ -635,7 +613,7 @@
 	}
 
 	.dream-tabs-host .dream-reflections-tab,
-	.dream-tabs-host .dream-synoptic-view-tab {
+	.dream-tabs-host .dream-discussion-tab {
 		grid-column: 1;
 		grid-row: 2;
 	}
@@ -676,4 +654,250 @@
 .dream-tabs-host .tab-list button {
 	min-width: 0;
 	white-space: normal;
+}
+
+/* Dream fields and Signal observations share the reference's restrained form language. */
+.dream-panel.dream-editor {
+	padding: 10px 20px 16px 18px;
+	background: var(--panel-background);
+}
+
+.document-interpretation {
+	gap: 14px;
+	padding-bottom: 12px;
+}
+
+.dream-section-eyebrow {
+	color: var(--muted-text);
+	font: 9px/1.4 var(--ui-font);
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+}
+
+.document-interpretation > label {
+	padding: 0;
+	gap: 6px;
+	border: 0;
+	background: transparent;
+}
+
+.document-interpretation > label > span {
+	color: var(--muted-text);
+	font: 9px/1.4 var(--ui-font);
+	text-transform: uppercase;
+}
+
+.document-interpretation input {
+	padding: 7px 9px;
+	border-radius: 2px;
+	font-size: 13px;
+}
+
+.dream-editor.document-editor .dream-source-section {
+	padding: 10px;
+	border-radius: 3px;
+}
+
+.dream-source-section summary {
+	font-size: 11px;
+	font-weight: 400;
+}
+
+.dream-source-section summary .dream-source-meta {
+	float: right;
+	font-size: 9px;
+	color: var(--muted-text);
+}
+
+.dream-editor .dream-source {
+	margin: 8px 0 0;
+	font-size: var(--reading-font-size);
+	line-height: 1.5;
+}
+
+.dream-tabs-host .tab-list {
+	gap: 18px;
+	padding: 0;
+}
+
+.dream-tabs-host .tab-list [role="tab"] {
+	font-size: 11px;
+	font-weight: 400;
+}
+
+.dream-editor .signal-list {
+	padding: 10px 6px;
+}
+
+.dream-editor .signal-header.selected {
+	box-shadow: none;
+	outline: none;
+	outline-offset: -1px;
+	border-radius: 1px;
+}
+
+.dream-editor .signal-heading {
+	font-family: var(--reading-font);
+	font-size: 14px;
+}
+
+.dream-editor .signal-detail-body {
+	--signal-editor-inset: 10px;
+}
+
+.dream-editor .signal-title-field {
+	gap: 6px;
+	padding-top: 10px;
+	padding-right: 0;
+	border-bottom: 0;
+	font: 9px/1.4 var(--ui-font);
+	text-transform: uppercase;
+}
+
+.dream-editor .signal-title-field > span {
+	padding-right: 52px;
+}
+
+.dream-editor .signal-title-field input {
+	padding: 7px;
+	border: 1px solid var(--panel-border);
+	border-radius: 2px;
+	background: var(--editor-input-background);
+	font: 12px/1.4 var(--ui-font);
+}
+
+.dream-editor .signal-title-field input:focus {
+	border-color: var(--accent);
+}
+
+.dream-editor .signal-passages {
+	padding-top: 4px;
+}
+
+.dream-editor .signal-passages > strong {
+	font: 9px/1.4 var(--ui-font);
+	text-transform: uppercase;
+}
+
+.dream-editor .signal-passage {
+	padding-left: 0;
+	background: transparent;
+}
+
+.dream-editor .signal-passage-text {
+	font-family: var(--reading-font);
+	font-size: 13px;
+}
+
+.dream-editor .signal-observation {
+	padding: 14px 10px;
+}
+
+.signal-observation-heading {
+	margin: 0 0 6px;
+	color: var(--muted-text);
+	font: 9px/1.4 var(--ui-font);
+	text-transform: uppercase;
+}
+
+.signal-observation-help {
+	margin: 0 0 8px;
+	color: var(--muted-text);
+	font: 10px/1.5 var(--ui-font);
+}
+
+.dream-editor .signal-observation .signal-markdown-editor {
+	height: auto;
+	min-height: 180px;
+	border: 0;
+	border-radius: 2px;
+	background: var(--editor-input-background);
+	font-size: 13px;
+}
+
+.dream-editor .signal-observation .signal-markdown-editor .markdown-content {
+	min-height: 140px;
+	padding: 8px;
+	font-size: var(--reading-font-size);
+}
+
+.dream-editor .signal-observation .markdown-toolbar {
+	margin: 0;
+	padding: 3px;
+	border: 0;
+	border-bottom: 1px solid var(--panel-border);
+	border-radius: 0;
+	background: transparent;
+}
+
+.dream-editor .signal-observation .markdown-toolbar button {
+	flex-basis: 23px;
+	width: 23px;
+	height: 23px;
+	padding: 3px;
+	color: var(--muted-text);
+}
+
+.dream-editor .signal-observation .markdown-toolbar svg {
+	width: 13px;
+	height: 13px;
+}
+
+.dream-editor .signal-editor-actions {
+	top: 5px;
+}
+
+.dream-editor .signal-view-body {
+	grid-template-columns: minmax(120px, var(--signal-navigation-width, 39%)) 3px minmax(0, 1fr);
+	border-radius: 3px;
+}
+
+.signal-view-divider::after {
+	left: 1px;
+}
+
+.signal-list .signal-view-search {
+	padding: 0 0 7px;
+	border: 0;
+	background: transparent;
+}
+
+.signal-list .signal-view-search input {
+	box-sizing: border-box;
+	width: 100%;
+	height: 28px;
+	padding: 4px 7px;
+	border: 1px solid var(--panel-border);
+	border-radius: 2px;
+	background: var(--editor-input-background);
+	color: var(--app-text);
+	font-size: 11px;
+}
+
+.signal-list .signal-view-search svg {
+	display: none;
+}
+
+
+/* Keep the Signal navigation beside its observation at ordinary editor widths. */
+.dream-tabs-host .signal-view-panel {
+	grid-template-rows: minmax(0, 1fr);
+}
+
+.dream-editor .signal-list {
+	max-height: none;
+}
+
+.signal-list .signal-view-search {
+	display: grid;
+	gap: 6px;
+}
+
+.signal-view-search > span {
+	color: var(--muted-text);
+	font: 9px/1.4 var(--ui-font);
+}
+
+.dream-editor .dream-document-actions {
+	background: var(--panel-background);
 }

@@ -1,6 +1,5 @@
 import { DreamSaveCoordinator } from "../../src/renderer/dreams/DreamSaveCoordinator.js";
 import { DreamCatalogueController } from "../../src/renderer/dreams/DreamCatalogueController.js";
-import { DreamClarityCheckController } from "../../src/renderer/dreams/DreamClarityCheckController.js";
 import { DreamExportController } from "../../src/renderer/dreams/DreamExportController.js";
 import { DreamExplorerController } from "../../src/renderer/workspace/DreamExplorerController.js";
 import type { OperationResult } from "../../src/shared/diagnostics/OperationResult.js";
@@ -46,7 +45,6 @@ function CreateDream(): DreamView
 		source: { documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 6 } },
 		signals: [],
 		reflection: "",
-		synopticView: "",
 		linkedDreamIds: [],
 		createdAt: "2026-01-01",
 		updatedAt: "2026-01-01"
@@ -60,7 +58,6 @@ describe("DreamController", function DreamControllerTests()
 	let library: LibraryStore;
 	let controller: DreamController;
 	let saves: DreamSaveCoordinator;
-	let clarity: DreamClarityCheckController;
 	let catalogueController: DreamCatalogueController;
 	let explorer: DreamExplorerController;
 	let catalogue: DreamView[];
@@ -92,7 +89,6 @@ describe("DreamController", function DreamControllerTests()
 						title: command.title,
 						source: structuredClone(command.source),
 						reflection: command.reflection,
-						synopticView: command.synopticView,
 						linkedDreamIds: [...command.linkedDreamIds]
 					};
 					catalogue = [structuredClone(dream)];
@@ -115,16 +111,13 @@ describe("DreamController", function DreamControllerTests()
 				MoveDream: vi.fn(),
 				ShowDreamSourceContextMenu: vi.fn().mockResolvedValue({ ok: true, value: "lookup" }),
 				CopySelectedText: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
-				LookUpWord: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
-				CreateDreamSynopticView: vi.fn().mockResolvedValue({ ok: true, value: "Clarity" }),
-				CancelDreamSynopticView: vi.fn().mockResolvedValue({ ok: true, value: undefined })
+				LookUpWord: vi.fn().mockResolvedValue({ ok: true, value: undefined })
 			}
 		});
 		const errors = new ErrorManager(events);
 		const gateway = new DreamGateway();
 		saves = new DreamSaveCoordinator(events, errors, store, gateway);
-		clarity = new DreamClarityCheckController(events, errors, library, store, gateway, saves);
-		catalogueController = new DreamCatalogueController(events, errors, library, store, gateway, saves, clarity);
+		catalogueController = new DreamCatalogueController(events, errors, library, store, gateway, saves);
 		explorer = new DreamExplorerController(store, library, gateway, events, errors, catalogueController, { HasUncommittedChanges: function HasUncommittedChanges(): boolean { return false; } });
 		controller = new DreamController(events, errors, library, store, gateway, new LibraryGateway(), saves);
 	});
@@ -133,7 +126,6 @@ describe("DreamController", function DreamControllerTests()
 	{
 		explorer.Dispose();
 		catalogueController.Dispose();
-		clarity.Dispose();
 		controller.Dispose();
 		saves.Dispose();
 		store.Dispose();

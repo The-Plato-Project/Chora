@@ -1,6 +1,5 @@
 import { DreamSaveCoordinator } from "../../src/renderer/dreams/DreamSaveCoordinator.js";
 import { DreamCatalogueController } from "../../src/renderer/dreams/DreamCatalogueController.js";
-import { DreamClarityCheckController } from "../../src/renderer/dreams/DreamClarityCheckController.js";
 import { DreamExportController } from "../../src/renderer/dreams/DreamExportController.js";
 import { DreamExplorerController } from "../../src/renderer/workspace/DreamExplorerController.js";
 // @vitest-environment happy-dom
@@ -41,7 +40,7 @@ const text: TextDocument = {
 function CreateDream(): DreamView
 {
 	const dream: DreamView = {
-		id: "dream", workId: text.id, dialogue: text.title, title: "Attention", signals: [], reflection: "", synopticView: "",
+		id: "dream", workId: text.id, dialogue: text.title, title: "Attention", signals: [], reflection: "",
 		linkedDreamIds: [], createdAt: "2026-09-07", updatedAt: "2026-09-07",
 		source: {
 			documentId: text.id, start: { segmentKey: "s1", offset: 1 }, end: { segmentKey: "s4", offset: 3 }
@@ -256,8 +255,7 @@ describe("Dream passage matching", function PassageTests()
 		});
 		const libraryGateway = new LibraryGateway();
 		const saveOwner = new DreamSaveCoordinator(events, errors, store, gateway);
-		const clarityOwner = new DreamClarityCheckController(events, errors, library, store, gateway, saveOwner);
-		const catalogueOwner = new DreamCatalogueController(events, errors, library, store, gateway, saveOwner, clarityOwner);
+		const catalogueOwner = new DreamCatalogueController(events, errors, library, store, gateway, saveOwner);
 		const explorerOwner = new DreamExplorerController(store, library, gateway, events, errors, catalogueOwner, { HasUncommittedChanges: function HasUncommittedChanges(): boolean { return false; } });
 		const exportOwner = new DreamExportController(store, library, libraryGateway);
 		const dreams = new DreamController(events, errors, library, store, gateway, libraryGateway, saveOwner);
@@ -268,7 +266,7 @@ describe("Dream passage matching", function PassageTests()
 		const catalogueRoot = document.createElement("div");
 		document.body.append(readingRoot, catalogueRoot);
 		const reader = new DocumentPanel(readingRoot, events, library, controller, new ReadingSettingsStore());
-		const catalogue = new DreamPanel(catalogueRoot, events, store, dreams, library, "catalogue", catalogueOwner, saveOwner, clarityOwner, exportOwner, explorerOwner);
+		const catalogue = new DreamPanel(catalogueRoot, events, store, dreams, library, "catalogue", catalogueOwner, saveOwner, exportOwner, explorerOwner);
 		try
 		{
 			await events.PublishAsync("library.text-opened", {});
@@ -302,7 +300,6 @@ describe("Dream passage matching", function PassageTests()
 			catalogue.Dispose();
 			explorerOwner.Dispose();
 			catalogueOwner.Dispose();
-			clarityOwner.Dispose();
 			saveOwner.Dispose();
 			store.Dispose();
 			readingRoot.remove();
@@ -359,8 +356,7 @@ describe("Dream passage matching", function PassageTests()
 		});
 		const libraryGateway = new LibraryGateway();
 		const saveOwner = new DreamSaveCoordinator(events, errors, store, gateway);
-		const clarityOwner = new DreamClarityCheckController(events, errors, library, store, gateway, saveOwner);
-		const catalogueOwner = new DreamCatalogueController(events, errors, library, store, gateway, saveOwner, clarityOwner);
+		const catalogueOwner = new DreamCatalogueController(events, errors, library, store, gateway, saveOwner);
 		const explorerOwner = new DreamExplorerController(store, library, gateway, events, errors, catalogueOwner, { HasUncommittedChanges: function HasUncommittedChanges(): boolean { return false; } });
 		const exportOwner = new DreamExportController(store, library, libraryGateway);
 		const controller = new DreamController(events, errors, library, store, gateway, libraryGateway, saveOwner);
@@ -370,7 +366,7 @@ describe("Dream passage matching", function PassageTests()
 		document.body.append(readingRoot, catalogueRoot);
 		const documentPanel = new DocumentPanel(readingRoot, events, library, libraryController, new ReadingSettingsStore());
 		const passagePanel = new DreamPassagePanel(readingRoot, events, library, catalogueOwner);
-		const cataloguePanel = new DreamPanel(catalogueRoot, events, store, controller, library, "catalogue", catalogueOwner, saveOwner, clarityOwner, exportOwner, explorerOwner);
+		const cataloguePanel = new DreamPanel(catalogueRoot, events, store, controller, library, "catalogue", catalogueOwner, saveOwner, exportOwner, explorerOwner);
 		try
 		{
 			await events.PublishAsync("library.text-opened", {});
@@ -432,7 +428,6 @@ describe("Dream passage matching", function PassageTests()
 			cataloguePanel.Dispose();
 			explorerOwner.Dispose();
 			catalogueOwner.Dispose();
-			clarityOwner.Dispose();
 			saveOwner.Dispose();
 			store.Dispose();
 			readingRoot.remove();

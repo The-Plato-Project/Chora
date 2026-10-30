@@ -27,7 +27,6 @@ import { DreamExplorerController } from "../workspace/DreamExplorerController.js
 
 import { DreamSaveCoordinator } from "../dreams/DreamSaveCoordinator.js";
 import { DreamCatalogueController } from "../dreams/DreamCatalogueController.js";
-import { DreamClarityCheckController } from "../dreams/DreamClarityCheckController.js";
 import { DreamExportController } from "../dreams/DreamExportController.js";
 import { WorkspaceController } from "../workspace/WorkspaceController.js";
 import { WorkspaceShellPanel } from "../workspace/WorkspaceShellPanel.js";
@@ -69,10 +68,8 @@ export class ChoraApplication
 	private readonly saves = new DreamSaveCoordinator(this.events, this.errors, this.dreamStore, this.dreamGateway);
 	// Dream editing and tab lifecycle.
 	private readonly dreams = new DreamController(this.events, this.errors, this.libraryStore, this.dreamStore, this.dreamGateway, this.libraryGateway, this.saves);
-	// Clarity Check request lifecycle and result application.
-	private readonly clarity = new DreamClarityCheckController(this.events, this.errors, this.libraryStore, this.dreamStore, this.dreamGateway, this.saves);
 	// Catalogue reads, reconciliation, filtering, and grouping.
-	private readonly catalogue = new DreamCatalogueController(this.events, this.errors, this.libraryStore, this.dreamStore, this.dreamGateway, this.saves, this.clarity);
+	private readonly catalogue = new DreamCatalogueController(this.events, this.errors, this.libraryStore, this.dreamStore, this.dreamGateway, this.saves);
 	// Explorer creation, organization, and folder workflows.
 	private readonly explorer = new DreamExplorerController(this.dreamStore, this.libraryStore, this.dreamGateway, this.events, this.errors, this.catalogue, this.signals);
 	// Export commands using the existing Markdown formatter.
@@ -90,7 +87,7 @@ export class ChoraApplication
 	public constructor(private readonly root: HTMLElement)
 	{
 		this.events.SetErrorHandler(this.HandleEventFailure.bind(this));
-		this.disposables.push(this.saves, this.dreams, this.clarity, this.catalogue, this.explorer, this.lookup);
+		this.disposables.push(this.saves, this.dreams, this.catalogue, this.explorer, this.lookup);
 	}
 
 	// Mounts feature-owned DOM surfaces and starts the composed workflows in dependency order.
@@ -107,7 +104,7 @@ export class ChoraApplication
 			this.disposables.push(new LookupPanel(roots.lookup, this.events, this.lookupStore, this.lookup));
 			this.disposables.push(new DocumentPanel(roots.document, this.events, this.libraryStore, this.library, this.settings));
 			this.disposables.push(new DreamPassagePanel(roots.document, this.events, this.libraryStore, this.catalogue));
-			this.disposables.push(new DreamPanel(roots.dream, this.events, this.dreamStore, this.dreams, this.libraryStore, "editor", this.catalogue, this.saves, this.clarity, this.exports, this.explorer, this.signals));
+			this.disposables.push(new DreamPanel(roots.dream, this.events, this.dreamStore, this.dreams, this.libraryStore, "editor", this.catalogue, this.saves, this.exports, this.explorer, this.signals));
 			const trashController = new DreamTrashController(this.dreamGateway, this.catalogue, this.errors);
 			const trashPanel = new DreamTrashPanel(trashController);
 			this.disposables.push(trashPanel);

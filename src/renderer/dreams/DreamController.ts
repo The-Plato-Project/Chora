@@ -237,13 +237,6 @@ export class DreamController
 		this.saves.HandleDreamChange(change);
 	}
 
-	// Applies a reader edit to the stored Clarity Check through the normal save workflow.
-	public UpdateSynopticView(value: string): void
-	{
-		const change = this.store.UpdateSynopticView(value);
-		this.saves.HandleDreamChange(change);
-	}
-
 	// Extends the active DreamView's source passage to include the given selection.
 	public async ExtendSourceAsync(selection: TextSelection): Promise<void>
 	{

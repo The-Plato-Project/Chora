@@ -1,4 +1,5 @@
 import { DiagnosticIpcController } from "../diagnostics/DiagnosticIpcController.js";
+import { ModelIpcController } from "../models/ModelIpcController.js";
 import { Menu } from "electron";
 import { DreamModule } from "../dreams/DreamModule.js";
 import { LibraryModule } from "../library/LibraryModule.js";
@@ -13,6 +14,8 @@ export class ChoraApplication
 {
 	// Owns Chora's native window lifecycle.
 	private readonly windows = new ChoraWindowManager();
+	// Exposes the model catalogue independently of Dream workflows.
+	private readonly models = new ModelIpcController();
 	// Owns validated renderer-log ingestion for the application window.
 	private readonly diagnostics = new DiagnosticIpcController(this.windows);
 	private readonly lookupService = new LookupService(this.windows);
@@ -89,6 +92,7 @@ export class ChoraApplication
 	{
 		this.diagnostics.Register();
 		this.library.Start();
+		this.models.Register();
 		this.lookup.Register();
 		this.dreams.Start();
 	}
@@ -98,6 +102,7 @@ export class ChoraApplication
 		this.diagnostics.Unregister();
 		this.lookup.Unregister();
 		this.dreams.Stop();
+		this.models.Unregister();
 		this.library.Stop();
 	}
 }

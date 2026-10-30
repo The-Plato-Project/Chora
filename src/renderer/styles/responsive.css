@@ -3,13 +3,13 @@
 
 @media (max-width: 1000px) {
 	.shell {
-		--left-pane-width: max(220px, 27vw);
+		--left-pane-width: 180px;
 		--dream-pane-width: 44vw;
-		grid-template-columns: minmax(220px, var(--left-pane-width)) minmax(0, 1fr) 0;
+		grid-template-columns: minmax(180px, var(--left-pane-width)) minmax(0, 1fr) 0;
 	}
 
 	.shell.dream-open {
-		grid-template-columns: minmax(220px, var(--left-pane-width)) minmax(300px, var(--dream-pane-width)) minmax(0, 1fr);
+		grid-template-columns: minmax(180px, var(--left-pane-width)) minmax(300px, var(--dream-pane-width)) minmax(0, 1fr);
 	}
 }
 

@@ -89,7 +89,6 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 			source: structuredClone(source),
 			signals: signal === null ? [] : [signal],
 			reflection: "",
-			synopticView: "",
 			linkedDreamIds: [],
 			createdAt: "2026-01-01",
 			updatedAt: "2026-01-01"

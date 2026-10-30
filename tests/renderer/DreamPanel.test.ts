@@ -1,6 +1,5 @@
 import { DreamSaveCoordinator } from "../../src/renderer/dreams/DreamSaveCoordinator.js";
 import { DreamCatalogueController } from "../../src/renderer/dreams/DreamCatalogueController.js";
-import { DreamClarityCheckController } from "../../src/renderer/dreams/DreamClarityCheckController.js";
 import { DreamExportController } from "../../src/renderer/dreams/DreamExportController.js";
 import { DreamExplorerController } from "../../src/renderer/workspace/DreamExplorerController.js";
 // @vitest-environment happy-dom
@@ -35,7 +34,7 @@ function CreateDream(): DreamView
 			{ id: "signal-1", dreamId: "dream-1", workId: "republic", text: "abc", description: "First description", sourceRef: "s1", selections: [selection], createdAt: "2026-09-06", updatedAt: "2026-09-06" },
 			{ id: "signal-2", dreamId: "dream-1", workId: "republic", text: "def", description: "Second description", sourceRef: "s1", selections: [selection], createdAt: "2026-09-06", updatedAt: "2026-09-06" }
 		],
-		reflection: "Initial Reflections", synopticView: "", linkedDreamIds: [], createdAt: "2026-09-06", updatedAt: "2026-09-06"
+		reflection: "Initial Reflections", linkedDreamIds: [], createdAt: "2026-09-06", updatedAt: "2026-09-06"
 	};
 	return dream;
 }
@@ -90,7 +89,6 @@ describe("DreamPanel", function DreamPanelTests()
 	let reader: LibraryGateway;
 	let controller: DreamController;
 	let saves: DreamSaveCoordinator;
-	let clarity: DreamClarityCheckController;
 	let catalogueController: DreamCatalogueController;
 	let explorer: DreamExplorerController;
 	let exporter: DreamExportController;
@@ -117,7 +115,6 @@ describe("DreamPanel", function DreamPanelTests()
 				title: command.title,
 				source: structuredClone(command.source),
 				reflection: command.reflection,
-				synopticView: command.synopticView,
 				linkedDreamIds: [...command.linkedDreamIds]
 			};
 			return saved;
@@ -148,12 +145,11 @@ describe("DreamPanel", function DreamPanelTests()
 		auxiliaryPanels = [];
 		const errors = new ErrorManager(events);
 		saves = new DreamSaveCoordinator(events, errors, store, gateway);
-		clarity = new DreamClarityCheckController(events, errors, library, store, gateway, saves);
-		catalogueController = new DreamCatalogueController(events, errors, library, store, gateway, saves, clarity);
+		catalogueController = new DreamCatalogueController(events, errors, library, store, gateway, saves);
 		explorer = new DreamExplorerController(store, library, gateway, events, errors, catalogueController, { HasUncommittedChanges: function HasUncommittedChanges(): boolean { return false; } });
 		exporter = new DreamExportController(store, library, reader);
 		controller = new DreamController(events, errors, library, store, gateway, reader, saves);
-		panel = new DreamPanel(root, events, store, controller, library, "editor", catalogueController, saves, clarity, exporter, explorer);
+		panel = new DreamPanel(root, events, store, controller, library, "editor", catalogueController, saves, exporter, explorer);
 		await vi.waitFor(function EditorsReady(): void
 		{
 			expect(root.querySelectorAll('[aria-busy="true"]')).toHaveLength(0);
@@ -167,7 +163,6 @@ describe("DreamPanel", function DreamPanelTests()
 		for (const auxiliaryPanel of auxiliaryPanels) auxiliaryPanel.Dispose();
 		explorer.Dispose();
 		catalogueController.Dispose();
-		clarity.Dispose();
 		controller.Dispose();
 		saves.Dispose();
 		store.Dispose();
@@ -190,7 +185,7 @@ describe("DreamPanel", function DreamPanelTests()
 		if (activeDream !== null) store.SetCatalogue([activeDream], [], [{ dreamId: activeDream.id, workId: activeDream.workId, folderPath: "" }]);
 		const catalogueRoot = document.createElement("div");
 		document.body.append(catalogueRoot);
-		const cataloguePanel = new DreamPanel(catalogueRoot, events, store, controller, library, "catalogue", catalogueController, saves, clarity, exporter, explorer);
+		const cataloguePanel = new DreamPanel(catalogueRoot, events, store, controller, library, "catalogue", catalogueController, saves, exporter, explorer);
 		auxiliaryPanels.push(cataloguePanel);
 		catalogueRoot.querySelector<HTMLButtonElement>("[data-rename-dream]")!.click();
 	}
@@ -228,14 +223,9 @@ describe("DreamPanel", function DreamPanelTests()
 
 	it("copies the complete Dream as Markdown from the outer document menu", async function CopiesDreamMarkdownAsync()
 	{
-		controller.UpdateSynopticView("The reader's developing account is visible.");
 		const copy = vi.spyOn(reader, "CopyAsync").mockResolvedValue(undefined);
 		const tabs = root.querySelectorAll<HTMLButtonElement>('.dream-tabs-host [role="tab"]');
-		expect(Array.from(tabs, function Label(tab): string | null { return tab.textContent; })).toEqual(["Signals", "Reflections", "Clarity Check"]);
-		tabs[2]?.click();
-		const checkButton = root.querySelector<HTMLButtonElement>("[data-create-synoptic-view]");
-		expect(checkButton?.title).toBe("Check clarity");
-		expect(root.querySelector("[data-dream-synoptic-view] .markdown-toolbar")?.getAttribute("aria-label")).toBe("Clarity Check formatting");
+		expect(Array.from(tabs, function Label(tab): string | null { return tab.textContent; })).toEqual(["Signals", "Reflections", "Chora SI"]);
 		void exporter.CopyDreamAsMarkdownAsync();
 		await vi.waitFor(function DreamCopied(): void { expect(copy).toHaveBeenCalledOnce(); });
 		const markdown = vi.mocked(copy).mock.calls[0]?.[0] ?? "";
@@ -248,66 +238,14 @@ describe("DreamPanel", function DreamPanelTests()
 		expect(markdown).toContain("First description");
 		expect(markdown).toContain("## Reflections");
 		expect(markdown).toContain("Initial Reflections");
-		expect(markdown).toContain("## Clarity Check");
-		expect(markdown).not.toContain("## Synoptic View");
-	});
-
-	it("generates an editable Clarity Check and copies it to the clipboard", async function CreatesAndCopiesSynopticViewAsync()
-	{
-		let complete: ((value: string) => void) | null = null;
-		vi.spyOn(gateway, "CreateSynopticViewAsync").mockImplementation(() => new Promise<string>((resolve) => { complete = resolve; }));
-		const copy = vi.spyOn(reader, "CopyAsync").mockResolvedValue(undefined);
-		const tabs = root.querySelectorAll<HTMLButtonElement>(".dream-tabs-host [role=tab]");
-		tabs[2]!.click();
-		const create = root.querySelector<HTMLButtonElement>("[data-create-synoptic-view]")!;
-		expect(create.title).toBe("Check clarity");
-		expect(create.textContent).toBe("");
-		create.click();
-		await vi.waitFor(function GenerationShown(): void
-		{
-			expect(create.title).toBe("Cancel");
-			expect(root.querySelector<HTMLElement>("[data-synoptic-view-progress]")?.hidden).toBe(false);
-		});
-		await Promise.resolve();
-		if (complete === null) throw new Error("Clarity Check request did not start.");
-		complete("## Shared movement\n\nA generated relationship.");
-		await vi.waitFor(function SynopticViewApplied(): void
-		{
-			expect(store.GetActiveDream()?.synopticView).toContain("Shared movement");
-			expect(root.querySelector<HTMLElement>("[data-synoptic-view-progress]")?.hidden).toBe(true);
-			expect(create.title).toBe("Check clarity");
-		});
-
-		const copyButton = root.querySelector<HTMLButtonElement>("[data-copy-synoptic-view]")!;
-		expect(copyButton.title).toBe("Copy");
-		expect(copyButton.textContent).toBe("");
-		copyButton.click();
-		await vi.waitFor(function SynopticViewCopied(): void { expect(copy).toHaveBeenCalledWith("## Shared movement\n\nA generated relationship."); });
-
-		expect(store.GetActiveDream()?.reflection).toBe("Initial Reflections");
-		expect(store.GetActiveDream()?.synopticView).toContain("Shared movement");
-		expect(root.querySelector<HTMLButtonElement>('.dream-tabs-host [role=tab][aria-selected="true"]')?.textContent).toBe("Clarity Check");
-	});
-
-	it("does not replace a populated Clarity Check without confirmation", async function ProtectsSynopticViewAsync()
-	{
-		controller.UpdateSynopticView("Existing Clarity Check");
-		await events.PublishAsync("dream.synoptic-view-state-changed", { dreamId: "dream-1" });
-		const create = vi.spyOn(gateway, "CreateSynopticViewAsync").mockResolvedValue("Replacement");
-		vi.spyOn(window, "confirm").mockReturnValue(false);
-		root.querySelectorAll<HTMLButtonElement>(".dream-tabs-host [role=tab]")[2]!.click();
-
-		root.querySelector<HTMLButtonElement>("[data-create-synoptic-view]")!.click();
-
-		expect(create).not.toHaveBeenCalled();
-		expect(store.GetActiveDream()?.synopticView).toBe("Existing Clarity Check");
+		expect(markdown).not.toContain("## Clarity Check");
 	});
 
 	it("uses the document tab as the title and retains source disclosure on structural updates", async function PreservesSource()
 	{
 		expect(root.querySelector("[data-dream-title]")).toBeNull();
 		expect(root.querySelector("[data-dream-heading]")).toBeNull();
-		expect(root.querySelector(".signal-observation-heading")).toBeNull();
+		expect(root.querySelector(".signal-observation-heading")?.textContent).toBe("What do you see?");
 		expect(document.querySelectorAll(".popup-overlay")).toHaveLength(0);
 		const title = root.querySelector<HTMLInputElement>("[data-dream-editor-title]")!;
 		expect(title.value).toBe("A long Dream title");
@@ -369,7 +307,7 @@ describe("DreamPanel", function DreamPanelTests()
 			settings.Apply();
 			const selectors = [".dream-source", ".signal-markdown-editor .ProseMirror p", ".dream-reflections-markdown .ProseMirror p"];
 			const formattingToolbar = root.querySelector<HTMLElement>(".signal-markdown-editor .markdown-toolbar")!;
-			expect(getComputedStyle(root.querySelector<HTMLElement>(".signal-heading")!).fontSize).toBe("12px");
+			expect(getComputedStyle(root.querySelector<HTMLElement>(".signal-heading")!).fontSize).toBe("14px");
 			expect(getComputedStyle(formattingToolbar).display).toBe("none");
 			for (const delta of [0, 2, -1])
 			{

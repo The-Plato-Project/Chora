@@ -22,8 +22,6 @@ export interface UpdateDreamCommand
 	readonly source: TextSelection;
 	// Reader-authored reflection Markdown.
 	readonly reflection: string;
-	// Reader-editable Clarity Check Markdown.
-	readonly synopticView: string;
 	// Stable identities of explicitly linked Dreams.
 	readonly linkedDreamIds: readonly string[];
 }
@@ -38,7 +36,6 @@ export interface DreamSnapshot
 	readonly source: TextSelection;
 	readonly signals: readonly SignalRecord[];
 	readonly reflection: string;
-	readonly synopticView: string;
 	readonly linkedDreamIds: readonly string[];
 	readonly createdAt: string;
 	readonly updatedAt: string;
@@ -106,10 +103,4 @@ export interface MoveDreamCommand
 	readonly dreamId: string;
 	// Destination folder path, or an empty string for the work root.
 	readonly folderPath: string;
-}
-
-export interface DreamSynopticViewRequest
-{
-	dreamId: string;
-	readingDocument: string;
 }

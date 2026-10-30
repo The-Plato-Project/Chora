@@ -117,7 +117,10 @@ describe("LibraryController", function LibraryControllerTests()
 		controller.SetSelection({ documentId: "other", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 2 }, selectedText: "ab", locatorStart: null, locatorEnd: null });
 
 		expect(store.GetSelection()).toBeNull();
-		expect(console.debug).toHaveBeenCalledWith("[Chora][DEBUG][LibraryController]", "Ignored an invalid browser selection.", expect.any(Error));
+		expect(console.debug).toHaveBeenCalledWith("[Chora][DEBUG][LibraryController]", "Ignored an invalid browser selection.", expect.objectContaining({
+			name: "Error",
+			message: "Selection document does not match the active document."
+		}));
 	});
 
 	it("tracks the visible passage as chat context when no text is selected", async function TracksReadingFocus()

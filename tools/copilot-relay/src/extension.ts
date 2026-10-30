@@ -26,6 +26,15 @@ interface ModelCatalogueResponseBody
 	modelFamilies: string[];
 }
 
+// Excludes VS Code-internal service models that cannot accept extension requests.
+function IsChoraAccessibleModel(model: vscode.LanguageModelChat): boolean
+{
+	const family = model.family.trim();
+	const isAccessible = family.length > 0 && !family.toLocaleLowerCase().startsWith("copilot-");
+
+	return isAccessible;
+}
+
 // Owns local HTTP access to VS Code's authenticated Copilot model API.
 class ChoraCopilotRelay
 {
@@ -106,7 +115,7 @@ class ChoraCopilotRelay
 			{
 				const family = model.family.trim();
 
-				if (family.length > 0)
+				if (IsChoraAccessibleModel(model))
 				{
 					families.add(family);
 				}
@@ -159,7 +168,7 @@ class ChoraCopilotRelay
 		const requestedFamily = modelFamily.trim();
 		const selector = requestedFamily.length > 0 ? { vendor: "copilot", family: requestedFamily } : { vendor: "copilot" };
 		const models = await vscode.lm.selectChatModels(selector);
-		const model = models[0];
+		const model = models.find(IsChoraAccessibleModel);
 
 		if (model === undefined)
 		{

@@ -85,7 +85,7 @@ export class WorkspaceLayoutPanel
 			const leftWidth = leftPanel.getBoundingClientRect().width;
 			const isDreamOpen = shell.classList.contains("dream-open");
 			const compactLayout = shellWidth <= 760;
-			const minimumLeftWidth = compactLayout ? 170 : 220;
+			const minimumLeftWidth = compactLayout ? 170 : 180;
 			const minimumDreamWidth = compactLayout ? 240 : 300;
 			const minimumReaderWidth = compactLayout ? 220 : 320;
 			let width = this.resizeStartWidth + delta;
@@ -133,7 +133,7 @@ export class WorkspaceLayoutPanel
 		{
 			const shellWidth = shell.getBoundingClientRect().width;
 			const compactLayout = shellWidth <= 760;
-			const minimumLeftWidth = compactLayout ? 170 : 220;
+			const minimumLeftWidth = compactLayout ? 170 : 180;
 			const minimumDreamWidth = compactLayout ? 240 : 300;
 			const minimumReaderWidth = compactLayout ? 220 : 320;
 			const maximumLeftWidth = shellWidth - minimumDreamWidth - minimumReaderWidth;
@@ -179,7 +179,7 @@ export class WorkspaceLayoutPanel
 		{
 			shell.classList.remove("left-collapsed");
 			const currentWidth = Number.parseFloat(shell.style.getPropertyValue("--left-pane-width"));
-			if (!Number.isFinite(currentWidth) || currentWidth < 220) shell.style.setProperty("--left-pane-width", "220px");
+			if (!Number.isFinite(currentWidth) || currentWidth < 180) shell.style.setProperty("--left-pane-width", "180px");
 			const restoredWidth = Number.parseFloat(shell.style.getPropertyValue("--left-pane-width"));
 			LayoutSettings.SetExplorerCollapsed(false);
 			LayoutSettings.SetDimension("leftPaneWidth", restoredWidth);

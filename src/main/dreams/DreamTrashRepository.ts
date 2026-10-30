@@ -1,3 +1,5 @@
+import { ChatRepository } from "../chat/ChatRepository.js";
+import type { ChatConversationSnapshot } from "../../shared/chat/ChatTypes.js";
 import { randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -16,6 +18,8 @@ interface TrashRecord
 	readonly id: string;
 	// Complete aggregate retained until restore or explicit permanent removal.
 	readonly dream: DreamSnapshot;
+	// Optional for compatibility with bundles created before discussions existed.
+	readonly conversation?: ChatConversationSnapshot | null;
 	// Original Markdown location relative to the owning Dream root.
 	readonly relativePath: string;
 	// Original deletion timestamp.
@@ -34,7 +38,8 @@ export class DreamTrashRepository
 	public constructor(
 		private readonly primaryPath: string,
 		private readonly dreams: DreamRepository,
-		private readonly signals: SignalRepository)
+		private readonly signals: SignalRepository,
+		private readonly conversations: ChatRepository = new ChatRepository(path.join(path.dirname(primaryPath), "Conversations")))
 	{
 		this.trashPath = path.join(path.dirname(primaryPath), "Trash", "DreamBundles");
 	}
@@ -43,7 +48,8 @@ export class DreamTrashRepository
 	public async StageAsync(persistence: DreamPersistenceRecord, dream: DreamSnapshot): Promise<string>
 	{
 		const relativePath = path.relative(this.primaryPath, persistence.filePath);
-		const record: TrashRecord = { id: randomUUID(), dream, relativePath, deletedAt: new Date().toISOString(), state: "deleting" };
+		const conversation = await this.conversations.LoadAsync(dream.id);
+		const record: TrashRecord = { id: randomUUID(), dream, conversation, relativePath, deletedAt: new Date().toISOString(), state: "deleting" };
 		this.ValidateRecord(record);
 		await this.WriteAsync(record);
 		const id = record.id;
@@ -72,6 +78,7 @@ export class DreamTrashRepository
 			const filePath = this.ResolveOriginalPath(record);
 			await this.dreams.DeleteAsync({ dream: record.dream, filePath });
 			for (const signal of record.dream.signals) await this.signals.DeleteAsync(signal);
+			await this.conversations.DeleteAsync(record.dream.id);
 			await this.WriteAsync({ ...record, state: "trashed" });
 		}
 	}
@@ -104,6 +111,7 @@ export class DreamTrashRepository
 		for (const signal of record.dream.signals) await this.signals.SaveAsync(signal);
 		const filePath = this.ResolveOriginalPath(record);
 		const persistence = { dream: record.dream, filePath };
+		if (record.conversation !== undefined && record.conversation !== null) await this.conversations.SaveAsync(record.conversation);
 		await this.dreams.SaveAsync(persistence);
 		const trashFile = this.ResolveTrashPath(id);
 		await unlink(trashFile);
@@ -228,6 +236,7 @@ export class DreamTrashRepository
 		{
 			throw new Error("Trash metadata is invalid.");
 		}
+		if (record.conversation !== undefined && record.conversation !== null) ChatRepository.Decode(record.conversation, record.dream.id);
 		const dream = new Dream(record.dream);
 		dream.ToSnapshot();
 		for (const recordSignal of record.dream.signals)

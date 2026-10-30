@@ -117,8 +117,13 @@ export class CopilotRelayModelProvider implements ModelProvider
 		}
 
 		const modelFamilies = responseBody.modelFamilies ?? [];
+		const accessibleFamilies = modelFamilies.filter(function IsAccessibleFamily(family): boolean
+		{
+			return typeof family === "string"
+				&& !family.trim().toLocaleLowerCase().startsWith("copilot-");
+		});
 
-		return modelFamilies;
+		return accessibleFamilies;
 	}
 
 	public async CompleteAsync(request: ModelRequest, onDelta?: ModelDeltaHandler, signal?: AbortSignal): Promise<ModelResponse>

@@ -1,3 +1,4 @@
+import { ChatRepository } from "../chat/ChatRepository.js";
 import { ApplicationError } from "../../shared/diagnostics/OperationResult.js";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
@@ -57,12 +58,42 @@ export class DreamLibrary
 		private readonly primaryPath: string,
 		private readonly repository: DreamRepository,
 		private readonly signalRepository: SignalRepository,
-		private readonly documents: LibraryService)
+		private readonly documents: LibraryService,
+		conversations: ChatRepository = new ChatRepository(path.join(path.dirname(primaryPath), "Conversations")))
 	{
-		this.trash = new DreamTrashRepository(primaryPath, repository, signalRepository);
+		this.trash = new DreamTrashRepository(primaryPath, repository, signalRepository, conversations);
 	}
 
-	// Lists immutable records for every Dream visible to the reader.
+	// Holds the existing aggregate lease while a canonical context consumer runs.
+	public async WithSnapshotAsync<T>(id: string, operation: (snapshot: DreamSnapshot) => Promise<T>): Promise<T>
+	{
+		const releaseCatalogue = await this.AcquireCatalogueOperationAsync();
+		let result: T;
+		try
+		{
+			await this.EnsureLoadedAsync();
+			this.ValidateIdentifier(id, "Dream identifier");
+			const release = await this.AcquireMutationAsync(id);
+			try
+			{
+				const entry = this.entries.get(id);
+				if (entry === undefined) throw ApplicationError.Expected("not-found", "DREAM_NOT_FOUND", "This Dream is no longer available.");
+				const snapshot = entry.dream.ToSnapshot();
+				result = await operation(snapshot);
+			}
+			finally
+			{
+				release();
+			}
+		}
+		finally
+		{
+			releaseCatalogue();
+		}
+		return result;
+	}
+
+	// Lists the current canonical catalogue.
 	public async ListAsync(): Promise<DreamCatalogueSnapshot>
 	{
 		const releaseCatalogue = await this.AcquireCatalogueOperationAsync();

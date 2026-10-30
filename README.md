@@ -31,7 +31,7 @@ Signal description editors keep typing and selection state locally while persist
 
 The Signal rail and selected-Signal editor scroll independently inside the available editor height, so Save remains visible without scrolling the whole document. Their shared divider can be dragged horizontally or adjusted with the keyboard, and truncated Signal rows show the complete Signal text on hover. The Dream source passage is open by default and has a dedicated horizontal divider for vertical resizing. Chora restores user-adjusted workspace columns, Explorer collapse state, Signal-list width, dictionary height, source-passage height, and writing-surface heights across application launches. Dream deletion is available only from the active document's upper-right actions menu and always requires explicit confirmation. With a Dream open, selecting text inside its source passage and choosing **Create Signal** uses the same Dream-owned creation API whether the selection came from the main reader or the Dream source view. There is no destination popup, catalogue lookup, association workflow, or automatic reveal. Expected workflow choices and application failures use dismissible popups rather than persistent page banners.
 
-Each Dream also has a **Clarity Check**. The model must account for every Signal and Reflection, then identify the overarching logos that makes those observations one developing story. It traces how each Signal advances, complicates, turns, or completes that same thread. It does not reinterpret the passage, rewrite the reader's claims, add philological corrections, or introduce outside themes. If a Signal or transition does not fit the apparent logos, the response identifies that precise gap rather than inventing a connection. The reader may revise the Dream and check again until the whole thought has become clear.
+Each Dream also has a conversational **Clarity Check**. The reader can discuss the current Dream, its source passage, Reflections, and Signals with a selected model. Conversations are saved independently, follow Dreams through Trash and restoration, and preserve drafts when a request fails.
 
 The Explorer may be collapsed by dragging its divider to the left. Its collapsed rail retains a Dreams button that restores the Explorer and focuses that folder. Dragging the collapsed divider to the right also restores the Explorer immediately.
 
@@ -59,9 +59,7 @@ Prompts/          model system prompts
 
 Renderer panels own DOM interaction, controllers coordinate workflows, stores own state, and gateways own IPC. Signal editing shares `DreamStore`. In the main process, `DreamLibrary` owns Dream aggregates and their child Signals; repositories own canonical file access. Generic manager classes are not the feature coordination pattern.
 
-Clarity Check follows `DreamClarityCheckController` → `DreamGateway` → the typed preload API (`CreateDreamSynopticView`) → `DreamIpcController` → `DreamSynopticViewService`. The service loads `Prompts/clarity-check.md` through `PromptLoader` and invokes the configured model provider with empty conversation history. The result is applied to the Dream's `synopticView` field through the existing editing and save flow. `CancelDreamSynopticView` cancels an in-flight request.
-
-The current application and exposed API have no active Chat feature, saved-chat history, or renderer model selector. Historical descriptions of those workflows are not an implementation requirement.
+Clarity Check uses `DreamDiscussionPanel` → `ChatPanel` → `ChatController` → `ChatGateway` → the typed preload API → `ChatIpcController` → `ChatService`. `DreamDiscussionContext` resolves the canonical Dream and source material in the main process. `ChatRepository` stores conversation history separately from Dream Markdown, and `ModelApi` owns provider discovery and execution.
 
 See [CODING_STANDARDS.md](CODING_STANDARDS.md) and [AGENTS.md](AGENTS.md) before changing the code.
 
@@ -92,6 +90,41 @@ KIMI_MAX_COMPLETION_TOKENS=3000
 
 Never commit `.env.local` or provider credentials.
 
+### Remote Ollama
+
+Chora can discover and use models installed on an Ollama server through Ollama's native API. Configure the server only in `.env.local`; the endpoint remains in the main process and never crosses into the renderer.
+
+```text
+# Preserve MODEL_PROVIDER as the fallback/default provider.
+MODEL_PROVIDER=copilot-relay
+# Explicitly enable every provider that should appear in the model picker.
+MODEL_PROVIDERS=copilot-relay,kimi,ollama
+
+OLLAMA_BASE_URL=http://<ollama-computer-ip>:11434
+# Optional comma-separated allowlist. Omit or leave empty to show every installed model.
+OLLAMA_MODELS=qwen3.5:9b
+# Context window requested from Ollama for each Chora turn.
+OLLAMA_CONTEXT_LENGTH=32768
+# Bounds remote model discovery so an unavailable server cannot block the conversation UI.
+OLLAMA_DISCOVERY_TIMEOUT_MS=10000
+# Allows cold model loading on another computer.
+OLLAMA_REQUEST_TIMEOUT_MS=300000
+# Optional bearer token for an authenticated reverse proxy. Local Ollama itself requires none.
+OLLAMA_API_KEY=
+```
+
+Use `npm start` when `copilot-relay` is enabled so the launcher also starts the VS Code Relay. Use `npm run dev:ollama` for an Ollama-only development run. Chora discovers installed models from `GET /api/tags` and sends the unchanged Chora system prompt, captured Dream context, conversation history, and reader message to `POST /api/chat`. Requests set `stream: false` and `think: false`; only final `message.content` is saved.
+
+On the remote Windows computer, install and start Ollama, run `ollama pull qwen3.5:9b`, set the user environment variable `OLLAMA_HOST=0.0.0.0:11434` (or bind to that computer's specific LAN address), then quit and relaunch Ollama. Permit inbound TCP port `11434` only on the Private network profile and preferably only from the Chora computer or trusted subnet. Do not expose an unauthenticated Ollama port to the public internet.
+
+From the Chora computer, verify discovery before starting Chora:
+
+```powershell
+Invoke-RestMethod http://<ollama-computer-ip>:11434/api/tags
+```
+
+The response must include `qwen3.5:9b`. Ollama's local server uses HTTP without authentication by default. For stronger isolation, use a private VPN or an HTTPS reverse proxy with authentication and configure its bearer token through `OLLAMA_API_KEY`.
+
 ### VS Code Copilot Relay
 
 The Relay provider uses the GitHub Copilot session already active in a local VS Code Extension Development Host. Configure the same non-empty secret in both places:
@@ -119,7 +152,7 @@ npm start
 
 The launcher builds the Relay when necessary, opens its Extension Development Host, waits until it is ready, builds Chora, and starts Electron directly. Electron Forge is used only by the packaging commands and is not part of development startup.
 
-`MODEL_PROVIDER` configures the main-process provider (`mock`, `kimi`, or `copilot-relay`). For Relay-backed Clarity Checks, `COPILOT_RELAY_MODEL_FAMILY` optionally selects a Copilot family; when omitted, the Relay uses the first available Copilot model returned by VS Code. Provider and model settings come from the local environment rather than a renderer selector or saved conversation. The Relay is loopback-only and rejects requests without the shared secret.
+`MODEL_PROVIDER` configures the legacy single-provider fallback (`mock`, `kimi`, `copilot-relay`, or `ollama`). When `MODEL_PROVIDERS` is nonempty, its ordered comma-separated provider list supplies all catalogues shown in the existing model picker. A failure in one enabled provider is recorded without hiding models discovered from healthy enabled providers; discovery fails when no enabled provider remains usable. For Relay-backed Clarity Checks, `COPILOT_RELAY_MODEL_FAMILY` optionally selects a Copilot family; when omitted, the Relay uses the first extension-accessible Copilot model returned by VS Code. VS Code-internal `copilot-*` service models are excluded from both discovery and default selection because they cannot accept extension requests. Provider and model settings come from the local environment rather than renderer input. The Relay is loopback-only and rejects requests without the shared secret.
 
 Available verification commands (choose one targeted pass appropriate to the change, following [Build and Test Discipline](CODING_STANDARDS.md#build-and-test-discipline)):
 
@@ -151,7 +184,7 @@ Restore preserves the original Dream and Signal identities and recreates the ori
 
 Choose **Reload from disk** at the bottom of the Explorer after editing or synchronizing Dream and Signal Markdown files outside Chora. Ordinary catalogue refreshes continue to read the main-process authority; they do not rescan disk automatically. Reload waits for active repository operations, reads Dreams, Signals, and folders as one staged catalogue, then replaces the visible state only after loading and validation succeed. Missing Dreams are removed from the catalogue and their clean editor tabs close.
 
-Reload refuses to proceed while Dream drafts, pending or failed Signal-description saves, deletion, or Clarity Check operations could conflict with the scan. Finish or retry saving first; reload never forces a save that could overwrite external edits. A failed scan keeps the last committed catalogue. Initial-load failures can also be retried without restarting. Files that cannot be read, malformed Dream records, and duplicate Dream identities must be resolved before reloading. Orphan Signals remain untouched for recovery. Reconciliation coordinates Chora's own operations; an external editor or synchronization client can still change files during a scan.
+Reload refuses to proceed while Dream drafts, pending or failed Signal-description saves, or deletion could conflict with the scan. Finish or retry saving first; reload never forces a save that could overwrite external edits. A failed scan keeps the last committed catalogue. Initial-load failures can also be retried without restarting. Files that cannot be read, malformed Dream records, and duplicate Dream identities must be resolved before reloading. Orphan Signals remain untouched for recovery. Reconciliation coordinates Chora's own operations; an external editor or synchronization client can still change files during a scan.
 
 
 ## Error reporting and logs
@@ -165,6 +198,6 @@ Diagnostic notification UI belongs to `ErrorNotificationPanel`; global renderer 
 
 ## Renderer workflow owners
 
-`DreamStore` remains the single authority for Dream drafts, editor tabs, catalogue data, and selection. `DreamController` handles editing, source extension, and tab lifecycle. `DreamSaveCoordinator` owns autosave and save ordering; `DreamCatalogueController` owns refresh, reconciliation, and filtering; `DreamExplorerController` implements creation, folders, and moves; `DreamClarityCheckController` owns model requests and stale-result protection; `DreamExportController` uses the existing Markdown export formatter for clipboard commands.
+`DreamStore` remains the single authority for Dream drafts, editor tabs, catalogue data, and selection. `DreamController` handles editing, source extension, and tab lifecycle. `DreamSaveCoordinator` owns autosave and save ordering; `DreamCatalogueController` owns refresh, reconciliation, and filtering; `DreamExplorerController` implements creation, folders, and moves; `DreamExportController` uses the existing Markdown export formatter for clipboard commands. Generic Chat owns conversational request state independently of Dream editing state.
 
-The shell, resizing, and appearance controls belong to `WorkspaceShellPanel`, `WorkspaceLayoutPanel`, and `ReadingAppearancePanel`. `WorkspaceController` coordinates typed workspace requests and native activation. `ChoraApplication` composes these owners and manages startup and reverse-order disposal. Close and deletion drain in-flight saves, save responses target their captured Dream, and cancelled or stale Clarity Check responses do not replace editor state.
+The shell, resizing, and appearance controls belong to `WorkspaceShellPanel`, `WorkspaceLayoutPanel`, and `ReadingAppearancePanel`. `WorkspaceController` coordinates typed workspace requests and native activation. `ChoraApplication` composes these owners and manages startup and reverse-order disposal. Close and deletion drain in-flight saves, and save responses target their captured Dream.

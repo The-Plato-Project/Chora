@@ -68,7 +68,7 @@ describe("MarkdownEditor", function MarkdownEditorTests()
 				createdAt: "2026-01-01",
 				updatedAt: "2026-01-01"
 			}],
-			reflection: "A reflection", synopticView: "", linkedDreamIds: ["another"], createdAt: "2026-01-01", updatedAt: "2026-01-01"
+			reflection: "A reflection", linkedDreamIds: ["another"], createdAt: "2026-01-01", updatedAt: "2026-01-01"
 		};
 		const signal = dream.signals[0]!;
 		const markdown = SignalMarkdownDocument.SerializeSection(dream, signal, 1);
@@ -277,7 +277,7 @@ describe("MarkdownEditor", function MarkdownEditorTests()
 				createdAt: "2026-09-06",
 				updatedAt: "2026-09-06"
 			}],
-			reflection: markdown, synopticView: "", linkedDreamIds: [], createdAt: "2026-09-06", updatedAt: "2026-09-06"
+			reflection: markdown, linkedDreamIds: [], createdAt: "2026-09-06", updatedAt: "2026-09-06"
 		};
 		const signal: SignalRecord = {
 			...dream.signals[0]!,

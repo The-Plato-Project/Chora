@@ -2,14 +2,13 @@ import { IpcErrorBoundary } from "../diagnostics/IpcErrorBoundary.js";
 import type { DreamTrashSnapshot } from "../../shared/dreams/DreamTrashTypes.js";
 import { ipcMain, type IpcMainInvokeEvent } from "electron";
 import { IPC_CHANNELS } from "../../shared/contracts/IpcChannels.js";
-import type { CreateDreamCommand, CreateDreamFolderCommand, DeleteDreamFolderCommand, DreamCatalogueSnapshot, DreamFolderSnapshot, DreamLocationSnapshot, DreamSnapshot, DreamSynopticViewRequest, MoveDreamCommand, UpdateDreamCommand } from "../../shared/dreams/DreamTypes.js";
+import type { CreateDreamCommand, CreateDreamFolderCommand, DeleteDreamFolderCommand, DreamCatalogueSnapshot, DreamFolderSnapshot, DreamLocationSnapshot, DreamSnapshot, MoveDreamCommand, UpdateDreamCommand } from "../../shared/dreams/DreamTypes.js";
 import { DreamService } from "./DreamService.js";
-import { DreamSynopticViewService } from "./DreamSynopticViewService.js";
 
 export class DreamIpcController
 {
 	// IPC channels registered by this controller.
-	private readonly channels = [IPC_CHANNELS.reloadDreamCatalogue, IPC_CHANNELS.listDreamTrash, IPC_CHANNELS.restoreDreamTrash, IPC_CHANNELS.purgeDreamTrash, IPC_CHANNELS.emptyDreamTrash, IPC_CHANNELS.createDream, IPC_CHANNELS.updateDream, IPC_CHANNELS.deleteDream, IPC_CHANNELS.listDreamCatalogue, IPC_CHANNELS.createDreamFolder, IPC_CHANNELS.deleteDreamFolder, IPC_CHANNELS.moveDream, IPC_CHANNELS.createDreamSynopticView, IPC_CHANNELS.cancelDreamSynopticView] as const;
+	private readonly channels = [IPC_CHANNELS.reloadDreamCatalogue, IPC_CHANNELS.listDreamTrash, IPC_CHANNELS.restoreDreamTrash, IPC_CHANNELS.purgeDreamTrash, IPC_CHANNELS.emptyDreamTrash, IPC_CHANNELS.createDream, IPC_CHANNELS.updateDream, IPC_CHANNELS.deleteDream, IPC_CHANNELS.listDreamCatalogue, IPC_CHANNELS.createDreamFolder, IPC_CHANNELS.deleteDreamFolder, IPC_CHANNELS.moveDream] as const;
 	// Bound Electron handler that creates one Dream record.
 	private readonly createHandler: (_event: IpcMainInvokeEvent, command: CreateDreamCommand) => Promise<DreamSnapshot>;
 	// Bound Electron handler that updates one Dream record.
@@ -24,11 +23,9 @@ export class DreamIpcController
 	private readonly deleteFolderHandler: (_event: IpcMainInvokeEvent, command: DeleteDreamFolderCommand) => Promise<void>;
 	// Bound Electron handler that moves one Dream between folders.
 	private readonly moveDreamHandler: (_event: IpcMainInvokeEvent, command: MoveDreamCommand) => Promise<DreamLocationSnapshot>;
-	private readonly createSynopticViewHandler: (_event: IpcMainInvokeEvent, request: DreamSynopticViewRequest) => Promise<string>;
-	private readonly cancelSynopticViewHandler: (_event: IpcMainInvokeEvent, dreamId: string) => void;
 
 	// Creates the IPC boundary for the Dream use-case service.
-	public constructor(private readonly service: DreamService, private readonly synopticViews: DreamSynopticViewService)
+	public constructor(private readonly service: DreamService)
 	{
 		this.createHandler = this.HandleCreateAsync.bind(this);
 		this.updateHandler = this.HandleUpdateAsync.bind(this);
@@ -37,8 +34,6 @@ export class DreamIpcController
 		this.createFolderHandler = this.HandleCreateFolderAsync.bind(this);
 		this.deleteFolderHandler = this.HandleDeleteFolderAsync.bind(this);
 		this.moveDreamHandler = this.HandleMoveDreamAsync.bind(this);
-		this.createSynopticViewHandler = this.HandleCreateSynopticViewAsync.bind(this);
-		this.cancelSynopticViewHandler = this.HandleCancelSynopticView.bind(this);
 	}
 
 	// Registers Dream use cases with Electron's main-process IPC registry.
@@ -56,8 +51,6 @@ export class DreamIpcController
 		IpcErrorBoundary.Register(IPC_CHANNELS.createDreamFolder, this.createFolderHandler);
 		IpcErrorBoundary.Register(IPC_CHANNELS.deleteDreamFolder, this.deleteFolderHandler);
 		IpcErrorBoundary.Register(IPC_CHANNELS.moveDream, this.moveDreamHandler);
-		IpcErrorBoundary.Register(IPC_CHANNELS.createDreamSynopticView, this.createSynopticViewHandler);
-		IpcErrorBoundary.Register(IPC_CHANNELS.cancelDreamSynopticView, this.cancelSynopticViewHandler);
 	}
 
 	// Removes Dream use cases from Electron's main-process IPC registry.
@@ -158,13 +151,4 @@ export class DreamIpcController
 		return location;
 	}
 
-	private HandleCreateSynopticViewAsync(_event: IpcMainInvokeEvent, request: DreamSynopticViewRequest): Promise<string>
-	{
-		return this.synopticViews.CreateAsync(request);
-	}
-
-	private HandleCancelSynopticView(_event: IpcMainInvokeEvent, dreamId: string): void
-	{
-		this.synopticViews.Cancel(dreamId);
-	}
 }

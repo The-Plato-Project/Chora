@@ -6,7 +6,6 @@ export type LayoutDimension =
 	| "lookupHeight"
 	| "dreamSourceHeight"
 	| "dreamReflectionsHeight"
-	| "dreamSynopticViewHeight"
 	| "chatComposerHeight";
 
 // Persisted renderer layout preferences.
@@ -117,7 +116,6 @@ export class LayoutSettingsStore
 			"lookupHeight",
 			"dreamSourceHeight",
 			"dreamReflectionsHeight",
-			"dreamSynopticViewHeight",
 			"chatComposerHeight"
 		];
 		const isDimension = names.includes(name);

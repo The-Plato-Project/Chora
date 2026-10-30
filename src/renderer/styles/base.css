@@ -139,13 +139,13 @@ button:disabled {
 	--dream-pane-width: 42vw;
 	position: relative;
 	display: grid;
-	grid-template-columns: minmax(220px, var(--left-pane-width)) minmax(0, 1fr) 0;
+	grid-template-columns: minmax(180px, var(--left-pane-width)) minmax(0, 1fr) 0;
 	grid-template-areas: "left document editor";
 	height: 100vh;
 }
 
 .shell.dream-open {
-	grid-template-columns: minmax(220px, var(--left-pane-width)) minmax(300px, var(--dream-pane-width)) minmax(0, 1fr);
+	grid-template-columns: minmax(180px, var(--left-pane-width)) minmax(300px, var(--dream-pane-width)) minmax(0, 1fr);
 	grid-template-areas: "left editor document";
 }
 
@@ -1065,10 +1065,10 @@ mark.find-hit.active {
 	justify-content: flex-end;
 	min-height: 58px;
 	box-sizing: border-box;
-	padding: 9px 12px;
-	border: 1px solid var(--panel-border);
-	border-radius: 5px;
-	background: var(--dream-raised);
+	padding: 9px 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
 }
 
 .document-save-actions {
@@ -1085,11 +1085,11 @@ mark.find-hit.active {
 	height: 100%;
 	min-width: 0;
 	min-height: 0;
-	padding: 10px 16px 16px;
+	padding: 10px 0 0;
 	overflow: hidden;
-	border: 1px solid var(--panel-border);
-	border-radius: 6px;
-	background: var(--dream-raised);
+	border: 0;
+	border-radius: 0;
+	background: transparent;
 }
 
 .signal-list .signal-view-search {
@@ -1128,13 +1128,13 @@ mark.find-hit.active {
 
 .signal-view-body {
 	display: grid;
-	grid-template-columns: minmax(150px, var(--signal-navigation-width, 29%)) 5px minmax(0, 1fr);
+	grid-template-columns: minmax(150px, var(--signal-navigation-width, 39%)) 5px minmax(0, 1fr);
 	min-width: 0;
 	min-height: 0;
 	overflow: hidden;
-	border: 1px solid var(--panel-border);
-	border-radius: 4px;
-	background: var(--editor-input-background);
+	border: 0;
+	border-radius: 0;
+	background: transparent;
 }
 
 .signal-view-body > .signal-list {

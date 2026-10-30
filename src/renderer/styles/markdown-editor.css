@@ -145,14 +145,12 @@ textarea::-webkit-resizer,
 	font: inherit;
 }
 
-.dream-reflections-markdown,
-.dream-synoptic-view-markdown {
+.dream-reflections-markdown {
 	border: 1px solid var(--panel-border);
 	border-radius: 4px;
 }
 
-.dream-reflections-markdown .markdown-content,
-.dream-synoptic-view-markdown .markdown-content {
+.dream-reflections-markdown .markdown-content {
 	min-height: 18rem;
 }
 

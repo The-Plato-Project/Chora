@@ -7,9 +7,10 @@
 	"scripts": {
 		"postinstall": "node scripts/FixMilkdownDeclarations.mjs",
 		"start": "node scripts/StartMode.mjs copilot-relay",
-		"dev:mock": "node scripts/StartMode.mjs mock",
-		"dev:kimi": "node scripts/StartMode.mjs kimi",
-		"dev:relay": "node scripts/StartMode.mjs copilot-relay",
+		"dev:mock": "node scripts/StartMode.mjs mock --exclusive",
+		"dev:kimi": "node scripts/StartMode.mjs kimi --exclusive",
+		"dev:ollama": "node scripts/StartMode.mjs ollama --exclusive",
+		"dev:relay": "node scripts/StartMode.mjs copilot-relay --exclusive",
 		"package": "npm run build && electron-forge package",
 		"make": "npm run build && electron-forge make",
 		"build": "npm run build:main && npm run build:preload && npm run build:renderer",

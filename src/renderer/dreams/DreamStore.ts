@@ -621,21 +621,6 @@ export class DreamStore
 		return change;
 	}
 
-	// Updates the active DreamView Clarity Check and records one authoritative state change.
-	public UpdateSynopticView(synopticView: string): DreamChange | null
-	{
-		let change: DreamChange | null = null;
-		const tab = this.GetActiveTab();
-
-		if (tab !== null)
-		{
-			tab.dream.synopticView = synopticView;
-			change = this.RecordChange();
-		}
-
-		return change;
-	}
-
 	// Replaces the source selection owned by the active DreamView.
 	public ReplaceSource(source: TextSelection): DreamChange | null
 	{

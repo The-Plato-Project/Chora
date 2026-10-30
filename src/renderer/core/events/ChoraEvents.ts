@@ -37,7 +37,6 @@ export interface ChoraEvents
 	"dream.structure-changed": { dreamId: string };
 	"dream.saved": Record<string, never>;
 	"dream.save-state-changed": Record<string, never>;
-	"dream.synoptic-view-state-changed": { dreamId: string };
 	"error.reported": ErrorRecord;
 }
 

@@ -69,7 +69,7 @@ Read `CODING_STANDARDS.md` first. This project uses the C#-style rules described
 - Panels own DOM and local user interaction; controllers coordinate workflows; stores own renderer state; gateways own IPC.
 - Components communicate through the typed `ChoraEventBus`; do not call other panels directly.
 - Use `ErrorManager` for application logs, diagnostics, and user-facing errors; do not scatter raw `console` calls through application code.
-- Model requests use the owning feature gateway. Clarity Check uses `DreamGateway` and the typed preload API to reach `DreamIpcController` and `DreamSynopticViewService`; prompts and provider calls remain in the main process.
+- Model requests use the owning feature gateway. Clarity Check uses `ChatGateway` and the typed preload API to reach `ChatIpcController` and `ChatService`; prompts and provider calls remain in the main process.
 
 ## Architecture Boundaries
 
@@ -82,9 +82,9 @@ Read `CODING_STANDARDS.md` first. This project uses the C#-style rules described
 
 ## Current Model Workflow
 
-Clarity Check is the active model workflow. `DreamClarityCheckController` assembles a reading document from the Dream, calls `DreamGateway.CreateSynopticViewAsync`, and applies the returned text through the Dream editing and save flow. The preload contract exposes `CreateDreamSynopticView` and `CancelDreamSynopticView`. `DreamSynopticViewService` loads `Prompts/clarity-check.md` through `PromptLoader`, invokes the configured provider with empty conversation history, and owns request cancellation. The stored field is named `synopticView`; the UI calls it Clarity Check.
+Clarity Check is a conversational workflow. `DreamDiscussionPanel` embeds the reusable renderer `ChatPanel`; `ChatController` and `ChatGateway` invoke the narrow Chat preload API. Main `ChatService` owns history, turn execution, cancellation and persistence through `ChatRepository`. `DreamDiscussionContext` resolves canonical Dream/Signal/source material while holding the existing Dream mutation lease. Prompts and provider transport remain in the main process through `ModelApi` and `Prompts/dream-discussion.md`. Replies currently arrive as complete messages.
 
-There is no active Chat feature, saved-chat history, or renderer model-selection workflow in the current application or exposed API. Older references to those workflows do not authorize reintroducing them. Treat the current composition roots, typed API, and these standards as the implementation guide.
+Conversations are saved separately under `Documents/Chora/Conversations/` and included in recoverable Dream Trash bundles. Model discovery uses the configured provider; the chat picker selects the model for subsequent turns. Do not reintroduce renderer-controlled prompts or duplicate Dream state inside Chat.
 
 ## Configuration
 

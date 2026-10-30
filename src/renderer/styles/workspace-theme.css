@@ -1,28 +1,28 @@
 /* Part of styles.css, split by topic. Import order in ../styles.css matches this file's original position — do not reorder relative to the other split files. */
-/* The reading workspace uses a quiet, light desktop surface with native macOS-like controls. */
+/* The reading workspace uses a quiet sage-and-cream reading workspace. */
 
 :root {
 	color-scheme: light;
-	--app-background: #f7f7f8;
-	--panel-background: #f5f5f7;
-	--side-panel-background: #f8f9fb;
-	--signal-observation-background: #f3f4f7;
-	--signal-toolbar-background: #eceef2;
-	--editor-input-background: #ffffff;
-	--dream-background: #ffffff;
-	--dream-raised: #f7f8fa;
-	--dream-divider: #e3e4e8;
-	--dream-muted: #73757d;
-	--dream-accent: #0a67d7;
-	--dream-selection: #dcecff;
-	--panel-border: #e2e3e7;
-	--app-text: #24262b;
-	--muted-text: #777a83;
-	--accent: #0a67d7;
-	--accent-soft: #dcecff;
+	--app-background: #eeeee7;
+	--panel-background: #fafbf6;
+	--side-panel-background: #f0f2e9;
+	--signal-observation-background: #fafbf6;
+	--signal-toolbar-background: #f0f2e8;
+	--editor-input-background: #fffffc;
+	--dream-background: #fffffc;
+	--dream-raised: #f0f2e8;
+	--dream-divider: #d1dac9;
+	--dream-muted: #66808a;
+	--dream-accent: #b65e3b;
+	--dream-selection: #dfe7d6;
+	--panel-border: #d1dac9;
+	--app-text: #17465c;
+	--muted-text: #66808a;
+	--accent: #b65e3b;
+	--accent-soft: #dfe7d6;
 	--danger: #c83d3d;
-	--reader-background: #ffffff;
-	--reader-foreground: #303136;
+	--reader-background: #fffffc;
+	--reader-foreground: #17465c;
 }
 
 html,
@@ -33,7 +33,7 @@ body {
 }
 
 .shell {
-	background: #ffffff;
+	background: var(--reader-background);
 }
 
 .left-panel {
@@ -48,11 +48,11 @@ body {
 }
 
 .center-panel {
-	background: #ffffff;
+	background: var(--reader-background);
 }
 
 #readingPane {
-	background: #ffffff;
+	background: var(--reader-background);
 	box-shadow: inset 1px 0 0 #f0f0f2;
 }
 
@@ -79,7 +79,7 @@ body {
 }
 
 .text-body {
-	color: #303136;
+	color: var(--reader-foreground);
 }
 
 .dream-catalogue {
@@ -193,7 +193,7 @@ body {
 .dream-field textarea {
 	border-color: #dedfe3;
 	border-radius: 0.4rem;
-	background: #ffffff;
+	background: var(--reader-background);
 	color: #2d3036;
 	box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.025);
 }
@@ -231,7 +231,7 @@ body {
 	place-items: center;
 	border: 1px solid #d4dae2;
 	border-radius: 0.7rem;
-	background: #ffffff;
+	background: var(--reader-background);
 	color: #17202c;
 	font-size: 2.05rem;
 	font-weight: 300;
@@ -254,7 +254,7 @@ body {
 	padding: 0 1.35rem;
 	border: 1px solid #d4dae2;
 	border-radius: 0.9rem;
-	background: #ffffff;
+	background: var(--reader-background);
 	color: #8b95a2;
 	font-size: 1.6rem;
 }
@@ -425,8 +425,8 @@ html {
 }
 
 .shell {
-	--left-pane-width: 268px;
-	--dream-pane-width: clamp(400px, 46.9vw, 760px);
+	--left-pane-width: clamp(180px, 16vw, 240px);
+	--dream-pane-width: clamp(300px, 46vw, 760px);
 	height: 100dvh;
 }
 
@@ -784,7 +784,7 @@ html {
 
 @media (max-width: 1150px) {
 	.shell {
-		--left-pane-width: 220px;
+		--left-pane-width: 180px;
 		--dream-pane-width: 44vw;
 	}
 
@@ -812,3 +812,55 @@ html {
 	}
 
 }
+
+.shell > .right-panel {
+	background: var(--panel-background);
+}
+
+.shell .reader-toolbar {
+	background: var(--reader-background);
+	padding-top: 20px;
+}
+
+.shell #readingPane {
+	padding-right: 28px;
+	padding-left: 26px;
+}
+
+.shell .text-body {
+	color: var(--reader-foreground);
+	line-height: 1.65;
+}
+
+.shell .reader-control, .shell .reader-control select {
+	color: var(--app-text);
+}
+
+.dream-document-bar, .dream-document-tabs {
+	background: var(--panel-background);
+}
+
+.dream-document-bar {
+	border-bottom-color: transparent;
+}
+
+.dream-document-tab {
+	height: 29px;
+	margin-top: 2px;
+	border-radius: 0;
+	background: transparent;
+}
+
+.dream-document-tab.selected {
+	border-color: transparent;
+	background: var(--dream-raised);
+}
+
+.dream-document-tab-label {
+	font-size: 11px;
+}
+
+.dream-document-tab-icon {
+	color: var(--muted-text);
+}
+

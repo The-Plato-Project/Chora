@@ -98,12 +98,14 @@ describe("Copilot Relay provider", function CopilotRelayProviderTests()
 		expect(result.model).toBe("gpt-5.6-sol");
 	});
 
-	it("lists every model family offered by the authenticated Relay", async function ListsModelFamilies(): Promise<void>
+	it("excludes VS Code-internal model families from the Relay catalogue", async function ListsModelFamilies(): Promise<void>
 	{
 		vi.stubEnv("COPILOT_RELAY_SHARED_SECRET", "shared-secret");
 		vi.stubGlobal("fetch", async function ReturnModelCatalogue(): Promise<Response>
 		{
-			const response = new Response(JSON.stringify({ modelFamilies: ["claude-sonnet-4.5", "gpt-4.1"] }), { status: 200 });
+			const response = new Response(JSON.stringify({
+				modelFamilies: ["claude-sonnet-4.5", "copilot-dictation-cleanup-luna", "gpt-4.1"]
+			}), { status: 200 });
 
 			return response;
 		});

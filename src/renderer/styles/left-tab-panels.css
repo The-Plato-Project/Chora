@@ -8,8 +8,8 @@
 	--left-tab-row-title-size: 0.92rem;
 	box-sizing: border-box;
 	padding: var(--left-tab-padding);
-	background: #f7f7f8;
-	color: #303238;
+	background: var(--side-panel-background);
+	color: var(--app-text);
 	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -89,7 +89,7 @@
 	flex: 0 0 20px;
 	place-items: center;
 	align-self: stretch;
-	margin-left: 20px;
+	margin-left: 8px;
 	padding: 0;
 	border: 0;
 	background: transparent;
@@ -774,3 +774,66 @@
 .catalogue-reload-dialog::backdrop {
 	background: rgba(0, 0, 0, 0.4);
 }
+
+/* Explorer mirrors the compact hierarchy of the reading workspace. */
+.workspace-explorer-heading {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex: 0 0 46px;
+	padding: 0 14px;
+	color: var(--muted-text);
+	font: 10px/1.4 var(--ui-font);
+	letter-spacing: 0.09em;
+	text-transform: uppercase;
+}
+.workspace-explorer-heading button {
+	width: 24px;
+	height: 24px;
+	border: 0;
+	background: transparent;
+	color: var(--muted-text);
+}
+
+.workspace-explorer-heading svg {
+	width: 12px;
+	height: 12px;
+}
+
+.workspace-explorer .workspace-search {
+	margin: 0 12px 12px;
+	background: var(--editor-input-background);
+}
+
+.workspace-explorer .workspace-tree {
+	padding: 0 10px 16px 6px;
+}
+
+.workspace-tree-work.selected {
+	background: transparent;
+}
+
+.workspace-tree-folder-heading > .workspace-tree-row {
+	padding-left: 20px;
+	font-weight: 400;
+}
+
+.workspace-tree-children .workspace-tree-children .workspace-item-row {
+	padding-left: 38px;
+}
+
+.workspace-library-tools {
+	padding: 10px 8px 14px;
+	border-top: 1px solid var(--panel-border);
+}
+
+.workspace-library-tools .workspace-tree-row {
+	font-size: 10px;
+	color: var(--muted-text);
+}
+
+.workspace-library-tools svg {
+	width: 12px;
+	height: 12px;
+}
+

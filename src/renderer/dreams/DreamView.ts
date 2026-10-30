@@ -11,7 +11,6 @@ export interface DreamView
 	source: DreamSnapshot["source"];
 	signals: SignalRecord[];
 	reflection: string;
-	synopticView: string;
 	linkedDreamIds: string[];
 	createdAt: string;
 	updatedAt: string;
@@ -40,7 +39,6 @@ export function CreateDreamSnapshot(view: DreamView): DreamSnapshot
 		source: structuredClone(view.source),
 		signals: structuredClone(view.signals),
 		reflection: view.reflection,
-		synopticView: view.synopticView,
 		linkedDreamIds: [...view.linkedDreamIds],
 		createdAt: view.createdAt,
 		updatedAt: view.updatedAt
@@ -57,7 +55,6 @@ export function CreateDreamUpdateCommand(view: DreamView): UpdateDreamCommand
 		title: view.title,
 		source: structuredClone(view.source),
 		reflection: view.reflection,
-		synopticView: view.synopticView,
 		linkedDreamIds: [...view.linkedDreamIds]
 	};
 

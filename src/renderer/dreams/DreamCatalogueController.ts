@@ -11,7 +11,6 @@ import { DreamStore } from "./DreamStore.js";
 
 import type { Unsubscribe } from "../core/events/ChoraEventBus.js";
 import type { DreamSaveCoordinator } from "./DreamSaveCoordinator.js";
-import type { DreamClarityCheckController } from "./DreamClarityCheckController.js";
 // A division of a document (e.g. "Book 4"), used to place a Dream in the catalogue.
 type DreamDivision = { type: string; label: string };
 
@@ -35,8 +34,8 @@ export class DreamCatalogueController
 	// Feature subscriptions released when this catalogue owner is disposed.
 	private readonly subscriptions: Unsubscribe[] = [];
 
-	// Uses existing state and coordinates reload with the owners of saves and model requests.
-	public constructor(private readonly events: ChoraEventBus<ChoraEvents>, private readonly errors: ErrorManager, private readonly library: LibraryStore, private readonly store: DreamStore, private readonly gateway: DreamGateway, private readonly saves: DreamSaveCoordinator, private readonly clarity: DreamClarityCheckController)
+	// Uses existing state and coordinates reload with the save owner.
+	public constructor(private readonly events: ChoraEventBus<ChoraEvents>, private readonly errors: ErrorManager, private readonly library: LibraryStore, private readonly store: DreamStore, private readonly gateway: DreamGateway, private readonly saves: DreamSaveCoordinator)
 	{
 		this.subscriptions.push(events.Subscribe("dream.passage-filter-requested", this.HandlePassageFilterRequestedAsync.bind(this)));
 		this.subscriptions.push(events.Subscribe("library.text-opened", this.HandleFilterTextOpened.bind(this)));
@@ -129,9 +128,9 @@ export class DreamCatalogueController
 	public async ReloadFromDiskAsync(): Promise<void>
 	{
 		if (this.activeRefresh !== null) await this.activeRefresh;
-		if (this.store.HasUnsavedChanges() || this.saves.IsBusy() || this.clarity.HasActiveRequests())
+		if (this.store.HasUnsavedChanges() || this.saves.IsBusy())
 		{
-			throw new Error("Reload would conflict with unsaved edits or an active Dream operation. Finish saving or checking clarity, then reload. Your edits have been kept.");
+			throw new Error("Reload would conflict with unsaved edits. Finish saving, then reload. Your edits have been kept.");
 		}
 		const snapshot = await this.gateway.ReloadAsync();
 		const catalogue = this.CreateViews(snapshot.dreams);

@@ -1,4 +1,8 @@
 export const IPC_CHANNELS = {
+	openChat: "chora:open-chat",
+	sendChat: "chora:send-chat",
+	cancelChat: "chora:cancel-chat",
+	listModels: "chora:list-models",
 	recordDiagnostic: "chora:record-diagnostic",
 	diagnosticReported: "chora:diagnostic-reported",
 	listLibraryTexts: "chora:list-library-texts",
@@ -28,7 +32,5 @@ export const IPC_CHANNELS = {
 	listDreamCatalogue: "chora:list-dream-catalogue",
 	createDreamFolder: "chora:create-dream-folder",
 	deleteDreamFolder: "chora:delete-dream-folder",
-	moveDream: "chora:move-dream",
-	createDreamSynopticView: "chora:create-dream-synoptic-view",
-	cancelDreamSynopticView: "chora:cancel-dream-synoptic-view"
+	moveDream: "chora:move-dream"
 } as const;

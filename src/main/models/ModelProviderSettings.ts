@@ -4,6 +4,10 @@ export const DefaultKimiBaseUrl = "https://api.moonshot.ai/v1";
 export const DefaultKimiModel = "kimi-k2.6";
 export const DefaultKimiMaxCompletionTokens = 3000;
 export const DefaultCopilotRelayPort = 4319;
+export const DefaultOllamaBaseUrl = "http://127.0.0.1:11434";
+export const DefaultOllamaContextLength = 32768;
+export const DefaultOllamaDiscoveryTimeoutMilliseconds = 10000;
+export const DefaultOllamaRequestTimeoutMilliseconds = 300000;
 
 export function GetRequiredValue(keys: string[], displayName: string): string
 {

@@ -6,11 +6,16 @@ import { fileURLToPath } from "node:url";
 
 const rootPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const providerId = process.argv[2] ?? "copilot-relay";
+const exclusive = process.argv.includes("--exclusive");
 const relayPort = 4319;
 const environment = {
 	...process.env,
 	MODEL_PROVIDER: providerId
 };
+if (exclusive)
+{
+	environment.MODEL_PROVIDERS = providerId;
+}
 const electronEnvironment = {
 	...environment
 };

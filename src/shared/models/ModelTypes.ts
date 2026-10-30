@@ -1,4 +1,4 @@
-export type ProviderId = "mock" | "kimi" | "copilot-relay";
+export type ProviderId = "mock" | "kimi" | "copilot-relay" | "ollama";
 
 export type ModelMessageRole = "user" | "assistant";
 

@@ -25,8 +25,6 @@ export class Dream extends TextAnnotation
 	private readonly signals: readonly SignalRecord[];
 	// Reader-authored reflections.
 	private readonly reflection: string;
-	// Reader-editable result of the model-assisted Clarity Check.
-	private readonly synopticView: string;
 	// Other Dreams linked by stable identifier.
 	private readonly linkedDreamIds: string[];
 	// Initial persistence timestamp.
@@ -44,7 +42,6 @@ export class Dream extends TextAnnotation
 		this.title = snapshot.title.trim();
 		this.signals = this.NormalizeSignals(snapshot.signals);
 		this.reflection = snapshot.reflection;
-		this.synopticView = snapshot.synopticView;
 		this.linkedDreamIds = this.NormalizeLinks(snapshot.linkedDreamIds);
 		this.createdAt = snapshot.createdAt;
 		this.updatedAt = snapshot.updatedAt;
@@ -61,7 +58,6 @@ export class Dream extends TextAnnotation
 			source: structuredClone(command.source),
 			signals: [],
 			reflection: "",
-			synopticView: "",
 			linkedDreamIds: [],
 			createdAt: timestamp,
 			updatedAt: timestamp
@@ -88,7 +84,6 @@ export class Dream extends TextAnnotation
 			source: structuredClone(this.selection),
 			signals: structuredClone(this.signals),
 			reflection: this.reflection,
-			synopticView: this.synopticView,
 			linkedDreamIds: [...this.linkedDreamIds],
 			createdAt: this.createdAt,
 			updatedAt: this.updatedAt
@@ -111,7 +106,6 @@ export class Dream extends TextAnnotation
 			title: command.title,
 			source: structuredClone(command.source),
 			reflection: command.reflection,
-			synopticView: command.synopticView,
 			linkedDreamIds: [...command.linkedDreamIds],
 			updatedAt: timestamp
 		});

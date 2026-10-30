@@ -5,7 +5,7 @@ import { DreamStore } from "./DreamStore.js";
 import { LibraryGateway } from "../library/LibraryGateway.js";
 
 
-// Owns exporting the active Dream and its Clarity Check through the existing Markdown formatter and clipboard gateway.
+// Owns exporting the active Dream through the existing Markdown formatter and clipboard gateway.
 export class DreamExportController
 {
 
@@ -36,14 +36,6 @@ export class DreamExportController
 			const markdown = DreamMarkdownExport.Serialize(snapshot, document);
 			await this.reader.CopyAsync(markdown);
 		}
-	}
-
-	// Copies the stored Clarity Check without starting a model request.
-	public async CopySynopticViewAsync(): Promise<void>
-	{
-		const dream = this.store.GetActiveDream();
-		if (dream === null || dream.synopticView.trim().length === 0) throw new Error("There is no Clarity Check to copy.");
-		await this.reader.CopyAsync(dream.synopticView);
 	}
 
 }

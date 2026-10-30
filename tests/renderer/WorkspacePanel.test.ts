@@ -1,6 +1,5 @@
 import { DreamSaveCoordinator } from "../../src/renderer/dreams/DreamSaveCoordinator.js";
 import { DreamCatalogueController } from "../../src/renderer/dreams/DreamCatalogueController.js";
-import { DreamClarityCheckController } from "../../src/renderer/dreams/DreamClarityCheckController.js";
 import { DreamExportController } from "../../src/renderer/dreams/DreamExportController.js";
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -65,7 +64,6 @@ function CreateDream(id = "dream-1", title = "Descent"): DreamView
 		},
 		signals: [],
 		reflection: "",
-		synopticView: "",
 		linkedDreamIds: [],
 		createdAt: "2026-09-08",
 		updatedAt: "2026-09-08"
@@ -80,7 +78,6 @@ describe("WorkspacePanel", function WorkspacePanelTests()
 	let dreamStore: DreamStore;
 	let dreamController: DreamController;
 	let saves: DreamSaveCoordinator;
-	let clarity: DreamClarityCheckController;
 	let catalogue: DreamCatalogueController;
 	let explorer: DreamExplorerController;
 	let library: LibraryStore;
@@ -105,8 +102,7 @@ describe("WorkspacePanel", function WorkspacePanelTests()
 		const gateway = new DreamGateway();
 		const reader = new LibraryGateway();
 		saves = new DreamSaveCoordinator(events, errors, dreamStore, gateway);
-		clarity = new DreamClarityCheckController(events, errors, library, dreamStore, gateway, saves);
-		catalogue = new DreamCatalogueController(events, errors, library, dreamStore, gateway, saves, clarity);
+		catalogue = new DreamCatalogueController(events, errors, library, dreamStore, gateway, saves);
 		dreamController = new DreamController(events, errors, library, dreamStore, gateway, reader, saves);
 		explorer = new DreamExplorerController(dreamStore, library, gateway, events, errors, catalogue, { HasUncommittedChanges: function HasUncommittedChanges(): boolean { return false; } });
 		const exporter = new DreamExportController(dreamStore, library, reader);
@@ -121,7 +117,6 @@ describe("WorkspacePanel", function WorkspacePanelTests()
 		trashPanel.Dispose();
 		explorer.Dispose();
 		catalogue.Dispose();
-		clarity.Dispose();
 		dreamController.Dispose();
 		saves.Dispose();
 		dreamStore.Dispose();
@@ -205,7 +200,7 @@ describe("WorkspacePanel", function WorkspacePanelTests()
 				{ dreamId: second.id, workId: second.workId, folderPath: "" }
 			]);
 		await events.PublishAsync("dream.catalogue-changed", { count: 2 });
-		const move = vi.spyOn(dreamController, "MoveDreamsAsync").mockResolvedValue(true);
+		const move = vi.spyOn(explorer, "MoveDreamsAsync").mockResolvedValue(true);
 		const transfer = new DataTransfer();
 		const firstButton = explorerRoot.querySelector<HTMLElement>('[data-workspace-dream="dream-1"]');
 		firstButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
