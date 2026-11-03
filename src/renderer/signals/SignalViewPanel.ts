@@ -5,7 +5,7 @@ import type { TextSelection } from "../../shared/text/TextSelection.js";
 import type { ErrorManager } from "../core/diagnostics/RendererErrorManager.js";
 import { LayoutSettings } from "../core/settings/LayoutSettingsStore.js";
 import { EscapeHtml } from "../ui/Html.js";
-import { CloseIcon, DocumentIcon, OpenIcon, SearchIcon, SignalIcon, TextQuoteIcon, TrashIcon } from "../ui/Icons.js";
+import { CloseIcon, DocumentIcon, EditIcon, OpenIcon, SearchIcon, SignalIcon, TextQuoteIcon, TrashIcon } from "../ui/Icons.js";
 import { MarkdownEditor } from "../ui/MarkdownEditor.js";
 import { TabPanel } from "../ui/TabPanel.js";
 import { SignalRemovalConfirmation } from "./SignalRemovalConfirmation.js";
@@ -27,6 +27,8 @@ export abstract class SignalViewPanel extends TabPanel
 	private readonly divider: HTMLElement = document.createElement("div");
 	// Contains the selected Signal description.
 	private readonly detail: HTMLElement = document.createElement("div");
+	// Context menu for Signal row rename and deletion actions.
+	private readonly contextMenu: HTMLElement = document.createElement("div");
 	// Contains navigation rows by Signal identity.
 	private readonly navigation = new Map<string, HTMLElement>();
 	// Contains detail rows by Signal identity.
@@ -39,6 +41,12 @@ export abstract class SignalViewPanel extends TabPanel
 	private readonly clickHandler = this.HandleClick.bind(this);
 	// Handles connected-Signal filtering for the panel lifetime.
 	private readonly inputHandler = this.HandleInput.bind(this);
+	// Handles list-title rename keyboard commands.
+	private readonly keyDownHandler = this.HandleKeyDown.bind(this);
+	// Opens Signal actions at the pointer location.
+	private readonly contextMenuHandler = this.HandleContextMenu.bind(this);
+	// Dismisses Signal actions when interaction moves elsewhere.
+	private readonly dismissContextMenuHandler = this.HandleContextMenuDismiss.bind(this);
 	// Persists title edits when the reader commits the field.
 	private readonly changeHandler = this.HandleChange.bind(this);
 	// Publishes one Signal identity through native drag data.
@@ -59,6 +67,8 @@ export abstract class SignalViewPanel extends TabPanel
 	private textDocument: TextDocument | null = null;
 	// Contains an active Signal navigation resize gesture.
 	private resizeDrag: { pointerId: number; x: number; width: number } | null = null;
+	// Signal currently targeted by the row context menu.
+	private contextSignalId: string | null = null;
 	// Confirms removal of the selected Signal from its Dream.
 	private readonly removalConfirmation = new SignalRemovalConfirmation();
 
@@ -69,7 +79,7 @@ export abstract class SignalViewPanel extends TabPanel
 		this.errors = errors;
 		this.Root.classList.add("signal-view-panel");
 		this.search.className = "signal-view-search dream-search";
-		this.search.innerHTML = `<span>Find a Signal</span>${SearchIcon}<input data-signal-view-search type="search" aria-label="Search connected Signals" placeholder="Filter Signals…">`;
+		this.search.innerHTML = `<span>Signal index</span>${SearchIcon}<input data-signal-view-search type="search" aria-label="Search connected Signals" placeholder="Filter Signals…">`;
 		this.body.className = "signal-view-body";
 		const navigationWidth = LayoutSettings.GetDimension("signalNavigationWidth", 0);
 		if (navigationWidth > 0) this.body.style.setProperty("--signal-navigation-width", `${navigationWidth}px`);
@@ -82,15 +92,21 @@ export abstract class SignalViewPanel extends TabPanel
 		this.divider.setAttribute("aria-orientation", "vertical");
 		this.divider.tabIndex = 0;
 		this.detail.className = "signal-detail";
+		this.contextMenu.className = "signal-context-menu";
+		this.contextMenu.hidden = true;
+		this.contextMenu.innerHTML = `<button data-signal-menu-action="rename" type="button">${EditIcon}<span>Rename</span></button><button class="danger" data-signal-menu-action="delete" type="button">${TrashIcon}<span>Delete</span></button>`;
 		this.empty.className = "signal-view-empty-state";
 		this.empty.innerHTML = `<span class="signal-view-empty-icon" aria-hidden="true">${DocumentIcon}</span><strong>No Signals.</strong><span>Add signals to capture key readings, words, or phrases.</span>`;
 		this.detail.append(this.empty);
 		this.body.append(this.list, this.divider, this.detail);
-		this.Root.append(this.body);
+		this.Root.append(this.body, this.contextMenu);
 		this.Root.addEventListener("click", this.clickHandler);
 		this.Root.addEventListener("input", this.inputHandler);
 		this.Root.addEventListener("change", this.changeHandler);
+		this.Root.addEventListener("keydown", this.keyDownHandler);
+		this.Root.addEventListener("contextmenu", this.contextMenuHandler);
 		this.Root.addEventListener("dragstart", this.dragStartHandler);
+		document.addEventListener("pointerdown", this.dismissContextMenuHandler);
 		this.divider.addEventListener("pointerdown", this.resizeDownHandler);
 		this.divider.addEventListener("pointermove", this.resizeMoveHandler);
 		this.divider.addEventListener("pointerup", this.resizeUpHandler);
@@ -198,8 +214,8 @@ export abstract class SignalViewPanel extends TabPanel
 			if (heading !== null && heading !== undefined) heading.textContent = title;
 			const button = this.navigation.get(signal.id)?.querySelector<HTMLElement>("[data-signal-toggle]");
 			if (button !== null && button !== undefined) button.title = title;
-			const titleInput = row.querySelector<HTMLInputElement>("[data-signal-title]");
-			if (titleInput !== null && document.activeElement !== titleInput) titleInput.value = title;
+			const titleInput = this.navigation.get(signal.id)?.querySelector<HTMLInputElement>("[data-signal-title]");
+			if (titleInput !== null && titleInput !== undefined && document.activeElement !== titleInput) titleInput.value = title;
 			this.RenderPassages(signal, row);
 			this.editors.get(signal.id)?.SetMarkdown(signal.description);
 		}
@@ -224,7 +240,10 @@ export abstract class SignalViewPanel extends TabPanel
 		this.Root.removeEventListener("click", this.clickHandler);
 		this.Root.removeEventListener("input", this.inputHandler);
 		this.Root.removeEventListener("change", this.changeHandler);
+		this.Root.removeEventListener("keydown", this.keyDownHandler);
+		this.Root.removeEventListener("contextmenu", this.contextMenuHandler);
 		this.Root.removeEventListener("dragstart", this.dragStartHandler);
+		document.removeEventListener("pointerdown", this.dismissContextMenuHandler);
 		this.divider.removeEventListener("pointerdown", this.resizeDownHandler);
 		this.divider.removeEventListener("pointermove", this.resizeMoveHandler);
 		this.divider.removeEventListener("pointerup", this.resizeUpHandler);
@@ -341,26 +360,7 @@ export abstract class SignalViewPanel extends TabPanel
 		{
 			const identity = document.createElement("section");
 			identity.className = "signal-identity";
-			identity.innerHTML = `<label class="signal-title-field"><span>Signal title</span><input data-signal-title="${EscapeHtml(signal.id)}" type="text" value="${EscapeHtml(this.GetSignalTitle(signal))}" aria-label="Signal title"></label><section class="signal-passages" aria-label="Signal passages"><strong>Passages</strong><div data-signal-passages="${EscapeHtml(signal.id)}"></div></section>`;
-			const actions = document.createElement("div");
-			actions.className = "signal-editor-actions";
-			const jumpButton = document.createElement("button");
-			jumpButton.type = "button";
-			jumpButton.className = "signal-jump button-control";
-			jumpButton.dataset.jumpSignal = signal.id;
-			jumpButton.title = "Jump to Signal in text";
-			jumpButton.setAttribute("aria-label", "Jump to Signal in text");
-			jumpButton.innerHTML = OpenIcon;
-			const removeLabel = "Delete Signal";
-			const removeButton = document.createElement("button");
-			removeButton.type = "button";
-			removeButton.className = "signal-delete button-control";
-			removeButton.dataset.deleteSignal = signal.id;
-			removeButton.title = removeLabel;
-			removeButton.setAttribute("aria-label", removeLabel);
-			removeButton.innerHTML = TrashIcon;
-			actions.append(jumpButton, removeButton);
-			identity.append(actions);
+			identity.innerHTML = `<section class="signal-passages" aria-label="Signal passages"><strong>Passages</strong><div data-signal-passages="${EscapeHtml(signal.id)}"></div></section>`;
 			body.append(identity);
 			this.RenderPassages(signal, row);
 			const change = this.HandleDescriptionChange.bind(this, signal.id);
@@ -371,7 +371,6 @@ export abstract class SignalViewPanel extends TabPanel
 
 			const observation = document.createElement("section");
 			observation.className = "signal-observation";
-			observation.innerHTML = '<h3 class="signal-observation-heading">What do you see?</h3><p class="signal-observation-help">Describe the Signal and what it may signify.</p>';
 			observation.append(editor.Root);
 			body.append(observation);
 		}
@@ -458,11 +457,69 @@ export abstract class SignalViewPanel extends TabPanel
 			{
 				target.value = title;
 				this.UpdateSignalTitle(signalId, title);
+				const heading = this.navigation.get(signalId)?.querySelector<HTMLElement>(".signal-heading");
+				if (heading !== null && heading !== undefined) heading.textContent = title;
 			}
 			else if (signal !== undefined)
 			{
 				target.value = this.GetSignalTitle(signal);
 			}
+			this.FinishRename(signalId);
+		}
+	}
+
+	// Commits or cancels inline Signal-list title editing.
+	private HandleKeyDown(event: KeyboardEvent): void
+	{
+		const input = event.target as HTMLInputElement | null;
+		const signalId = input?.dataset.signalTitle;
+
+		if (signalId !== undefined && input !== null)
+		{
+			if (event.key === "Enter")
+			{
+				event.preventDefault();
+				input.blur();
+			}
+			else if (event.key === "Escape")
+			{
+				event.preventDefault();
+				this.FinishRename(signalId);
+			}
+		}
+	}
+
+	// Opens row actions for the Signal under the pointer.
+	private HandleContextMenu(event: MouseEvent): void
+	{
+		const target = event.target as HTMLElement | null;
+		const header = target?.closest<HTMLElement>(".signal-header") ?? null;
+		const toggle = header?.querySelector<HTMLButtonElement>("[data-signal-toggle]") ?? null;
+		const signalId = toggle?.dataset.signalToggle;
+
+		if (signalId !== undefined)
+		{
+			event.preventDefault();
+			event.stopPropagation();
+			this.SelectSignal(signalId);
+			this.contextSignalId = signalId;
+			this.contextMenu.hidden = false;
+			const bounds = this.contextMenu.getBoundingClientRect();
+			const left = Math.min(event.clientX, Math.max(0, window.innerWidth - bounds.width - 8));
+			const top = Math.min(event.clientY, Math.max(0, window.innerHeight - bounds.height - 8));
+			this.contextMenu.style.left = `${left}px`;
+			this.contextMenu.style.top = `${top}px`;
+			this.contextMenu.querySelector<HTMLButtonElement>("button")?.focus();
+		}
+	}
+
+	// Closes row actions when interaction moves outside their surface.
+	private HandleContextMenuDismiss(event: PointerEvent): void
+	{
+		const target = event.target;
+		if (target instanceof Node && !this.contextMenu.contains(target))
+		{
+			this.CloseContextMenu();
 		}
 	}
 
@@ -470,17 +527,37 @@ export abstract class SignalViewPanel extends TabPanel
 	private HandleClick(event: Event): void
 	{
 		const target = event.target as HTMLElement | null;
+		const menuAction = target?.closest<HTMLButtonElement>("[data-signal-menu-action]")?.dataset.signalMenuAction;
 		const passage = target?.closest<HTMLElement>("[data-signal-passage-index]") ?? null;
 		const jumpPassageButton = target?.closest<HTMLButtonElement>("[data-jump-signal-passage]") ?? null;
 		const removePassageButton = target?.closest<HTMLButtonElement>("[data-remove-signal-passage]") ?? null;
-		const jumpSignalButton = target?.closest<HTMLButtonElement>("[data-jump-signal]") ?? null;
-		const removeButton = target?.closest<HTMLButtonElement>("[data-delete-signal]") ?? null;
-		const handled = removeButton !== null
+		const handled = menuAction !== undefined
 			|| passage !== null
-			|| removePassageButton !== null
-			|| jumpSignalButton !== null;
+			|| removePassageButton !== null;
 
-		if (removePassageButton !== null)
+		if (menuAction === "rename" && this.contextSignalId !== null)
+		{
+			const signalId = this.contextSignalId;
+			this.CloseContextMenu();
+			this.StartRename(signalId);
+		}
+		else if (menuAction === "delete" && this.contextSignalId !== null)
+		{
+			const signalId = this.contextSignalId;
+			const signal = this.records.find(function FindSignal(candidate): boolean
+			{
+				return candidate.id === signalId;
+			});
+			const trigger = this.navigation.get(signalId)?.querySelector<HTMLElement>("[data-signal-toggle]");
+			this.CloseContextMenu();
+
+			if (signal !== undefined && trigger !== null && trigger !== undefined)
+			{
+				const remove = this.DeleteSignalAsync.bind(this, signalId);
+				this.removalConfirmation.Open(this.GetSignalTitle(signal), trigger, remove);
+			}
+		}
+		else if (removePassageButton !== null)
 		{
 			const signalId = removePassageButton.dataset.signalId;
 			const selectionIndex = Number.parseInt(removePassageButton.dataset.removeSignalPassage ?? "", 10);
@@ -509,27 +586,6 @@ export abstract class SignalViewPanel extends TabPanel
 				this.SelectPassage(signalId, selectionIndex);
 			}
 		}
-		else if (jumpSignalButton !== null)
-		{
-			const signalId = jumpSignalButton.dataset.jumpSignal;
-			if (signalId !== undefined) void this.ViewSignalAsync(signalId);
-		}
-		else if (removeButton !== null)
-		{
-			const signalId = removeButton.dataset.deleteSignal;
-			const signal = this.records.find(function FindSignal(candidate): boolean
-			{
-				return candidate.id === signalId;
-			});
-
-			if (signalId !== undefined && signal !== undefined)
-			{
-				this.removalConfirmation.Open(
-					signal.text,
-					removeButton,
-					this.DeleteSignalAsync.bind(this, signalId));
-			}
-		}
 		const toggleButton = target?.closest<HTMLButtonElement>("[data-signal-toggle]");
 
 		if (!handled && toggleButton !== null && toggleButton !== undefined)
@@ -541,6 +597,47 @@ export abstract class SignalViewPanel extends TabPanel
 				void this.ShowSignalAsync(signalId);
 			}
 		}
+	}
+
+	// Replaces one list title with an inline input until commit or cancellation.
+	private StartRename(signalId: string): void
+	{
+		const signal = this.records.find(function FindSignal(candidate): boolean
+		{
+			return candidate.id === signalId;
+		});
+		const header = this.navigation.get(signalId);
+		const toggle = header?.querySelector<HTMLButtonElement>("[data-signal-toggle]");
+
+		if (signal !== undefined && header !== undefined && toggle !== null && toggle !== undefined)
+		{
+			const input = document.createElement("input");
+			input.className = "signal-row-title-input";
+			input.dataset.signalTitle = signalId;
+			input.setAttribute("aria-label", "Signal title");
+			input.value = this.GetSignalTitle(signal);
+			toggle.hidden = true;
+			header.append(input);
+			input.focus();
+			input.select();
+		}
+	}
+
+	// Restores the row button after inline title editing.
+	private FinishRename(signalId: string): void
+	{
+		const header = this.navigation.get(signalId);
+		const toggle = header?.querySelector<HTMLButtonElement>("[data-signal-toggle]");
+		header?.querySelector<HTMLInputElement>("[data-signal-title]")?.remove();
+		if (toggle !== null && toggle !== undefined) toggle.hidden = false;
+		toggle?.focus({ preventScroll: true });
+	}
+
+	// Hides row actions and clears their transient Signal identity.
+	private CloseContextMenu(): void
+	{
+		this.contextMenu.hidden = true;
+		this.contextSignalId = null;
 	}
 
 	// Returns the reader-facing Signal name, using source text until the reader supplies a title.
@@ -578,7 +675,7 @@ export abstract class SignalViewPanel extends TabPanel
 				passage.dataset.signalPassageIndex = `${index}`;
 				passage.dataset.signalPassageKind = kind;
 				passage.setAttribute("aria-current", String(selected));
-				const text = this.textDocument?.id === selection.documentId
+				const text = this.textDocument?.id === selection.dialogue
 					? this.textDocument.ReconstructText(selection)
 					: index === 0
 						? signal.text

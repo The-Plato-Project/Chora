@@ -143,7 +143,7 @@ export class SignalController
 		{
 			this.errors.Report("SignalController", new Error(`Signal does not exist: ${signalId}`), "Unable to add this passage.");
 		}
-		else if (selection.documentId !== context.signal.workId || !IsValidSignalSelection(selection))
+		else if (selection.dialogue !== context.signal.workId || !IsValidSignalSelection(selection))
 		{
 			this.errors.Report("SignalController", new Error("Signal passage belongs to another work or is empty."), "Select text from the Signal's work.");
 		}

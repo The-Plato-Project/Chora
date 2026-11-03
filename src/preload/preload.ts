@@ -1,22 +1,57 @@
-import type { ChatConversationSnapshot, SendChatMessageCommand } from "../shared/chat/ChatTypes.js";
-import type { AvailableModel } from "../shared/models/ModelSelection.js";
 import type { OperationResult } from "../shared/diagnostics/OperationResult.js";
 import type { ErrorRecord } from "../shared/diagnostics/DiagnosticManager.js";
 import type { DreamTrashSnapshot } from "../shared/dreams/DreamTrashTypes.js";
 import { contextBridge, ipcRenderer } from "electron";
-import type { SelectionAction } from "../shared/text/TextSelection.js";
+import type { SelectionAction, TextSelection } from "../shared/text/TextSelection.js";
 import type { TextDocument, LibraryTextSummary, SourceNotice } from "../shared/library/LibraryTypes.js";
 import type { CreateDreamCommand, CreateDreamFolderCommand, DeleteDreamFolderCommand, DreamCatalogueSnapshot, DreamFolderSnapshot, DreamLocationSnapshot, DreamSnapshot, MoveDreamCommand, UpdateDreamCommand } from "../shared/dreams/DreamTypes.js";
 import type { CreateSignalCommand, DeleteSignalCommand, SignalRecord, UpdateSignalCommand } from "../shared/signals/SignalTypes.js";
 import { IPC_CHANNELS } from "../shared/contracts/IpcChannels.js";
 import type { ApiSubscription, ChoraApi, FormattingAction } from "../shared/contracts/ChoraApi.js";
-import type { LookupBounds, LookupCommand, LookupState } from "../shared/library/LookupTypes.js";
+import type {
+	WordEvidenceResult,
+	WordObservation,
+	WordObservationKey,
+	WordPersonResearch,
+	WordSearchResult
+} from "../shared/library/WordExplorationTypes.js";
 
-// Lists models without exposing credentials or accepting renderer-controlled configuration.
-async function ListModels(): Promise<OperationResult<readonly AvailableModel[]>>
+async function SearchWord(workId: string, form: string): Promise<OperationResult<WordSearchResult>>
 {
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.listModels);
-	return result as OperationResult<readonly AvailableModel[]>;
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.searchWord, workId, form);
+	return result as OperationResult<WordSearchResult>;
+}
+
+async function GetWordEvidence(selection: TextSelection): Promise<OperationResult<WordEvidenceResult>>
+{
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.getWordEvidence, selection);
+	return result as OperationResult<WordEvidenceResult>;
+}
+
+async function GetPersonResearch(
+	selection: TextSelection,
+	lemma: string): Promise<OperationResult<WordPersonResearch>>
+{
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.getPersonResearch, selection, lemma);
+	return result as OperationResult<WordPersonResearch>;
+}
+
+async function OpenExternalSource(url: string): Promise<OperationResult<void>>
+{
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.openExternalSource, url);
+	return result as OperationResult<void>;
+}
+
+async function GetWordObservation(key: WordObservationKey): Promise<OperationResult<WordObservation>>
+{
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.getWordObservation, key);
+	return result as OperationResult<WordObservation>;
+}
+
+async function SaveWordObservation(observation: WordObservation): Promise<OperationResult<WordObservation>>
+{
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.saveWordObservation, observation);
+	return result as OperationResult<WordObservation>;
 }
 
 async function ListLibraryTexts(): Promise<OperationResult<LibraryTextSummary[]>>
@@ -41,15 +76,15 @@ function SubscribeLibraryTextSelected(callback: (workId: string) => void): ApiSu
 	return () => ipcRenderer.removeListener(IPC_CHANNELS.selectLibraryText, listener);
 }
 
-async function ShowSelectionContextMenu(canAddSignal: boolean, canAddToDreamSource: boolean, canAddToCurrentSignal: boolean): Promise<OperationResult<SelectionAction>>
+async function ShowSelectionContextMenu(canAddSignal: boolean, canAddToDreamSource: boolean, canAddToCurrentSignal: boolean, canExploreWord: boolean): Promise<OperationResult<SelectionAction>>
 {
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.showSelectionContextMenu, canAddSignal, canAddToDreamSource, canAddToCurrentSignal);
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.showSelectionContextMenu, canAddSignal, canAddToDreamSource, canAddToCurrentSignal, canExploreWord);
 	return result as OperationResult<SelectionAction>;
 }
 
-async function ShowDreamSourceContextMenu(canAddToSelectedSignal: boolean): Promise<OperationResult<SelectionAction>>
+async function ShowDreamSourceContextMenu(canAddToSelectedSignal: boolean, canExploreWord: boolean): Promise<OperationResult<SelectionAction>>
 {
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.showDreamSourceContextMenu, canAddToSelectedSignal);
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.showDreamSourceContextMenu, canAddToSelectedSignal, canExploreWord);
 	return result as OperationResult<SelectionAction>;
 }
 
@@ -69,48 +104,6 @@ async function CopySelectedText(selectedText: string): Promise<OperationResult<v
 {
 	const response = await ipcRenderer.invoke(IPC_CHANNELS.copySelectedText, selectedText);
 	return response as OperationResult<void>;
-}
-
-async function LookUpWord(selectedText: string): Promise<OperationResult<void>>
-{
-	const response = await ipcRenderer.invoke(IPC_CHANNELS.lookUpWord, selectedText);
-	return response as OperationResult<void>;
-}
-
-// Reads dictionary state when the renderer mounts.
-async function GetLookupState(): Promise<OperationResult<LookupState>>
-{
-	const state = await ipcRenderer.invoke(IPC_CHANNELS.getLookupState);
-	return state as OperationResult<LookupState>;
-}
-
-// Places or hides the isolated dictionary view.
-async function SetLookupBounds(bounds: LookupBounds | null): Promise<OperationResult<void>>
-{
-	const response = await ipcRenderer.invoke(IPC_CHANNELS.setLookupBounds, bounds);
-	return response as OperationResult<void>;
-}
-
-// Sends a dictionary toolbar command.
-async function ExecuteLookupCommand(command: LookupCommand): Promise<OperationResult<void>>
-{
-	const response = await ipcRenderer.invoke(IPC_CHANNELS.lookupCommand, command);
-	return response as OperationResult<void>;
-}
-
-// Subscribes to dictionary navigation and loading state.
-function SubscribeLookupState(callback: (state: LookupState) => void): ApiSubscription
-{
-	function ReceiveState(_event: Electron.IpcRendererEvent, state: LookupState): void
-	{
-		callback(state);
-	}
-	function Unsubscribe(): void
-	{
-		ipcRenderer.removeListener(IPC_CHANNELS.lookupStateChanged, ReceiveState);
-	}
-	ipcRenderer.on(IPC_CHANNELS.lookupStateChanged, ReceiveState);
-	return Unsubscribe;
 }
 
 async function GetSourceNotice(workId: string): Promise<OperationResult<SourceNotice>>
@@ -248,32 +241,7 @@ function SubscribeDiagnostics(callback: (record: ErrorRecord) => void): ApiSubsc
 	return Unsubscribe;
 }
 
-// Opens only the conversation belonging to a canonical feature identifier.
-async function OpenChat(id: string): Promise<OperationResult<ChatConversationSnapshot | null>>
-{
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.openChat, id);
-	return result as OperationResult<ChatConversationSnapshot | null>;
-}
-
-// Transports the narrow reader turn without assembling model instructions.
-async function SendChat(command: SendChatMessageCommand): Promise<OperationResult<ChatConversationSnapshot>>
-{
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.sendChat, command);
-	return result as OperationResult<ChatConversationSnapshot>;
-}
-
-// Requests cancellation independently of the active send invocation.
-async function CancelChat(id: string): Promise<OperationResult<void>>
-{
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.cancelChat, id);
-	return result as OperationResult<void>;
-}
-
 const api: ChoraApi = {
-	OpenChat,
-	SendChat,
-	CancelChat,
-	ListModels,
 	RecordDiagnostic,
 	SubscribeDiagnostics,
 	ListLibraryTexts,
@@ -283,12 +251,13 @@ const api: ChoraApi = {
 	ShowDreamSourceContextMenu,
 	ShowFormattingContextMenu,
 	CopySelectedText,
-	LookUpWord,
-	GetLookupState,
-	SetLookupBounds,
-	ExecuteLookupCommand,
-	SubscribeLookupState,
 	GetSourceNotice,
+	SearchWord,
+	GetWordEvidence,
+	GetPersonResearch,
+	OpenExternalSource,
+	GetWordObservation,
+	SaveWordObservation,
 	CreateSignal,
 	UpdateSignal,
 	DeleteSignal,

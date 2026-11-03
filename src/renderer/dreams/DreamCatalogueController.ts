@@ -248,7 +248,7 @@ export class DreamCatalogueController
 
 		for (const segment of document.segments)
 		{
-			if (segment.key === dream.source.start.segmentKey)
+			if (segment.key === dream.source.start.stephanus)
 			{
 				division = segment.division ?? null;
 				break;

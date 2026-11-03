@@ -55,7 +55,12 @@ export class ChatRepository
 	private static ValidateModel(value: unknown): void
 	{
 		const model = value as { provider?: unknown; model?: unknown } | null;
-		if (model === null || typeof model !== "object" || !["mock", "kimi", "copilot-relay", "ollama"].includes(String(model.provider)) || typeof model.model !== "string" || model.model.length === 0 || model.model.length > 128) throw new Error("Conversation model is invalid.");
+		if (model === null || typeof model !== "object"
+			|| typeof model.provider !== "string" || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/u.test(model.provider)
+			|| typeof model.model !== "string" || model.model.length === 0 || model.model.length > 128)
+		{
+			throw new Error("Conversation model is invalid.");
+		}
 	}
 
 	// Loads one scope without treating malformed or inaccessible files as empty chats.

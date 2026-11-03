@@ -313,7 +313,7 @@ export class DreamStore
 		for (const dream of this.catalogue)
 		{
 			const source = dream.source;
-			if (dream.workId === document.id && source.documentId === document.id)
+			if (dream.workId === document.id && source.dialogue === document.id)
 			{
 				const covered = GetCoveredPassageKeys(document, source);
 				for (const key of covered)
@@ -727,7 +727,7 @@ export class DreamStore
 		{
 			comparison = document.CompareSelections(first.source, second.source);
 		}
-		if (comparison === 0) comparison = first.source.start.segmentKey.localeCompare(second.source.start.segmentKey);
+		if (comparison === 0) comparison = first.source.start.stephanus.localeCompare(second.source.start.stephanus);
 		if (comparison === 0) comparison = first.title.localeCompare(second.title);
 
 		return comparison;

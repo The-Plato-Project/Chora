@@ -2,7 +2,7 @@ import type { TextSelection } from "../../shared/text/TextSelection.js";
 import type { LibraryTextSummary } from "../../shared/library/LibraryTypes.js";
 import { ErrorManager } from "../core/diagnostics/RendererErrorManager.js";
 import { ChoraEventBus } from "../core/events/ChoraEventBus.js";
-import type { ChoraEvents } from "../core/events/ChoraEvents.js";
+import type { ChoraEvents, ReaderHighlightKind } from "../core/events/ChoraEvents.js";
 import { LibraryGateway } from "./LibraryGateway.js";
 import { LibraryStore } from "./LibraryStore.js";
 import type { DreamView } from "../dreams/DreamView.js";
@@ -110,11 +110,35 @@ export class LibraryController
 		if (text !== null && text !== undefined && segment !== undefined)
 		{
 			const focus = text.CreateSelection(
-				{ segmentKey, offset: 0 },
-				{ segmentKey, offset: segment.text.length });
+				{ stephanus: segmentKey, offset: 0 },
+				{ stephanus: segmentKey, offset: segment.text.length });
 			this.store.SetFocus(focus);
 			void this.events.PublishAsync("library.focus-changed", { textId: text.id, segmentKey });
 		}
+	}
+
+	// Public reader API for revealing and highlighting one exact canonical text selection.
+	public async RevealSelectionAsync(selection: TextSelection, highlight: ReaderHighlightKind): Promise<void>
+	{
+		const document = this.store.GetText();
+		if (document === null || document.id !== selection.dialogue)
+		{
+			this.errors.Report(
+				"LibraryController",
+				new Error("The requested selection belongs to a text that is not open."),
+				"Open the selection's text before navigating.");
+			return;
+		}
+		try
+		{
+			document.ValidateSelection(selection);
+		}
+		catch (error)
+		{
+			this.errors.Report("LibraryController", error, "The requested text location is invalid.");
+			return;
+		}
+		await this.events.PublishAsync("library.jump-requested", { selection, target: highlight });
 	}
 
 	// Shows the selection context menu and routes the reader's choice to its workflow.
@@ -132,7 +156,7 @@ export class LibraryController
 			}) ?? null;
 		const canAddToDreamSource = document !== null
 			&& activeDreamSource !== null
-			&& selection.documentId === activeDreamSource.documentId
+			&& selection.dialogue === activeDreamSource.dialogue
 			&& document.AreSelectionsAdjacent(selection, activeDreamSource);
 		const canAddSignal = activeDream !== null
 			&& document !== null
@@ -140,9 +164,20 @@ export class LibraryController
 			&& document.Contains(selection, activeDreamSource);
 		const canAddToSelectedSignal = activeSignal !== null
 			&& document !== null
-			&& activeSignal.selections.some((candidate) => candidate.documentId === selection.documentId)
+			&& activeSignal.selections.some((candidate) => candidate.dialogue === selection.dialogue)
 			&& !activeSignal.selections.some((candidate) => document.Contains(selection, candidate));
-		const action = await this.gateway.ShowSelectionContextMenuAsync(canAddSignal, canAddToDreamSource, canAddToSelectedSignal);
+		const selectedText = document?.id === selection.dialogue
+			? document.ReconstructText(selection)
+			: "";
+		const wordSelection = document?.id === selection.dialogue
+			? document.GetSingleGreekWordSelection(selection)
+			: null;
+		const canExploreWord = wordSelection !== null;
+		const action = await this.gateway.ShowSelectionContextMenuAsync(canAddSignal, canAddToDreamSource, canAddToSelectedSignal, canExploreWord);
+		if (action === "explore-word" && wordSelection !== null)
+		{
+			await this.events.PublishAsync("word.exploration-requested", { selection: wordSelection });
+		}
 		if (action === "create-dream") await this.events.PublishAsync("dream.create-requested", { selection });
 		if (action === "add-to-dream" && canAddToDreamSource) await this.events.PublishAsync("dream.source-extend-requested", { selection });
 		if (action === "add-signal" && canAddSignal) await this.events.PublishAsync("dream.signal-add-requested", { selection });
@@ -150,11 +185,7 @@ export class LibraryController
 		{
 			await this.events.PublishAsync("signal.selection-add-requested", { signalId: activeSignalId, selection });
 		}
-		const selectedText = document?.id === selection.documentId
-			? document.ReconstructText(selection)
-			: "";
 		if (action === "copy") await this.gateway.CopyAsync(selectedText);
-		if (action === "lookup") await this.gateway.LookUpAsync(selectedText);
 	}
 
 	// Routes a text-open-requested application event to the open workflow.
@@ -212,10 +243,11 @@ export class LibraryController
 		let isEqual = first === null && second === null;
 		if (first !== null && second !== null)
 		{
-			isEqual = first.documentId === second.documentId
-				&& first.start.segmentKey === second.start.segmentKey
+			isEqual = first.dialogue === second.dialogue
+				&& first.text_version === second.text_version
+				&& first.start.stephanus === second.start.stephanus
 				&& first.start.offset === second.start.offset
-				&& first.end.segmentKey === second.end.segmentKey
+				&& first.end.stephanus === second.end.stephanus
 				&& first.end.offset === second.end.offset;
 		}
 		return isEqual;

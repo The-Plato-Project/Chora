@@ -239,11 +239,12 @@
 
 .dream-editor .signal-header {
 	position: relative;
+	display: flex;
 	align-items: center;
 	gap: 0;
 	margin-bottom: 0;
 	padding-right: 0;
-	min-height: 24px;
+	min-height: 23px;
 	border: 0;
 	border-radius: 3px;
 	background: transparent;
@@ -264,24 +265,86 @@
 }
 
 .dream-editor .signal-header .signal-row {
-	gap: 7px;
-	min-height: 24px;
-	padding: 1px 8px;
+	flex: 1;
+	gap: 3px;
+	min-width: 0;
+	min-height: 23px;
+	padding: 0 4px;
 	background: transparent;
 	color: inherit;
 }
 
-.dream-editor .signal-row-icon {
-	display: inline-flex;
-	flex: 0 0 14px;
+.dream-editor .signal-row-title-input {
+	box-sizing: border-box;
+	flex: 1;
+	min-width: 0;
+	height: 23px;
+	margin: 0 6px;
+	padding: 1px 6px;
+	border: 1px solid var(--accent);
+	border-radius: 2px;
+	outline: 0;
+	background: var(--editor-input-background);
+	color: var(--app-text);
+	font: 12px/20px var(--ui-font);
+}
+
+.signal-context-menu {
+	position: fixed;
+	z-index: 40;
+	display: grid;
+	min-width: 130px;
+	padding: 4px;
+	border: 1px solid var(--panel-border);
+	border-radius: 4px;
+	background: var(--dream-raised);
+	box-shadow: 0 8px 24px #0004;
+}
+
+.signal-context-menu[hidden] {
+	display: none;
+}
+
+.signal-context-menu button {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 7px 10px;
+	border: 0;
+	background: transparent;
+	color: var(--app-text);
+	text-align: left;
+}
+
+.signal-context-menu button:hover,
+.signal-context-menu button:focus-visible {
+	background: var(--dream-selection);
+	outline: 0;
+}
+
+.signal-context-menu button.danger {
+	color: var(--danger);
+}
+
+.signal-context-menu svg {
 	width: 14px;
 	height: 14px;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.7;
+}
+
+.dream-editor .signal-row-icon {
+	display: inline-flex;
+	flex: 0 0 13px;
+	width: 13px;
+	height: 13px;
 	color: var(--muted-text);
 }
 
 .dream-editor .signal-row-icon svg {
-	width: 14px;
-	height: 14px;
+	width: 13px;
+	height: 13px;
 }
 
 .dream-editor .signal-heading {
@@ -297,8 +360,7 @@
 }
 
 .dream-editor .signal-detail,
-.dream-tabs-host .dream-reflections-tab,
-.dream-tabs-host .dream-discussion-tab {
+.dream-tabs-host .dream-reflections-tab {
 	min-width: 0;
 	min-height: 0;
 	border: 0;
@@ -340,32 +402,6 @@
 	display: grid;
 	gap: 0;
 	padding: 0 var(--signal-editor-inset);
-}
-
-.dream-editor .signal-title-field {
-	display: grid;
-	gap: 6px;
-	padding: 12px 72px 12px 0;
-	border-bottom: 1px solid var(--signal-editor-divider);
-	color: var(--signal-editor-secondary-text);
-	font: 600 11px/1.35 var(--ui-font);
-}
-
-.dream-editor .signal-title-field input {
-	box-sizing: border-box;
-	width: 100%;
-	padding: 0 0 2px;
-	border: 0;
-	border-bottom: 1px solid transparent;
-	border-radius: 0;
-	outline: 0;
-	background: transparent;
-	color: var(--signal-editor-primary-text);
-	font: 600 14px/1.25 var(--ui-font);
-}
-
-.dream-editor .signal-title-field input:focus {
-	border-bottom-color: var(--signal-editor-secondary-text);
 }
 
 .dream-editor .signal-passages {
@@ -479,42 +515,6 @@
 	line-height: 1.55;
 }
 
-.signal-editor-actions {
-	position: absolute;
-	top: 8px;
-	right: var(--signal-editor-inset);
-	display: flex;
-	align-items: center;
-	gap: 2px;
-	z-index: 2;
-}
-
-.signal-editor-actions > button {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	box-sizing: border-box;
-	height: 24px;
-	padding: 4px;
-	border: 0;
-	border-radius: 3px;
-	background: transparent;
-	color: var(--signal-editor-secondary-text);
-}
-
-.signal-editor-actions > button {
-	width: 24px;
-}
-
-.signal-editor-actions > button svg {
-	width: 14px;
-	height: 14px;
-}
-
-.signal-editor-actions .signal-delete {
-	color: var(--danger);
-}
-
 .dream-editor .signal-markdown-editor {
 	display: flex;
 	flex-direction: column;
@@ -555,8 +555,7 @@
 	box-shadow: none;
 }
 
-.dream-tabs-host .dream-reflections-tab,
-.dream-tabs-host .dream-discussion-tab {
+.dream-tabs-host .dream-reflections-tab {
 	grid-column: 1 / -1;
 	grid-row: 2;
 	padding: 8px 4px;
@@ -612,8 +611,7 @@
 		margin-top: 0;
 	}
 
-	.dream-tabs-host .dream-reflections-tab,
-	.dream-tabs-host .dream-discussion-tab {
+	.dream-tabs-host .dream-reflections-tab {
 		grid-column: 1;
 		grid-row: 2;
 	}
@@ -745,31 +743,6 @@
 	--signal-editor-inset: 10px;
 }
 
-.dream-editor .signal-title-field {
-	gap: 6px;
-	padding-top: 10px;
-	padding-right: 0;
-	border-bottom: 0;
-	font: 9px/1.4 var(--ui-font);
-	text-transform: uppercase;
-}
-
-.dream-editor .signal-title-field > span {
-	padding-right: 52px;
-}
-
-.dream-editor .signal-title-field input {
-	padding: 7px;
-	border: 1px solid var(--panel-border);
-	border-radius: 2px;
-	background: var(--editor-input-background);
-	font: 12px/1.4 var(--ui-font);
-}
-
-.dream-editor .signal-title-field input:focus {
-	border-color: var(--accent);
-}
-
 .dream-editor .signal-passages {
 	padding-top: 4px;
 }
@@ -791,19 +764,6 @@
 
 .dream-editor .signal-observation {
 	padding: 14px 10px;
-}
-
-.signal-observation-heading {
-	margin: 0 0 6px;
-	color: var(--muted-text);
-	font: 9px/1.4 var(--ui-font);
-	text-transform: uppercase;
-}
-
-.signal-observation-help {
-	margin: 0 0 8px;
-	color: var(--muted-text);
-	font: 10px/1.5 var(--ui-font);
 }
 
 .dream-editor .signal-observation .signal-markdown-editor {
@@ -841,10 +801,6 @@
 .dream-editor .signal-observation .markdown-toolbar svg {
 	width: 13px;
 	height: 13px;
-}
-
-.dream-editor .signal-editor-actions {
-	top: 5px;
 }
 
 .dream-editor .signal-view-body {

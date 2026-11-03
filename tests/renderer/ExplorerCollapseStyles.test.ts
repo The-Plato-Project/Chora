@@ -11,9 +11,9 @@ describe("Collapsed Explorer styles", function CollapsedExplorerStyleTests()
 		const shell = readFileSync(shellPath, "utf8");
 		const css = readFileSync(stylesheetPath, "utf8");
 
-		expect(shell).toMatch(/data-expand-explorer="dream"[^>]*title="Expand Dreams"/);
-		expect(css).toMatch(/\.collapsed-explorer-rail\s*\{[^}]*display:\s*none;/s);
-		expect(css).toMatch(/\.shell\.left-collapsed \.collapsed-explorer-rail\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;/s);
-		expect(css).toMatch(/\.collapsed-explorer-button\s*\{[^}]*width:\s*36px;[^}]*height:\s*36px;/s);
+		expect(shell).toMatch(/class="workspace-activity-rail"[^>]*data-sidebar-rail/);
+		expect(css).toMatch(/\.workspace-activity-rail\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;/s);
+		expect(css).toMatch(/\.workspace-activity-button\s*\{[^}]*width:\s*36px;[^}]*height:\s*36px;/s);
+		expect(css).toMatch(/\.shell\.left-collapsed \.left-view\s*\{[^}]*display:\s*none;/s);
 	});
 });

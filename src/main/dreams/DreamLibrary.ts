@@ -21,6 +21,7 @@ import { DreamTrashRepository } from "./DreamTrashRepository.js";
 import type { DreamTrashSnapshot } from "../../shared/dreams/DreamTrashTypes.js";
 import { Dream } from "./Dream.js";
 import { DreamRepository, type DreamPersistenceRecord } from "./DreamRepository.js";
+import { WorkStoragePaths } from "./WorkStoragePaths.js";
 
 // One authoritative in-memory Dream together with its repository metadata.
 interface DreamEntry
@@ -59,9 +60,11 @@ export class DreamLibrary
 		private readonly repository: DreamRepository,
 		private readonly signalRepository: SignalRepository,
 		private readonly documents: LibraryService,
-		conversations: ChatRepository = new ChatRepository(path.join(path.dirname(primaryPath), "Conversations")))
+		private readonly workPaths: WorkStoragePaths,
+		conversations: ChatRepository,
+		trashPath: string)
 	{
-		this.trash = new DreamTrashRepository(primaryPath, repository, signalRepository, conversations);
+		this.trash = new DreamTrashRepository(primaryPath, repository, signalRepository, conversations, workPaths, trashPath);
 	}
 
 	// Holds the existing aggregate lease while a canonical context consumer runs.
@@ -847,7 +850,8 @@ export class DreamLibrary
 		const slug = dream.title.toLocaleLowerCase().normalize("NFKD").replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "").slice(0, 64) || "dream";
 		const fileName = `${slug}--${dream.id}.md`;
 		const folderSegments = folderPath.length === 0 ? [] : folderPath.split("/");
-		const filePath = path.resolve(this.primaryPath, dream.workId, ...folderSegments, fileName);
+		const workRoot = this.workPaths.Resolve(dream.workId, "Dreams");
+		const filePath = path.resolve(workRoot, ...folderSegments, fileName);
 
 		return filePath;
 	}
@@ -855,7 +859,7 @@ export class DreamLibrary
 	// Derives one renderer-safe relative folder path from repository metadata.
 	private GetFolderPath(record: DreamPersistenceRecord): string
 	{
-		const workRoot = path.resolve(this.primaryPath, record.dream.workId);
+		const workRoot = this.workPaths.Resolve(record.dream.workId, "Dreams");
 		const directoryPath = path.dirname(record.filePath);
 		this.AssertWorkPath(record.dream.workId, directoryPath, true);
 		const relativePath = path.relative(workRoot, directoryPath);
@@ -887,7 +891,8 @@ export class DreamLibrary
 	private ResolveFolderPath(workId: string, folderPath: string): string
 	{
 		const segments = folderPath.split("/");
-		const folder = path.resolve(this.primaryPath, workId, ...segments);
+		const workRoot = this.workPaths.Resolve(workId, "Dreams");
+		const folder = path.resolve(workRoot, ...segments);
 		this.AssertWorkPath(workId, folder, false);
 
 		return folder;
@@ -896,7 +901,7 @@ export class DreamLibrary
 	// Proves that a path remains within one work's Dream root.
 	private AssertWorkPath(workId: string, targetPath: string, allowRoot: boolean): void
 	{
-		const workRoot = path.resolve(this.primaryPath, workId);
+		const workRoot = this.workPaths.Resolve(workId, "Dreams");
 		const relativePath = path.relative(workRoot, targetPath);
 		const isRoot = relativePath === "";
 		const isOutside = relativePath.startsWith(`..${path.sep}`) || path.isAbsolute(relativePath);

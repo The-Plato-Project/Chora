@@ -4,7 +4,7 @@ import type { SignalRecord } from "./SignalTypes.js";
 // Returns whether a selection contains text that can become a Signal.
 export function IsValidSignalSelection(selection: TextSelection): boolean
 {
-	const startsAndEndsTogether = selection.start.segmentKey === selection.end.segmentKey
+	const startsAndEndsTogether = selection.start.stephanus === selection.end.stephanus
 		&& selection.start.offset === selection.end.offset;
 	const isValid = !startsAndEndsTogether;
 
@@ -24,24 +24,14 @@ export function GetSignalAnchor(signal: SignalRecord): TextSelection
 	return selection;
 }
 
-// Determines whether a Signal contains one exact component selection.
-export function HasSignalSelection(signal: SignalRecord, selection: TextSelection): boolean
-{
-	const hasSelection = signal.selections.some(function Matches(candidate): boolean
-	{
-		return AreTextSelectionsEqual(candidate, selection);
-	});
-
-	return hasSelection;
-}
-
 // Determines whether two exact ranges identify the same source text.
 export function AreTextSelectionsEqual(first: TextSelection, second: TextSelection): boolean
 {
-	const isEqual = first.documentId === second.documentId
-		&& first.start.segmentKey === second.start.segmentKey
+	const isEqual = first.dialogue === second.dialogue
+		&& first.text_version === second.text_version
+		&& first.start.stephanus === second.start.stephanus
 		&& first.start.offset === second.start.offset
-		&& first.end.segmentKey === second.end.segmentKey
+		&& first.end.stephanus === second.end.stephanus
 		&& first.end.offset === second.end.offset;
 
 	return isEqual;

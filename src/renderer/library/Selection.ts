@@ -75,8 +75,8 @@ export function CaptureSelection(work: TextDocument): TextSelection | null
 		{
 			const startKey = start.segment.dataset.segmentKey ?? "";
 			const endKey = end.segment.dataset.segmentKey ?? "";
-			const startPosition = { segmentKey: startKey, offset: GetTextOffset(start.text, start.container, start.offset) };
-			const endPosition = { segmentKey: endKey, offset: GetTextOffset(end.text, end.container, end.offset) };
+			const startPosition = { stephanus: startKey, offset: GetTextOffset(start.text, start.container, start.offset) };
+			const endPosition = { stephanus: endKey, offset: GetTextOffset(end.text, end.container, end.offset) };
 			result = work.CreateSelection(startPosition, endPosition);
 		}
 	}

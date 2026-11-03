@@ -21,6 +21,7 @@ import { TextDocument } from "../../src/shared/library/LibraryTypes.js";
 // Canonical test document.
 const document = TextDocument.FromSnapshot({
 	id: "republic",
+	textVersion: `sha256:${"0".repeat(64)}`,
 	urn: null,
 	title: "Republic",
 	titleGreek: null,
@@ -42,7 +43,7 @@ function CreateDream(): DreamView
 		workId: "republic",
 		dialogue: "Republic",
 		title: "",
-		source: { documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 6 } },
+		source: { dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`, start: { stephanus: "s1", offset: 0 }, end: { stephanus: "s1", offset: 6 } },
 		signals: [],
 		reflection: "",
 		linkedDreamIds: [],
@@ -109,9 +110,8 @@ describe("DreamController", function DreamControllerTests()
 				CreateDreamFolder: vi.fn(),
 				DeleteDreamFolder: vi.fn(),
 				MoveDream: vi.fn(),
-				ShowDreamSourceContextMenu: vi.fn().mockResolvedValue({ ok: true, value: "lookup" }),
-				CopySelectedText: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
-				LookUpWord: vi.fn().mockResolvedValue({ ok: true, value: undefined })
+				ShowDreamSourceContextMenu: vi.fn().mockResolvedValue({ ok: true, value: null }),
+				CopySelectedText: vi.fn().mockResolvedValue({ ok: true, value: undefined })
 			}
 		});
 		const errors = new ErrorManager(events);
@@ -236,7 +236,7 @@ describe("DreamController", function DreamControllerTests()
 		{
 			jumps += 1;
 		});
-		const extension = { documentId: "republic", start: { segmentKey: "s2", offset: 0 }, end: { segmentKey: "s2", offset: 3 } };
+		const extension = { dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`, start: { stephanus: "s2", offset: 0 }, end: { stephanus: "s2", offset: 3 } };
 
 		await controller.ExtendSourceAsync(extension);
 
@@ -254,7 +254,7 @@ describe("DreamController", function DreamControllerTests()
 			requested = true;
 		});
 
-		await controller.HandleTextSelectionAsync({ documentId: "republic", start: { segmentKey: "s1", offset: 1 }, end: { segmentKey: "s1", offset: 3 } });
+		await controller.HandleTextSelectionAsync({ dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`, start: { stephanus: "s1", offset: 1 }, end: { stephanus: "s1", offset: 3 } });
 
 		expect(requested).toBe(true);
 	});

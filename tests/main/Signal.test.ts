@@ -3,11 +3,14 @@ import { Signal } from "../../src/main/signals/Signal.js";
 import type { CreateSignalCommand, UpdateSignalCommand } from "../../src/shared/signals/SignalTypes.js";
 import { TextDocument } from "../../src/shared/text/TextDocument.js";
 
+const Version = `sha256:${"0".repeat(64)}`;
+
 // Creates the canonical document that owns a test Signal.
 function CreateDocument(text: string): TextDocument
 {
 	return new TextDocument({
 		id: "republic",
+		textVersion: Version,
 		urn: null,
 		title: "Republic",
 		titleGreek: null,
@@ -25,9 +28,10 @@ function CreateCommand(endOffset: number): CreateSignalCommand
 	return {
 		dreamId: "dream-1",
 		selection: {
-			documentId: "republic",
-			start: { segmentKey: "s1", offset: 0 },
-			end: { segmentKey: "s1", offset: endOffset }
+			dialogue: "republic",
+			text_version: Version,
+			start: { stephanus: "s1", offset: 0 },
+			end: { stephanus: "s1", offset: endOffset }
 		}
 	};
 }
@@ -71,8 +75,8 @@ describe("Signal", function SignalTests()
 	it("keeps the first-created passage as the main passage", function PreservesMainPassage(): void
 	{
 		const document = CreateDocument("alpha beta gamma");
-		const main = { documentId: "republic", start: { segmentKey: "s1", offset: 11 }, end: { segmentKey: "s1", offset: 16 } };
-		const earlier = { documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 5 } };
+		const main = { dialogue: "republic", text_version: Version, start: { stephanus: "s1", offset: 11 }, end: { stephanus: "s1", offset: 16 } };
+		const earlier = { dialogue: "republic", text_version: Version, start: { stephanus: "s1", offset: 0 }, end: { stephanus: "s1", offset: 5 } };
 		const original = Signal.Create({ dreamId: "dream-1", selection: main }, "signal-1", "2026-10-11", document);
 		const updated = original.Update({
 			dreamId: "dream-1",
@@ -95,8 +99,8 @@ describe("Signal", function SignalTests()
 			signalId: "signal-1",
 			selections: [
 				original.ToRecord().selections[0]!,
-				{ documentId: "republic", start: { segmentKey: "s1", offset: 6 }, end: { segmentKey: "s1", offset: 10 } },
-				{ documentId: "republic", start: { segmentKey: "s1", offset: 9 }, end: { segmentKey: "s1", offset: 16 } }
+				{ dialogue: "republic", text_version: Version, start: { stephanus: "s1", offset: 6 }, end: { stephanus: "s1", offset: 10 } },
+				{ dialogue: "republic", text_version: Version, start: { stephanus: "s1", offset: 9 }, end: { stephanus: "s1", offset: 16 } }
 			],
 			description: ""
 		}, "2026-10-12", document).ToRecord();

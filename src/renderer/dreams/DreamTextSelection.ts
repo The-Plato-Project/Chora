@@ -34,8 +34,8 @@ function FindSegmentIndex(work: TextDocument, segmentKey: string): number
 // Flattens a Dream's source passage into offset-addressable pieces, one per covered segment.
 function BuildPieces(work: TextDocument, source: TextSelection): SourcePiece[]
 {
-	const startIndex = FindSegmentIndex(work, source.start.segmentKey);
-	const endIndex = FindSegmentIndex(work, source.end.segmentKey);
+	const startIndex = FindSegmentIndex(work, source.start.stephanus);
+	const endIndex = FindSegmentIndex(work, source.end.stephanus);
 	const pieces: SourcePiece[] = [];
 	let position = 0;
 
@@ -67,7 +67,7 @@ function GetPoint(pieces: SourcePiece[], offset: number): TextSelection["start"]
 	{
 		if (offset >= piece.start && offset <= piece.end)
 		{
-			point = { segmentKey: piece.segmentKey, offset: piece.segmentOffset + offset - piece.start };
+			point = { stephanus: piece.segmentKey, offset: piece.segmentOffset + offset - piece.start };
 			break;
 		}
 	}

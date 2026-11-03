@@ -1,13 +1,11 @@
-import type { ChatConversationSnapshot, SendChatMessageCommand } from "../chat/ChatTypes.js";
-import type { AvailableModel } from "../models/ModelSelection.js";
 import type { OperationResult } from "../diagnostics/OperationResult.js";
 import type { ErrorRecord } from "../diagnostics/DiagnosticManager.js";
 import type { DreamTrashSnapshot } from "../dreams/DreamTrashTypes.js";
 import type { TextDocumentSnapshot, LibraryTextSummary, SourceNotice } from "../library/LibraryTypes.js";
-import type { SelectionAction } from "../text/TextSelection.js";
+import type { SelectionAction, TextSelection } from "../text/TextSelection.js";
 import type { CreateDreamCommand, CreateDreamFolderCommand, DeleteDreamFolderCommand, DreamCatalogueSnapshot, DreamFolderSnapshot, DreamLocationSnapshot, DreamSnapshot, MoveDreamCommand, UpdateDreamCommand } from "../dreams/DreamTypes.js";
-import type { LookupBounds, LookupCommand, LookupState } from "../library/LookupTypes.js";
 import type { CreateSignalCommand, DeleteSignalCommand, SignalRecord, UpdateSignalCommand } from "../signals/SignalTypes.js";
+import type { WordEvidenceResult, WordObservation, WordObservationKey, WordPersonResearch, WordSearchResult } from "../library/WordExplorationTypes.js";
 
 export type ApiSubscription = () => void;
 
@@ -15,14 +13,6 @@ export type FormattingAction = "bold" | "italic" | "bullet_list" | "ordered_list
 
 export interface ChoraApi
 {
-	// Loads saved conversation history after validating the owning feature identity.
-	OpenChat(id: string): Promise<OperationResult<ChatConversationSnapshot | null>>;
-	// Sends one reader message with an idempotency key and selected model.
-	SendChat(command: SendChatMessageCommand): Promise<OperationResult<ChatConversationSnapshot>>;
-	// Stops one active provider request.
-	CancelChat(id: string): Promise<OperationResult<void>>;
-	// Lists model choices exposed by the configured provider.
-	ListModels(): Promise<OperationResult<readonly AvailableModel[]>>;
 	// Stores one bounded renderer diagnostic in the main-process log.
 	RecordDiagnostic(record: ErrorRecord): Promise<OperationResult<void>>;
 	// Subscribes to explicitly reported main-process diagnostics.
@@ -30,16 +20,17 @@ export interface ChoraApi
 	ListLibraryTexts(): Promise<OperationResult<LibraryTextSummary[]>>;
 	LoadLibraryText(workId: string): Promise<OperationResult<TextDocumentSnapshot>>;
 	SubscribeLibraryTextSelected(callback: (workId: string) => void): ApiSubscription;
-	ShowSelectionContextMenu(canAddSignal: boolean, canAddToDreamSource: boolean, canAddToCurrentSignal: boolean): Promise<OperationResult<SelectionAction>>;
-	ShowDreamSourceContextMenu(canAddToSelectedSignal: boolean): Promise<OperationResult<SelectionAction>>;
+	ShowSelectionContextMenu(canAddSignal: boolean, canAddToDreamSource: boolean, canAddToCurrentSignal: boolean, canExploreWord: boolean): Promise<OperationResult<SelectionAction>>;
+	ShowDreamSourceContextMenu(canAddToSelectedSignal: boolean, canExploreWord: boolean): Promise<OperationResult<SelectionAction>>;
 	ShowFormattingContextMenu(): Promise<OperationResult<FormattingAction>>;
 	CopySelectedText(selectedText: string): Promise<OperationResult<void>>;
-	LookUpWord(selectedText: string): Promise<OperationResult<void>>;
-	GetLookupState(): Promise<OperationResult<LookupState>>;
-	SetLookupBounds(bounds: LookupBounds | null): Promise<OperationResult<void>>;
-	ExecuteLookupCommand(command: LookupCommand): Promise<OperationResult<void>>;
-	SubscribeLookupState(callback: (state: LookupState) => void): ApiSubscription;
 	GetSourceNotice(workId: string): Promise<OperationResult<SourceNotice>>;
+	SearchWord(workId: string, form: string): Promise<OperationResult<WordSearchResult>>;
+	GetWordEvidence(selection: TextSelection): Promise<OperationResult<WordEvidenceResult>>;
+	GetPersonResearch(selection: TextSelection, lemma: string): Promise<OperationResult<WordPersonResearch>>;
+	OpenExternalSource(url: string): Promise<OperationResult<void>>;
+	GetWordObservation(key: WordObservationKey): Promise<OperationResult<WordObservation>>;
+	SaveWordObservation(observation: WordObservation): Promise<OperationResult<WordObservation>>;
 	CreateSignal(command: CreateSignalCommand): Promise<OperationResult<SignalRecord>>;
 	UpdateSignal(command: UpdateSignalCommand): Promise<OperationResult<SignalRecord>>;
 	DeleteSignal(command: DeleteSignalCommand): Promise<OperationResult<void>>;

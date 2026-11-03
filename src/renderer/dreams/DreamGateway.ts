@@ -85,9 +85,9 @@ export class DreamGateway
 	}
 
 	// Shows the native context menu for a DreamView source-passage selection.
-	public ShowSourceContextMenuAsync(canAddToSelectedSignal: boolean): Promise<SelectionAction>
+	public ShowSourceContextMenuAsync(canAddToSelectedSignal: boolean, canExploreWord: boolean): Promise<SelectionAction>
 	{
-		return ReadOperationAsync(window.chora.ShowDreamSourceContextMenu(canAddToSelectedSignal));
+		return ReadOperationAsync(window.chora.ShowDreamSourceContextMenu(canAddToSelectedSignal, canExploreWord));
 	}
 
 }

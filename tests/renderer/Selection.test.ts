@@ -4,7 +4,7 @@ import { TextDocument } from "../../src/shared/library/LibraryTypes.js";
 import { CaptureSelection } from "../../src/renderer/library/Selection.js";
 
 const work: TextDocument = {
-	id: "republic", urn: null, title: "Republic", titleGreek: "Πολιτεία", author: "Plato", language: "grc",
+	id: "republic", textVersion: `sha256:${"0".repeat(64)}`, urn: null, title: "Republic", titleGreek: "Πολιτεία", author: "Plato", language: "grc",
 	edition: { editor: null, title: null, volume: null, publisher: null, publicationPlace: null, publicationDate: null },
 	provenance: { repository: "test", commit: "test", sourceFile: "test", license: "test" },
 	segments: [{
@@ -41,8 +41,8 @@ describe("CaptureSelection", function CaptureSelectionTests()
 
 		const captured = CaptureSelection(work);
 
-		expect(captured?.start).toEqual({ segmentKey: "s1", offset: 11 });
-		expect(captured?.end).toEqual({ segmentKey: "s1", offset: 16 });
+		expect(captured?.start).toEqual({ stephanus: "s1", offset: 11 });
+		expect(captured?.end).toEqual({ stephanus: "s1", offset: 16 });
 		expect(captured === null ? "" : TextDocument.FromSnapshot(work).ReconstructText(captured)).toBe("gamma");
 	});
 
@@ -54,8 +54,8 @@ describe("CaptureSelection", function CaptureSelectionTests()
 
 		const captured = CaptureSelection(work);
 
-		expect(captured?.start).toEqual({ segmentKey: "s1", offset: 11 });
-		expect(captured?.end).toEqual({ segmentKey: "s1", offset: 16 });
+		expect(captured?.start).toEqual({ stephanus: "s1", offset: 11 });
+		expect(captured?.end).toEqual({ stephanus: "s1", offset: 16 });
 		expect(captured === null ? "" : TextDocument.FromSnapshot(work).ReconstructText(captured)).toBe("gamma");
 	});
 });

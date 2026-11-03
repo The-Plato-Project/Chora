@@ -38,7 +38,7 @@ This repository uses a strict, architecture-first C#-style discipline, applied t
 - Panels own persistent DOM roots and register delegated DOM events once. Do not rebuild the entire application DOM in response to state changes.
 - Retain and dispose subscriptions when a component has a shorter lifetime than the application.
 - Use `ErrorManager` for debug output, operational logs, and user-facing errors. Preserve the original failure for diagnosis at the owning boundary.
-- Renderer requests for language-model operations go through the owning feature gateway, the typed preload API, and main-process IPC. The main-process operation loads prompts and invokes the configured model provider. For conversational Clarity Check, this path uses `ChatGateway`, `ChatService`, and the Dream-owned canonical context integration; model selection and provider transport use main-process `ModelApi`. Panels never call providers directly; credentials and provider configuration remain in the main process.
+- Reader inquiries go through the owning feature gateway, typed preload API, and main-process PlatoSI client. Chora does not configure or invoke model providers directly.
 
 ## Required Rules
 
@@ -67,16 +67,6 @@ This repository uses a strict, architecture-first C#-style discipline, applied t
 - Keep access modifiers explicit on class members.
 - Prefer `private` by default for class members.
 - Import with `.js` extensions for relative TypeScript imports (NodeNext module resolution).
-
-## Prompt Management
-
-- Do not embed model prompts or natural-language model instructions in source code.
-- Store every model prompt in a dedicated Markdown file under `Prompts/`.
-- Use one clearly named prompt file per role or operation.
-- Load prompts through the main-process prompt loader; do not read prompt files directly from the renderer or individual providers.
-- Keep source code responsible only for selecting prompts, supplying structured context, and assembling model requests.
-- Add prompt files to packaged application resources when introducing a new prompt location.
-- Ordinary interface labels, validation messages, and error messages are not model prompts and may remain in code.
 
 ## Decision Rule
 
@@ -142,6 +132,6 @@ For small, localized changes, proceed directly while following the same architec
 - Keep `DreamController` focused on editing commands, source extension, and editor-tab lifecycle. Save scheduling, catalogue operations, Explorer organization, exports, and model requests belong to their respective owners.
 - `DreamSaveCoordinator` owns autosave timing, persistence ordering, revision checks, and suspension for deletion. Close and delete must drain the relevant active save before proceeding. Save outcomes apply to the captured Dream identity, even if the active tab changes.
 - `DreamCatalogueController` owns catalogue reads, explicit reconciliation, filtering, and grouped projections. `DreamExplorerController` owns creation, folders, moves, and Explorer selection; it invokes the gateway for its actual mutations rather than forwarding them back to the editing controller.
-- `DreamExportController` owns export commands and uses the existing `DreamMarkdownExport` formatter. Conversational Clarity Check state belongs to generic Chat and must not be duplicated in `DreamStore`.
+- `DreamExportController` owns export commands and uses the existing `DreamMarkdownExport` formatter. Retained conversation state belongs to generic Chat and must not be duplicated in `DreamStore`.
 - `WorkspaceShellPanel` owns shell DOM and shortcut event translation; `WorkspaceLayoutPanel` owns resizing and Explorer collapse; `ReadingAppearancePanel` owns preference-control DOM. Durable values remain in the existing settings stores. `WorkspaceController` coordinates activation and typed workspace requests without owning DOM.
 - `ChoraApplication` is the composition root: construct collaborators, mount feature owners, start them in dependency order, and dispose them in reverse order. Do not implement layout gestures, feature workflows, or notification presentation there.

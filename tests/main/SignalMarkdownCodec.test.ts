@@ -14,9 +14,10 @@ describe("SignalMarkdownCodec", function SignalMarkdownCodecTests()
 			sourceRef: "327a",
 			title: "Descent",
 			selections: [{
-				documentId: "republic",
-				start: { segmentKey: "327a", offset: 0 },
-				end: { segmentKey: "327a", offset: 8 }
+				dialogue: "republic",
+				text_version: `sha256:${"0".repeat(64)}`,
+				start: { stephanus: "327a", offset: 0 },
+				end: { stephanus: "327a", offset: 8 }
 			}],
 			text: "κατέβην",
 			description: "A movement downward.",
@@ -29,6 +30,7 @@ describe("SignalMarkdownCodec", function SignalMarkdownCodecTests()
 
 		expect(parsed).toEqual(signal);
 		expect(markdown).toContain("sourceRef: 327a");
+		expect(markdown).toContain("text_version: 'sha256:");
 		expect(markdown).toContain("text:");
 	});
 
@@ -62,10 +64,10 @@ workId: republic
 selections:
   - documentId: republic
     start:
-      segmentKey: 327a
+      stephanus: 327a
       offset: 0
     end:
-      segmentKey: 327a
+      stephanus: 327a
       offset: 8
 createdAt: 2026-01-01
 updatedAt: 2026-01-02

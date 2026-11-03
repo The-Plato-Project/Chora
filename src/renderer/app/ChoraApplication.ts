@@ -18,12 +18,15 @@ import { DreamPassagePanel } from "../dreams/DreamPassagePanel.js";
 import { SessionStore } from "../core/session/SessionStore.js";
 import { SignalController } from "../signals/SignalController.js";
 import { SignalGateway } from "../signals/SignalGateway.js";
-import { LookupStore } from "../library/lookup/LookupStore.js";
-import { LookupGateway } from "../library/lookup/LookupGateway.js";
-import { LookupController } from "../library/lookup/LookupController.js";
-import { LookupPanel } from "../library/lookup/LookupPanel.js";
 import { WorkspacePanel } from "../workspace/WorkspacePanel.js";
+import { WorkspaceSidebar, type WorkspaceSidebarExtension } from "../workspace/WorkspaceSidebar.js";
+import { DreamTabsPanel } from "../workspace/DreamTabsPanel.js";
+import { DocumentIcon } from "../ui/Icons.js";
 import { DreamExplorerController } from "../workspace/DreamExplorerController.js";
+import { WordExplorationStore } from "../library/words/WordExplorationStore.js";
+import { WordExplorationGateway } from "../library/words/WordExplorationGateway.js";
+import { WordExplorationController } from "../library/words/WordExplorationController.js";
+import { WordExplorationPanel } from "../library/words/WordExplorationPanel.js";
 
 import { DreamSaveCoordinator } from "../dreams/DreamSaveCoordinator.js";
 import { DreamCatalogueController } from "../dreams/DreamCatalogueController.js";
@@ -76,18 +79,15 @@ export class ChoraApplication
 	private readonly exports = new DreamExportController(this.dreamStore, this.libraryStore, this.libraryGateway);
 	// Persisted reading appearance preferences.
 	private readonly settings = new ReadingSettingsStore();
-	// Dictionary state authority.
-	private readonly lookupStore = new LookupStore();
-	// Dictionary IPC boundary.
-	private readonly lookupGateway = new LookupGateway();
-	// Dictionary workflows.
-	private readonly lookup = new LookupController(this.events, this.lookupStore, this.lookupGateway, this.errors);
+	private readonly wordStore = new WordExplorationStore();
+	private readonly wordGateway = new WordExplorationGateway();
+	private readonly words = new WordExplorationController(this.events, this.errors, this.libraryStore, this.library, this.wordStore, this.wordGateway);
 
 	// Registers shared error policy and the lifetimes of composed workflow owners.
 	public constructor(private readonly root: HTMLElement)
 	{
 		this.events.SetErrorHandler(this.HandleEventFailure.bind(this));
-		this.disposables.push(this.saves, this.dreams, this.catalogue, this.explorer, this.lookup);
+		this.disposables.push(this.saves, this.dreams, this.catalogue, this.explorer, this.words);
 	}
 
 	// Mounts feature-owned DOM surfaces and starts the composed workflows in dependency order.
@@ -101,14 +101,26 @@ export class ChoraApplication
 			const roots = shell.GetRoots();
 			this.disposables.push(new ReadingAppearancePanel(this.root, this.settings));
 			this.disposables.push(new WorkspaceLayoutPanel(this.root, this.events));
-			this.disposables.push(new LookupPanel(roots.lookup, this.events, this.lookupStore, this.lookup));
 			this.disposables.push(new DocumentPanel(roots.document, this.events, this.libraryStore, this.library, this.settings));
 			this.disposables.push(new DreamPassagePanel(roots.document, this.events, this.libraryStore, this.catalogue));
 			this.disposables.push(new DreamPanel(roots.dream, this.events, this.dreamStore, this.dreams, this.libraryStore, "editor", this.catalogue, this.saves, this.exports, this.explorer, this.signals));
 			const trashController = new DreamTrashController(this.dreamGateway, this.catalogue, this.errors);
 			const trashPanel = new DreamTrashPanel(trashController);
 			this.disposables.push(trashPanel);
-			this.disposables.push(new WorkspacePanel(roots.explorer, roots.tabs, this.events, this.dreamStore, this.dreams, this.libraryStore, this.explorer, trashPanel, this.saves, this.exports));
+			const application = this;
+			function MountExplorer(explorerRoot: HTMLElement): WorkspacePanel
+			{
+				const panel = new WorkspacePanel(explorerRoot, application.events, application.dreamStore, application.dreams, application.libraryStore, application.explorer, trashPanel, application.saves);
+				return panel;
+			}
+			const extensions: readonly WorkspaceSidebarExtension[] = [
+				{ id: "explorer", title: "Explorer", icon: DocumentIcon, Mount: MountExplorer }
+			];
+			const sidebar = new WorkspaceSidebar(roots.sidebarRail, roots.sidebarHost, this.events, extensions);
+			this.disposables.push(sidebar);
+			this.disposables.push(new WordExplorationPanel(roots.words, this.events, this.wordStore, this.words));
+			const dreamTabs = new DreamTabsPanel(roots.tabs, this.events, this.dreamStore, this.dreams, this.saves, this.exports);
+			this.disposables.push(dreamTabs);
 			this.disposables.push(new ErrorNotificationPanel(this.events));
 			const diagnostics = new RendererDiagnosticsController(this.errors);
 			diagnostics.Start();
@@ -116,7 +128,6 @@ export class ChoraApplication
 			const workspace = new WorkspaceController(this.events, this.dreamStore, this.libraryStore, this.library, this.libraryGateway, this.catalogue, this.saves, this.explorer);
 			workspace.Start();
 			this.disposables.push(workspace);
-			await this.lookup.StartAsync();
 			const loaded = await this.catalogue.RefreshAsync();
 			if (loaded) await this.dreams.StartAsync();
 			await this.library.StartAsync();

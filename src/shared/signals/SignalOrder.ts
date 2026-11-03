@@ -17,8 +17,10 @@ export function OrderSignalsByText(document: TextDocument | null, signals: reado
 			let comparison = 0;
 			const firstSelection = GetSignalAnchor(first);
 			const secondSelection = GetSignalAnchor(second);
-			const belongsToDocument = firstSelection.documentId === document.id
-				&& secondSelection.documentId === document.id;
+			const belongsToDocument = firstSelection.dialogue === document.id
+				&& secondSelection.dialogue === document.id
+				&& firstSelection.text_version === document.textVersion
+				&& secondSelection.text_version === document.textVersion;
 
 			if (belongsToDocument)
 			{

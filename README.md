@@ -4,6 +4,8 @@
 
 Chora is an Electron environment for close reading. The reader remains in direct conversation with the text; the model sustains that encounter without replacing it. Read [VISION.md](VISION.md) before making product or design decisions.
 
+For the proposed direction toward reader-chosen rooms of attention, Greek word exploration, and extensible workspace panels, see [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md). The experience described below is the current implementation.
+
 ## Current experience
 
 Chora has a workspace with a persistent reader, Explorer, and contextual editor:
@@ -11,7 +13,7 @@ Chora has a workspace with a persistent reader, Explorer, and contextual editor:
 - **DocumentPanel** — the source text, exact locators, selection, and reading controls.
 - **DreamPanel** — capture and editing of reader-authored Dreams.
 
-A Dream contains an exact source passage, zero or more manually selected Signals, an optional title, reader-authored Reflections, and an optional Clarity Check. Reader-created folders organize Dreams within each work. Signals and links are not generated automatically.
+A Dream contains an exact source passage, zero or more manually selected Signals, an optional title, and reader-authored Reflections. Reader-created folders organize Dreams within each work. Signals and links are not generated automatically.
 
 ## Dream capture
 
@@ -29,21 +31,27 @@ Every Signal has exactly one owning Dream. Other Dreams may eventually refer to 
 
 Signal description editors keep typing and selection state locally while persistence runs. Description writes are serialized per Signal, newer pending text supersedes older pending text, and an obsolete save response is never applied over the active editor.
 
-The Signal rail and selected-Signal editor scroll independently inside the available editor height, so Save remains visible without scrolling the whole document. Their shared divider can be dragged horizontally or adjusted with the keyboard, and truncated Signal rows show the complete Signal text on hover. The Dream source passage is open by default and has a dedicated horizontal divider for vertical resizing. Chora restores user-adjusted workspace columns, Explorer collapse state, Signal-list width, dictionary height, source-passage height, and writing-surface heights across application launches. Dream deletion is available only from the active document's upper-right actions menu and always requires explicit confirmation. With a Dream open, selecting text inside its source passage and choosing **Create Signal** uses the same Dream-owned creation API whether the selection came from the main reader or the Dream source view. There is no destination popup, catalogue lookup, association workflow, or automatic reveal. Expected workflow choices and application failures use dismissible popups rather than persistent page banners.
+The Signal rail and selected-Signal editor scroll independently inside the available editor height, so Save remains visible without scrolling the whole document. Their shared divider can be dragged horizontally or adjusted with the keyboard, and truncated Signal rows show the complete Signal text on hover. The Dream source passage is open by default and has a dedicated horizontal divider for vertical resizing. Chora restores user-adjusted workspace columns, Explorer collapse state, Signal-list width, source-passage height, and writing-surface heights across application launches. Dream deletion is available only from the active document's upper-right actions menu and always requires explicit confirmation. With a Dream open, selecting text inside its source passage and choosing **Create Signal** uses the same Dream-owned creation API whether the selection came from the main reader or the Dream source view. There is no destination popup, catalogue lookup, association workflow, or automatic reveal. Expected workflow choices and application failures use dismissible popups rather than persistent page banners.
 
-Each Dream also has a conversational **Clarity Check**. The reader can discuss the current Dream, its source passage, Reflections, and Signals with a selected model. Conversations are saved independently, follow Dreams through Trash and restoration, and preserve drafts when a request fails.
+The former Clarity Check panel is no longer shown. Previously saved conversations remain stored independently and continue to follow Dreams through Trash and restoration.
 
-The Explorer may be collapsed by dragging its divider to the left. Its collapsed rail retains a Dreams button that restores the Explorer and focuses that folder. Dragging the collapsed divider to the right also restores the Explorer immediately.
+The activity rail selects built-in sidebar panels, including Explorer and Word Exploration. The sidebar may be collapsed by dragging its divider to the left. Selecting Explorer on the rail restores it and focuses the Dreams area. Dragging the collapsed divider to the right also restores the sidebar immediately.
+
+Select a single Greek word in the reader or Dream source and choose **Explore word**. The word pane is hidden when Chora starts; exploration opens it as an isolated full-width grid row at the bottom of the window, and its **Close** control dismisses it until another word is explored. Its top edge can be dragged vertically or adjusted with the Up and Down arrow keys, and Chora restores the chosen height on later launches. The selected form appears in the pane title. Chora sends the exact versioned PlatoSI location to the local service. Available sections are presented as horizontally scrollable columns: a compact Lemmas list, a wider local LSJ entry when one exists, person research when applicable, dialogue-wide occurrences, related lemmas, and a full-height observations editor. An empty dictionary column is omitted. Attested forms are highlighted in their passage context. An observation is stored locally for each dialogue, canonical text version, and lemma, so opening another form of the same lemma in that dialogue returns to the same note. For a capitalized-headword candidate, the nonblocking Person column lazily requests PlatoSI's cached online research and local-model synthesis, preserves identity and etymology uncertainty, and opens source links through the validated main-process boundary. These remain candidate morphology and lexical relationships; the lookup does not determine the word's contextual meaning.
 
 ## Local Dream library
 
 New Dreams are readable Markdown files under:
 
 ```text
-Documents\Chora\Dreams\<work-id>\<title>--<id>.md
+Documents\Chora\<work name>\Dreams\<title>--<id>.md
 ```
 
-Untitled Dreams use `dream--<id>.md`. Reader-created folders are real nested directories beneath the work directory, and Dreams can be moved between them from the Explorer. Root-level Dreams remain directly beneath the work. Empty folders may be deleted; nonempty folders must first have their Dreams and child folders moved elsewhere. The main process owns all path validation and persistence; the renderer receives only relative folder identities and has no filesystem access. Writes and moves use a temporary file followed by an atomic rename. Deleting a Dream commits its complete aggregate, including Signals, to `Documents\Chora\Trash\DreamBundles` before removing its canonical files. The Explorer's Trash view supports restoration and confirmed permanent removal; see [Dream Trash](#dream-trash).
+Untitled Dreams use `dream--<id>.md`. Reader-created folders are real nested directories beneath the work's Dreams directory, and Dreams can be moved between them from the Explorer. Empty folders may be deleted; nonempty folders must first have their Dreams and child folders moved elsewhere. The main process owns all path validation and persistence; the renderer receives only relative folder identities and has no filesystem access. Writes and moves use a temporary file followed by an atomic rename. Deleting a Dream commits its complete aggregate, including Signals, to application-data Trash before removing its canonical files. The Explorer's Trash view supports restoration and confirmed permanent removal; see [Dream Trash](#dream-trash).
+
+Signals are owned by their Dream aggregates but are persisted as Markdown under `Documents\Chora\<work name>\Signals\<signal-id>.md`. For example, the Republic's Dreams and Signals are in `Documents\Chora\The Republic\Dreams` and `Documents\Chora\The Republic\Signals`. Work identities remain in the file metadata. Conversations and Trash are stored separately in Electron's application-data directory.
+
+On startup Chora migrates the former locations, retaining original file copies in `StorageMigrationBackup` under application data. It refuses to overwrite a conflicting destination or backup. Close Chora on other computers and allow synchronization to finish before starting the migration; retain an independent backup as well. If a conflict occurs, the original files and migration backups must be reconciled before retrying.
 
 Dream catalogue items show the source's full locator range. The Explorer's Dream document icon beside a Stephanus label opens the catalogue filtered to Dreams whose saved source spans overlap that passage, including intermediate passages. Signals do not affect this Dream association. The marker tooltip lists the associated Dream titles. Passage filtering clears the previous keyword query, can be narrowed with search, and has an explicit clear button. It does not open an editor or move the reading position; opening a different work clears the passage filter.
 
@@ -54,105 +62,32 @@ src/main/         privileged Electron host, grouped by product feature
 src/preload/      minimal typed context-isolated bridge
 src/renderer/     browser UI with feature Panels, Controllers, Stores, and Gateways
 src/shared/       cross-process contracts, types, and pure domain logic
-Prompts/          model system prompts
 ```
 
 Renderer panels own DOM interaction, controllers coordinate workflows, stores own state, and gateways own IPC. Signal editing shares `DreamStore`. In the main process, `DreamLibrary` owns Dream aggregates and their child Signals; repositories own canonical file access. Generic manager classes are not the feature coordination pattern.
 
-Clarity Check uses `DreamDiscussionPanel` → `ChatPanel` → `ChatController` → `ChatGateway` → the typed preload API → `ChatIpcController` → `ChatService`. `DreamDiscussionContext` resolves the canonical Dream and source material in the main process. `ChatRepository` stores conversation history separately from Dream Markdown, and `ModelApi` owns provider discovery and execution.
+`ChatRepository` reads previously saved conversation history only so Dream Trash can preserve and restore that existing data. Chora no longer contains a chat or model-provider runtime; current inquiries go through PlatoSI.
 
 See [CODING_STANDARDS.md](CODING_STANDARDS.md) and [AGENTS.md](AGENTS.md) before changing the code.
 
 ## Development
 
-Reading uses the bundled Library catalogue. Opening or importing external text files is not supported.
+Reading uses PlatoSI's canonical Library catalogue and text. Dream and Signal locations carry PlatoSI's text fingerprint and Stephanus-relative offsets. Opening or importing external text files is not supported.
 
 Chora opens the preferred Library text at launch in a three-column workspace: Dreams Explorer on the left, source reader in the center, and Dream editor on the right. With no Dream open, the editor shows a Workspace prompt to select a Dream from the Explorer. The Explorer uses a compact filesystem-style Dream tree: root Dreams remain directly visible, reader-created folders can be nested, and Dreams can be dragged between folders or back to the root. Shift-click selects a contiguous range of visible Dreams, and dragging any selected Dream moves the complete selection together. Creating a Dream while a folder is selected creates the Dream directly in that folder. Each Dream's Stephanus range appears on the same line as its title. Opening a Dream adds it to a persistent editor tab strip; switching tabs restores that Dream's editor state without moving the reader, while closing a dirty tab saves it before removal.
 
-Prerequisites: Node.js 24 or later and npm.
+Prerequisites: Node.js 24 or later and npm, plus a local PlatoSI installation with its canonical corpus. See [PlatoSI's local dependency instructions](../PlatoSI/docs/local-dependency.md) for its runtime and corpus requirements.
+
+Copy `.env.example` to `.env.local` and set `PLATOSI_PYTHON` to the Python executable and `PLATOSI_READER_API` to PlatoSI's `scripts\reader_api.py`. These paths are local configuration and must not be committed. PlatoSI owns model configuration; consult its documentation to configure a model for inquiries.
 
 ```bash
 npm install
-npm run dev:mock
+npm start
 ```
 
 Milkdown 7.22 publishes extensionless TypeScript declaration imports. The `postinstall` script runs `scripts/FixMilkdownDeclarations.mjs` to repair only installed Milkdown declaration specifiers for this project's NodeNext resolution. Runtime packages and compiler settings are unchanged. If dependencies are installed with scripts disabled, run `npm run postinstall` before typechecking.
 
-Kimi requires a local `.env.local`:
-
-```text
-MODEL_PROVIDER=kimi
-KIMI_API_KEY=your-key
-KIMI_MODEL=kimi-k2.6
-KIMI_BASE_URL=https://api.moonshot.ai/v1
-KIMI_MAX_COMPLETION_TOKENS=3000
-```
-
-Never commit `.env.local` or provider credentials.
-
-### Remote Ollama
-
-Chora can discover and use models installed on an Ollama server through Ollama's native API. Configure the server only in `.env.local`; the endpoint remains in the main process and never crosses into the renderer.
-
-```text
-# Preserve MODEL_PROVIDER as the fallback/default provider.
-MODEL_PROVIDER=copilot-relay
-# Explicitly enable every provider that should appear in the model picker.
-MODEL_PROVIDERS=copilot-relay,kimi,ollama
-
-OLLAMA_BASE_URL=http://<ollama-computer-ip>:11434
-# Optional comma-separated allowlist. Omit or leave empty to show every installed model.
-OLLAMA_MODELS=qwen3.5:9b
-# Context window requested from Ollama for each Chora turn.
-OLLAMA_CONTEXT_LENGTH=32768
-# Bounds remote model discovery so an unavailable server cannot block the conversation UI.
-OLLAMA_DISCOVERY_TIMEOUT_MS=10000
-# Allows cold model loading on another computer.
-OLLAMA_REQUEST_TIMEOUT_MS=300000
-# Optional bearer token for an authenticated reverse proxy. Local Ollama itself requires none.
-OLLAMA_API_KEY=
-```
-
-Use `npm start` when `copilot-relay` is enabled so the launcher also starts the VS Code Relay. Use `npm run dev:ollama` for an Ollama-only development run. Chora discovers installed models from `GET /api/tags` and sends the unchanged Chora system prompt, captured Dream context, conversation history, and reader message to `POST /api/chat`. Requests set `stream: false` and `think: false`; only final `message.content` is saved.
-
-On the remote Windows computer, install and start Ollama, run `ollama pull qwen3.5:9b`, set the user environment variable `OLLAMA_HOST=0.0.0.0:11434` (or bind to that computer's specific LAN address), then quit and relaunch Ollama. Permit inbound TCP port `11434` only on the Private network profile and preferably only from the Chora computer or trusted subnet. Do not expose an unauthenticated Ollama port to the public internet.
-
-From the Chora computer, verify discovery before starting Chora:
-
-```powershell
-Invoke-RestMethod http://<ollama-computer-ip>:11434/api/tags
-```
-
-The response must include `qwen3.5:9b`. Ollama's local server uses HTTP without authentication by default. For stronger isolation, use a private VPN or an HTTPS reverse proxy with authentication and configure its bearer token through `OLLAMA_API_KEY`.
-
-### VS Code Copilot Relay
-
-The Relay provider uses the GitHub Copilot session already active in a local VS Code Extension Development Host. Configure the same non-empty secret in both places:
-
-```json
-{
-	"choraCopilotRelay.sharedSecret": "choose-a-long-local-secret"
-}
-```
-
-Add the matching Chora values to `.env.local`:
-
-```text
-COPILOT_RELAY_SHARED_SECRET=choose-a-long-local-secret
-# Optional: omit to let VS Code select its default available Copilot model.
-COPILOT_RELAY_MODEL_FAMILY=
-COPILOT_RELAY_PORT=4319
-```
-
-Start Chora with the single `Chora` VS Code Run profile or run:
-
-```bash
-npm start
-```
-
-The launcher builds the Relay when necessary, opens its Extension Development Host, waits until it is ready, builds Chora, and starts Electron directly. Electron Forge is used only by the packaging commands and is not part of development startup.
-
-`MODEL_PROVIDER` configures the legacy single-provider fallback (`mock`, `kimi`, `copilot-relay`, or `ollama`). When `MODEL_PROVIDERS` is nonempty, its ordered comma-separated provider list supplies all catalogues shown in the existing model picker. A failure in one enabled provider is recorded without hiding models discovered from healthy enabled providers; discovery fails when no enabled provider remains usable. For Relay-backed Clarity Checks, `COPILOT_RELAY_MODEL_FAMILY` optionally selects a Copilot family; when omitted, the Relay uses the first extension-accessible Copilot model returned by VS Code. VS Code-internal `copilot-*` service models are excluded from both discovery and default selection because they cannot accept extension requests. Provider and model settings come from the local environment rather than renderer input. The Relay is loopback-only and rejects requests without the shared secret.
+Never commit `.env.local`. Model and provider configuration belongs to PlatoSI rather than Chora.
 
 Available verification commands (choose one targeted pass appropriate to the change, following [Build and Test Discipline](CODING_STANDARDS.md#build-and-test-discipline)):
 
@@ -162,11 +97,13 @@ npm test
 npm run build
 ```
 
-The bundled Plato corpus is generated under `corpus/generated/` from PerseusDL. Corpus maintenance commands are documented in [AGENTS.md](AGENTS.md).
+PlatoSI supplies Chora's catalogue, canonical Greek text, provenance, annotations, and text-version fingerprints. Chora does not package or maintain a second corpus.
+
+The Electron main process owns one PlatoSI child process for the application lifetime. A typed gateway contains PlatoSI operation names and validates external responses before the Library repository adapts canonical works to Chora's immutable reader model.
 
 ## Text domain
 
-`TextDocument` is the canonical work object. It owns immutable, ordered `TextSegment` objects and validates, reconstructs, compares, contains, overlaps, merges, and resolves citations or divisions for exact `TextSelection` ranges. A selection persists `documentId` plus start and end segment positions. A Signal additionally persists its complete passage text and displayed source citation when it is created or updated, so loading the Dream catalogue never reopens the immutable source corpus.
+`TextDocument` is Chora's in-memory view of the canonical work supplied by PlatoSI. It owns immutable, ordered Stephanus sections and validates, reconstructs, compares, contains, overlaps, and merges exact selections. Dream sources and Signal selections persist PlatoSI's `dialogue`, `text_version`, and start/end `{ stephanus, offset }` contract. Offsets are UTF-16, start-inclusive, end-exclusive, and section-relative. A Signal additionally persists its complete passage text and displayed source citation when it is created or updated, so loading the Dream catalogue never reopens the immutable source corpus.
 
 `TextAnnotation` is the base concept for reader-created objects anchored to one exact range, including Dream source passages. Every Signal is a multi-range annotation owned by exactly one Dream. The main-process `Dream` aggregate creates, updates, deletes, and loads its complete child Signal records; `DreamLibrary` coordinates persistence, relative folder placement, and the filesystem folder tree without maintaining a second Signal registry. Renderer editing state has one owner per open Dream tab, with the active Dream represented only by its stable identifier. IPC updates carry only reader-editable fields and relative folder commands, while identity, absolute paths, ownership, work origin, Signals, and timestamps remain authoritative in the main process. Filesystem data uses one current Dream format and one current Signal format.
 
@@ -177,7 +114,7 @@ The renderer's `DreamExplorerController` is the single workflow object for Explo
 
 Deleting a Dream retains its complete aggregate, including all Signals, in local Trash. Open **Trash** at the bottom of the Explorer to restore a Dream, delete it permanently, or empty Trash. Records do not expire automatically. Permanent removal requires confirmation and cannot be undone.
 
-Restore preserves the original Dream and Signal identities and recreates the original folder when necessary. Interrupted deletions and restores resume before the catalogue loads at startup. The aggregate payload is retained under `Chora/Trash/DreamBundles` until restore or explicit permanent removal; it is committed before any canonical file is removed. This is an application recovery journal, not a filesystem-wide atomic transaction or a backup against disk loss. Old Markdown files already under `Chora/Trash/Dreams` remain untouched; their previously deleted Signals cannot be reconstructed by this change.
+Restore preserves the original Dream and Signal identities and recreates the original folder when necessary. Interrupted deletions and restores resume before the catalogue loads at startup. The aggregate payload is retained under `Trash/DreamBundles` in Chora's application-data directory until restore or explicit permanent removal; it is committed before any canonical file is removed. This is an application recovery journal, not a filesystem-wide atomic transaction or a backup against disk loss. Old Markdown files formerly under `Chora/Trash/Dreams` are retained in application data; their previously deleted Signals cannot be reconstructed by this change.
 
 
 ## Reloading the Dream catalogue

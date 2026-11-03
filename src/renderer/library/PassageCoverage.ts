@@ -37,8 +37,8 @@ export function GetCoveredPassageKeys(document: TextDocument, selection: TextSel
 	document = TextDocument.FromSnapshot(document);
 	const { positions, passageKeys } = BuildPassageIndex(document);
 	const covered = new Set<string>();
-	const startIndex = positions.get(selection.start.segmentKey);
-	const endIndex = positions.get(selection.end.segmentKey);
+	const startIndex = positions.get(selection.start.stephanus);
+	const endIndex = positions.get(selection.end.stephanus);
 
 	if (startIndex !== undefined && endIndex !== undefined && startIndex <= endIndex)
 	{

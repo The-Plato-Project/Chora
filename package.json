@@ -6,11 +6,8 @@
 	"main": ".vite/build/src/main/main.js",
 	"scripts": {
 		"postinstall": "node scripts/FixMilkdownDeclarations.mjs",
-		"start": "node scripts/StartMode.mjs copilot-relay",
-		"dev:mock": "node scripts/StartMode.mjs mock --exclusive",
-		"dev:kimi": "node scripts/StartMode.mjs kimi --exclusive",
-		"dev:ollama": "node scripts/StartMode.mjs ollama --exclusive",
-		"dev:relay": "node scripts/StartMode.mjs copilot-relay --exclusive",
+		"start": "node scripts/StartMode.mjs",
+		"dev:platosi": "node scripts/StartMode.mjs",
 		"package": "npm run build && electron-forge package",
 		"make": "npm run build && electron-forge make",
 		"build": "npm run build:main && npm run build:preload && npm run build:renderer",
@@ -18,11 +15,7 @@
 		"build:preload": "node scripts/BuildPreload.mjs",
 		"build:renderer": "node scripts/BuildRenderer.mjs",
 		"typecheck": "tsc -p tsconfig.main.json --noEmit",
-		"test": "vitest run",
-		"corpus:fetch": "ts-node --project tsconfig.scripts.json scripts/corpus/FetchPerseusPlato.ts",
-		"corpus:build": "ts-node --project tsconfig.scripts.json scripts/corpus/BuildPerseusPlato.ts",
-		"corpus:verify": "ts-node --project tsconfig.scripts.json scripts/corpus/VerifyPerseusPlato.ts",
-		"corpus:update": "ts-node --project tsconfig.scripts.json scripts/corpus/UpdatePerseusPlato.ts"
+		"test": "vitest run"
 	},
 	"dependencies": {
 		"@milkdown/kit": "^7.22.1",
@@ -37,10 +30,8 @@
 		"@electron-forge/maker-squirrel": "^7.6.0",
 		"@electron-forge/maker-zip": "^7.6.0",
 		"@types/node": "^24.0.0",
-		"@xmldom/xmldom": "^0.9.8",
 		"electron": "^37.0.0",
 		"happy-dom": "^20.14.0",
-		"ts-node": "^10.9.2",
 		"typescript": "^5.9.0",
 		"vite": "^7.0.0",
 		"vitest": "^3.2.0"

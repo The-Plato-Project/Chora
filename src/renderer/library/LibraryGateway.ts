@@ -28,21 +28,17 @@ export class LibraryGateway
 	}
 
 	// Shows the native context menu for a passage selection.
-	public ShowSelectionContextMenuAsync(canAddSignal: boolean, canAddToDreamSource: boolean, canAddToCurrentSignal: boolean): Promise<SelectionAction>
+	public ShowSelectionContextMenuAsync(canAddSignal: boolean, canAddToDreamSource: boolean, canAddToCurrentSignal: boolean, canExploreWord: boolean): Promise<SelectionAction>
 	{
-		return ReadOperationAsync(window.chora.ShowSelectionContextMenu(canAddSignal, canAddToDreamSource, canAddToCurrentSignal));
+		const operation = window.chora.ShowSelectionContextMenu(canAddSignal, canAddToDreamSource, canAddToCurrentSignal, canExploreWord);
+		const result = ReadOperationAsync(operation);
+		return result;
 	}
 
 	// Copies the given text to the operating system clipboard.
 	public CopyAsync(text: string): Promise<void>
 	{
 		return ReadOperationAsync(window.chora.CopySelectedText(text));
-	}
-
-	// Looks up a word using the reader's configured dictionary.
-	public LookUpAsync(text: string): Promise<void>
-	{
-		return ReadOperationAsync(window.chora.LookUpWord(text));
 	}
 
 	// Subscribes to the main process requesting a specific Library text be opened.

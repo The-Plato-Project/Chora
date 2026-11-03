@@ -1,6 +1,17 @@
-import type { ModelSelection } from "../models/ModelSelection.js";
-import type { ModelUsage } from "../models/ModelTypes.js";
-import type { TextSelection } from "../text/TextSelection.js";
+// Historical provider metadata retained only so old conversations can survive Dream Trash operations.
+export interface HistoricalModelSelection
+{
+	readonly provider: string;
+	readonly model: string;
+}
+
+// Historical token accounting retained without an active model-provider dependency.
+export interface HistoricalModelUsage
+{
+	readonly inputTokens?: number;
+	readonly outputTokens?: number;
+	readonly totalTokens?: number;
+}
 
 // Feature-owned identity; additional kinds require a registered main context owner.
 export interface ChatScope
@@ -47,9 +58,9 @@ export interface ChatMessage
 	// Persisted creation time.
 	readonly createdAt: string;
 	// Actual model metadata on generated responses.
-	readonly model: ModelSelection | null;
+	readonly model: HistoricalModelSelection | null;
 	// Provider token accounting when available.
-	readonly usage: ModelUsage | null;
+	readonly usage: HistoricalModelUsage | null;
 }
 
 // Canonical conversation projection returned after persistence.
@@ -60,37 +71,9 @@ export interface ChatConversationSnapshot
 	// Feature context owning the conversation lifecycle.
 	readonly scope: ChatScope;
 	// Model choice applied to subsequent turns.
-	readonly model: ModelSelection;
+	readonly model: HistoricalModelSelection;
 	// Authoritative ordered transcript.
 	readonly messages: readonly ChatMessage[];
 	// Historical reading material keyed by message context identity.
 	readonly contexts: readonly ChatContextSnapshot[];
-}
-
-// Narrow send command; main resolves prompts, history and canonical feature data.
-export interface SendChatMessageCommand
-{
-	// Existing main-owned conversation identity.
-	readonly conversationId: string;
-	// Bounded client idempotency key; never used as a persistence path.
-	readonly clientRequestId: string;
-	// Selected transport/model for this turn; validated in the main process.
-	readonly model: ModelSelection;
-	// Reader's new message.
-	readonly content: string;
-	// Explicit optional reading selection, resolved against the canonical text.
-	readonly selection: TextSelection | null;
-}
-
-// Ordered transient stream update; terminal state is read from persisted snapshots.
-export interface ChatDelta
-{
-	// Conversation receiving the output.
-	readonly conversationId: string;
-	// Active response identity used to reject stale output.
-	readonly turnId: string;
-	// Monotonic ordering within the active response.
-	readonly sequence: number;
-	// Newly received text without fabricated token simulation.
-	readonly text: string;
 }

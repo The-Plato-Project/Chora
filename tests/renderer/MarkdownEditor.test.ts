@@ -53,7 +53,7 @@ describe("MarkdownEditor", function MarkdownEditorTests()
 {
 	it("serializes a complete Signal", function SerializesSignalMarkdown()
 	{
-		const selection = { documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 7 } };
+		const selection = { dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`, start: { stephanus: "s1", offset: 0 }, end: { stephanus: "s1", offset: 7 } };
 		const dream: DreamView = {
 			id: "dream", workId: "republic", dialogue: "Republic", title: "Descent",
 			source: selection,
@@ -261,7 +261,7 @@ describe("MarkdownEditor", function MarkdownEditorTests()
 		SelectContent(editor);
 		editor.Root.querySelector<HTMLButtonElement>('[data-markdown-command="bold"]')!.click();
 		const markdown = editor.GetMarkdown();
-		const selection = { documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 7 } };
+		const selection = { dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`, start: { stephanus: "s1", offset: 0 }, end: { stephanus: "s1", offset: 7 } };
 		const dream: DreamView = {
 			id: "formatted", workId: "republic", dialogue: "Republic", title: "Formatting",
 			source: selection,

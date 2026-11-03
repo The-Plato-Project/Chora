@@ -50,9 +50,9 @@
 	box-sizing: border-box;
 	width: 100%;
 	min-width: 0;
-	min-height: 24px;
-	gap: 5px;
-	padding: 2px 8px;
+	min-height: 23px;
+	gap: 3px;
+	padding: 0 4px;
 	border: 0;
 	border-radius: 0;
 	background: transparent;
@@ -86,10 +86,10 @@
 
 .workspace-work-disclosure {
 	display: grid;
-	flex: 0 0 20px;
+	flex: 0 0 14px;
 	place-items: center;
 	align-self: stretch;
-	margin-left: 8px;
+	margin-left: 2px;
 	padding: 0;
 	border: 0;
 	background: transparent;
@@ -134,7 +134,7 @@
 }
 
 .workspace-user-folder-disclosure {
-	margin-left: calc(20px + (var(--workspace-depth) * 14px));
+	margin-left: calc(10px + (var(--workspace-depth) * 8px));
 }
 
 .workspace-book-group > .workspace-tree-row {
@@ -240,11 +240,11 @@
 }
 
 .workspace-tree-children .workspace-tree-children .workspace-item-row {
-	padding-left: 58px;
+	padding-left: 28px;
 }
 
 .workspace-user-folder > .workspace-tree-children > .workspace-item-with-action > .workspace-item-row {
-	padding-left: calc(44px + (var(--workspace-depth) * 14px));
+	padding-left: calc(27px + (var(--workspace-depth) * 8px));
 }
 
 .workspace-item-row {
@@ -261,14 +261,14 @@
 
 .workspace-item-icon {
 	display: grid;
-	flex: 0 0 15px;
+	flex: 0 0 14px;
 	place-items: center;
 	color: var(--muted-text);
 }
 
 .workspace-item-icon svg {
-	width: 14px;
-	height: 14px;
+	width: 13px;
+	height: 13px;
 	fill: none;
 	stroke: currentColor;
 }
@@ -279,6 +279,10 @@
 
 .workspace-item-with-action .workspace-item-row {
 	padding-right: 30px;
+}
+
+.workspace-dream-item .workspace-item-row {
+	padding-right: 8px;
 }
 
 .workspace-tree-empty {
@@ -806,7 +810,7 @@
 }
 
 .workspace-explorer .workspace-tree {
-	padding: 0 10px 16px 6px;
+	padding: 0 6px 10px 2px;
 }
 
 .workspace-tree-work.selected {
@@ -814,12 +818,12 @@
 }
 
 .workspace-tree-folder-heading > .workspace-tree-row {
-	padding-left: 20px;
+	padding-left: 10px;
 	font-weight: 400;
 }
 
 .workspace-tree-children .workspace-tree-children .workspace-item-row {
-	padding-left: 38px;
+	padding-left: 24px;
 }
 
 .workspace-library-tools {
@@ -836,4 +840,3 @@
 	width: 12px;
 	height: 12px;
 }
-

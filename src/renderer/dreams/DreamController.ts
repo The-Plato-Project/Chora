@@ -247,7 +247,7 @@ export class DreamController
 		{
 			this.errors.Report("DreamController", new Error("No active Dream."), "Open a Dream before extending its source passage.");
 		}
-		else if (document === null || selection.documentId !== dream.workId || document.id !== dream.workId)
+		else if (document === null || selection.dialogue !== dream.workId || document.id !== dream.workId)
 		{
 			this.errors.Report("DreamController", new Error("Selection outside the Dream's text."), "Select text in the Dream's own text to extend its passage.");
 		}
@@ -280,19 +280,26 @@ export class DreamController
 		const document = this.library.GetText();
 		const canAddToSelectedSignal = selectedSignal !== null
 			&& document !== null
-			&& selectedSignal.workId === selection.documentId
+			&& selectedSignal.workId === selection.dialogue
 			&& !selectedSignal.selections.some((candidate) => document.Contains(selection, candidate));
-		const action = await this.gateway.ShowSourceContextMenuAsync(canAddToSelectedSignal);
+		const selectedText = document?.id === selection.dialogue
+			? document.ReconstructText(selection)
+			: "";
+		const wordSelection = document?.id === selection.dialogue
+			? document.GetSingleGreekWordSelection(selection)
+			: null;
+		const canExploreWord = wordSelection !== null;
+		const action = await this.gateway.ShowSourceContextMenuAsync(canAddToSelectedSignal, canExploreWord);
+		if (action === "explore-word" && wordSelection !== null)
+		{
+			await this.events.PublishAsync("word.exploration-requested", { selection: wordSelection });
+		}
 		if (action === "add-dream-source-signal") await this.events.PublishAsync("dream.signal-add-requested", { selection });
 		if (action === "add-to-selected-signal" && selectedSignal !== null && canAddToSelectedSignal)
 		{
 			await this.events.PublishAsync("signal.selection-add-requested", { signalId: selectedSignal.id, selection });
 		}
-		const selectedText = document?.id === selection.documentId
-			? document.ReconstructText(selection)
-			: "";
 		if (action === "copy-dream-source") await this.reader.CopyAsync(selectedText);
-		if (action === "lookup") await this.reader.LookUpAsync(selectedText);
 	}
 
 	// Builds a document selection from a source-passage offset range, reporting rather than throwing when it is invalid.
@@ -316,7 +323,7 @@ export class DreamController
 	public ResolveSelectionText(selection: TextSelection): string
 	{
 		const document = this.library.GetText();
-		const text = document?.id === selection.documentId
+		const text = document?.id === selection.dialogue
 			? document.ReconstructText(selection)
 			: "";
 
@@ -327,10 +334,10 @@ export class DreamController
 	public FormatSelectionRange(selection: TextSelection): string
 	{
 		const document = this.library.GetText();
-		const start = document?.id === selection.documentId
+		const start = document?.id === selection.dialogue
 			? document.ResolveCitation(selection.start)?.value
 			: undefined;
-		const end = document?.id === selection.documentId
+		const end = document?.id === selection.dialogue
 			? document.ResolveCitation(selection.end)?.value
 			: undefined;
 		let range = start ?? end ?? "source";

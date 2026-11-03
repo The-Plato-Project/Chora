@@ -1,4 +1,4 @@
-import type { ChoraEventBus } from "../core/events/ChoraEventBus.js";
+import type { ChoraEventBus, Unsubscribe } from "../core/events/ChoraEventBus.js";
 import type { ChoraEvents } from "../core/events/ChoraEvents.js";
 import { LayoutSettings } from "../core/settings/LayoutSettingsStore.js";
 
@@ -16,8 +16,8 @@ export class WorkspaceLayoutPanel
 	private readonly panelResizePointerUpHandler = this.StopPanelResize.bind(this);
 	// Rebalances dimensions after the native window changes size.
 	private readonly windowResizeHandler = this.NormalizePanelWidths.bind(this);
-	// Expands the Explorer when its collapsed rail is clicked.
-	private readonly expandHandler = this.HandleExpand.bind(this);
+	// Expands the sidebar in response to activity-bar selection.
+	private readonly openSubscription: Unsubscribe;
 	// Current local drag state; durable dimensions remain in LayoutSettings.
 	private activeResizablePane: ResizablePane | null = null;
 	// Initial pointer position for the current resize gesture.
@@ -26,12 +26,13 @@ export class WorkspaceLayoutPanel
 	private resizeStartWidth = 0;
 
 	// Restores layout and registers the DOM interactions owned by this panel.
-	public constructor(private readonly root: HTMLElement, private readonly events: ChoraEventBus<ChoraEvents>)
+	public constructor(private readonly root: HTMLElement, events: ChoraEventBus<ChoraEvents>)
 	{
 		this.ApplyPersistedLayout();
 		this.NormalizePanelWidths();
 		root.addEventListener("pointerdown", this.panelResizePointerDownHandler);
-		root.addEventListener("click", this.expandHandler);
+		const openSidebar = this.ExpandLeftPane.bind(this);
+		this.openSubscription = events.Subscribe("workspace.sidebar-open-requested", openSidebar);
 		window.addEventListener("resize", this.windowResizeHandler);
 	}
 
@@ -40,15 +41,8 @@ export class WorkspaceLayoutPanel
 	{
 		this.StopPanelResize();
 		this.root.removeEventListener("pointerdown", this.panelResizePointerDownHandler);
-		this.root.removeEventListener("click", this.expandHandler);
+		this.openSubscription();
 		window.removeEventListener("resize", this.windowResizeHandler);
-	}
-
-	// Routes only the Explorer-rail expansion interaction.
-	private HandleExpand(event: MouseEvent): void
-	{
-		const target = event.target as HTMLElement | null;
-		if (target !== null && target.closest("[data-expand-explorer='dream']") !== null) this.ExpandLeftPane();
 	}
 
 	// Begins tracking a pane-resize drag started from a resize handle.
@@ -57,7 +51,9 @@ export class WorkspaceLayoutPanel
 		const handle = (event.target as HTMLElement | null)?.closest<HTMLElement>("[data-resize-pane]");
 		const pane = handle?.dataset.resizePane;
 		const shell = this.root.querySelector<HTMLElement>(".shell");
-		const panel = pane === "left" ? this.root.querySelector<HTMLElement>(".left-panel") : this.root.querySelector<HTMLElement>(".right-panel");
+		const panel = pane === "left"
+			? this.root.querySelector<HTMLElement>(".left-panel")
+			: this.root.querySelector<HTMLElement>(".right-panel");
 
 		if ((pane === "left" || pane === "dream") && shell !== null && panel !== null)
 		{
@@ -86,7 +82,7 @@ export class WorkspaceLayoutPanel
 			const isDreamOpen = shell.classList.contains("dream-open");
 			const compactLayout = shellWidth <= 760;
 			const minimumLeftWidth = compactLayout ? 170 : 180;
-			const minimumDreamWidth = compactLayout ? 240 : 300;
+			const minimumDreamWidth = this.GetMinimumDreamWidth(shellWidth);
 			const minimumReaderWidth = compactLayout ? 220 : 320;
 			let width = this.resizeStartWidth + delta;
 
@@ -113,6 +109,7 @@ export class WorkspaceLayoutPanel
 					shell.style.setProperty("--left-pane-width", `${clampedWidth}px`);
 				}
 			}
+
 			else
 			{
 				const maximumWidth = shellWidth - leftWidth - minimumReaderWidth;
@@ -132,16 +129,22 @@ export class WorkspaceLayoutPanel
 		if (shell !== null && leftPanel !== null && dreamPanel !== null && !shell.classList.contains("left-collapsed"))
 		{
 			const shellWidth = shell.getBoundingClientRect().width;
-			const compactLayout = shellWidth <= 760;
-			const minimumLeftWidth = compactLayout ? 170 : 180;
-			const minimumDreamWidth = compactLayout ? 240 : 300;
-			const minimumReaderWidth = compactLayout ? 220 : 320;
-			const maximumLeftWidth = shellWidth - minimumDreamWidth - minimumReaderWidth;
-			const leftWidth = Math.max(minimumLeftWidth, Math.min(leftPanel.getBoundingClientRect().width, maximumLeftWidth));
-			const maximumDreamWidth = shellWidth - leftWidth - minimumReaderWidth;
-			const dreamWidth = Math.max(minimumDreamWidth, Math.min(dreamPanel.getBoundingClientRect().width, maximumDreamWidth));
-			shell.style.setProperty("--left-pane-width", `${leftWidth}px`);
-			shell.style.setProperty("--dream-pane-width", `${dreamWidth}px`);
+			if (shellWidth > 0)
+			{
+				const compactLayout = shellWidth <= 760;
+				const minimumLeftWidth = compactLayout ? 170 : 180;
+				const minimumDreamWidth = this.GetMinimumDreamWidth(shellWidth);
+				const minimumReaderWidth = compactLayout ? 220 : 320;
+				const maximumLeftWidth = shellWidth - minimumReaderWidth;
+				const leftWidth = Math.max(minimumLeftWidth, Math.min(leftPanel.getBoundingClientRect().width, maximumLeftWidth));
+				const maximumDreamWidth = shellWidth - leftWidth - minimumReaderWidth;
+				const requestedDreamWidth = Number.parseFloat(shell.style.getPropertyValue("--dream-pane-width"));
+				const availableDreamWidth = Math.max(0, maximumDreamWidth);
+				const dreamMinimum = Math.min(minimumDreamWidth, availableDreamWidth);
+				const dreamWidth = Math.max(dreamMinimum, Math.min(requestedDreamWidth, availableDreamWidth));
+				shell.style.setProperty("--left-pane-width", `${leftWidth}px`);
+				shell.style.setProperty("--dream-pane-width", `${dreamWidth}px`);
+			}
 		}
 	}
 
@@ -155,11 +158,23 @@ export class WorkspaceLayoutPanel
 		if (shell !== null && leftPanel !== null && editorPanel !== null)
 		{
 			const leftWidth = LayoutSettings.GetDimension("leftPaneWidth", leftPanel.getBoundingClientRect().width);
-			const editorWidth = LayoutSettings.GetDimension("editorPaneWidth", editorPanel.getBoundingClientRect().width);
+			const minimumEditorWidth = this.GetMinimumDreamWidth(window.innerWidth);
+			const defaultEditorWidth = Math.min(1100, Math.max(minimumEditorWidth, window.innerWidth * 0.46));
+			const storedEditorWidth = LayoutSettings.GetDimension("editorPaneWidth", defaultEditorWidth);
+			const editorWidth = Math.max(minimumEditorWidth, storedEditorWidth);
 			shell.style.setProperty("--left-pane-width", `${leftWidth}px`);
 			shell.style.setProperty("--dream-pane-width", `${editorWidth}px`);
 			if (LayoutSettings.GetExplorerCollapsed()) this.CollapseLeftPane(shell);
 		}
+	}
+
+	// Returns enough horizontal space for the Dream editor's Signal navigation and detail columns.
+	private GetMinimumDreamWidth(shellWidth: number): number
+	{
+		let minimumWidth = Math.min(1050, Math.max(520, shellWidth * 0.42));
+		if (shellWidth <= 1000) minimumWidth = 420;
+		if (shellWidth <= 760) minimumWidth = 280;
+		return minimumWidth;
 	}
 
 	// Leaves workspace navigation accessible when the left pane is collapsed.
@@ -183,7 +198,6 @@ export class WorkspaceLayoutPanel
 			const restoredWidth = Number.parseFloat(shell.style.getPropertyValue("--left-pane-width"));
 			LayoutSettings.SetExplorerCollapsed(false);
 			LayoutSettings.SetDimension("leftPaneWidth", restoredWidth);
-			void this.events.PublishAsync("workspace.dreams-focus-requested", {});
 		}
 	}
 

@@ -1,4 +1,4 @@
-import { createElement, Ellipsis, Pencil, Plus, Search, Settings, ArrowUpRight, ChevronLeft, ChevronRight, FileText, Folder, FolderPlus, Sun, Copy, Trash2, Sparkles, TextQuote } from "lucide";
+import { createElement, Copy, Ellipsis, Pencil, Plus, Search, Settings, ArrowUpRight, ChevronLeft, ChevronRight, FileText, Folder, FolderPlus, Trash2, Sparkles, TextQuote } from "lucide";
 
 export const MoreIcon = createElement(Ellipsis).outerHTML;
 export const EditIcon = createElement(Pencil).outerHTML;
@@ -12,9 +12,8 @@ export const DocumentIcon = createElement(FileText).outerHTML;
 export const FolderIcon = createElement(Folder).outerHTML;
 export const FolderAddIcon = createElement(FolderPlus).outerHTML;
 export const SignalIcon = createElement(Sparkles).outerHTML;
-export const IlluminateIcon = createElement(Sun).outerHTML;
-export const CopyIcon = createElement(Copy).outerHTML;
 export const TextQuoteIcon = createElement(TextQuote).outerHTML;
+export const CopyIcon = createElement(Copy).outerHTML;
 
 // Shared inline SVG icon markup, reused across panels so button glyphs stay consistent.
 

@@ -37,7 +37,7 @@ export class DreamSignalsPanel extends SignalViewPanel
 	{
 		const kind = this.document !== null
 			&& this.dreamSource !== null
-			&& this.document.id === selection.documentId
+			&& this.document.id === selection.dialogue
 			&& this.document.Contains(selection, this.dreamSource)
 			? "source"
 			: "external";

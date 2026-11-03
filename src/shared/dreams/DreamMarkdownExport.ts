@@ -7,8 +7,8 @@ export class DreamMarkdownExport
 {
 	public static Serialize(dream: DreamSnapshot, document: TextDocument): string
 	{
-		const start = document.ResolveCitation(dream.source.start)?.value ?? dream.source.start.segmentKey;
-		const end = document.ResolveCitation(dream.source.end)?.value ?? dream.source.end.segmentKey;
+		const start = document.ResolveCitation(dream.source.start)?.value ?? dream.source.start.stephanus;
+		const end = document.ResolveCitation(dream.source.end)?.value ?? dream.source.end.stephanus;
 		const location = start === end ? start : `${start}–${end}`;
 		const blocks = [
 			`# ${dream.title || "Untitled Dream"}`,
@@ -26,7 +26,6 @@ export class DreamMarkdownExport
 		{
 			for (const signal of dream.signals) blocks.push(SignalMarkdownDocument.SerializeSection(dream, signal, 3));
 		}
-		blocks.push("## Reflections", dream.reflection.trim() || "_No reflections._");
 		blocks.push("## Reflections", dream.reflection.trim() || "_No reflections._");
 		const markdown = `${blocks.join("\n\n")}\n`;
 		return markdown;

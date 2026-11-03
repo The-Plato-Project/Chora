@@ -1,21 +1,21 @@
 import type { ChoraEventBus, Unsubscribe } from "../core/events/ChoraEventBus.js";
 import type { ChoraEvents } from "../core/events/ChoraEvents.js";
 import { CloseActionMenusOutside } from "../ui/ActionMenus.js";
-import { DocumentIcon } from "../ui/Icons.js";
 
 // Persistent DOM roots supplied to the feature panels mounted by application composition.
 export interface WorkspaceRoots
 {
 	// Explorer catalogue and folder tree.
-	readonly explorer: HTMLElement;
+	readonly sidebarRail: HTMLElement;
+	readonly sidebarHost: HTMLElement;
 	// Open Dream editor tab strip.
 	readonly tabs: HTMLElement;
 	// Source-document reading surface.
 	readonly document: HTMLElement;
 	// Dream editing surface.
 	readonly dream: HTMLElement;
-	// Native dictionary toolbar surface.
-	readonly lookup: HTMLElement;
+	// Full-width word exploration surface below the workspace.
+	readonly words: HTMLElement;
 }
 
 // Owns shell markup, editor visibility, local menus, and DOM-to-workflow event translation.
@@ -35,10 +35,10 @@ export class WorkspaceShellPanel
 	// Mounts the persistent application shell and attaches its DOM behavior.
 	public constructor(private readonly root: HTMLElement, private readonly events: ChoraEventBus<ChoraEvents>)
 	{
-		this.root.innerHTML = `<main class="shell dream-open"><aside class="left-panel"><nav class="collapsed-explorer-rail" aria-label="Explorer sections"><button class="collapsed-explorer-button button-control" data-expand-explorer="dream" type="button" title="Expand Dreams" aria-label="Expand Dreams">${DocumentIcon}</button></nav><div class="left-view workspace-explorer-host" data-workspace-explorer></div></aside><section class="center-panel" data-document-panel></section><aside class="right-panel" data-editor-panel><div data-workspace-tabs></div><section class="editor-empty-state workspace-welcome" data-editor-empty aria-labelledby="editor-empty-heading"><h1 id="editor-empty-heading">Workspace</h1><p>Select a Dream from the Explorer.</p></section><div data-dream-panel hidden></div></aside><div class="panel-resize-handle" data-resize-pane="left" role="separator" tabindex="0" aria-label="Resize Explorer" aria-orientation="vertical"></div><div class="panel-resize-handle" data-resize-pane="dream" role="separator" tabindex="0" aria-label="Resize editor" aria-orientation="vertical"></div></main>`;
+		this.root.innerHTML = `<main class="shell"><div class="workspace-main-grid"><aside class="left-panel"><nav class="workspace-activity-rail" data-sidebar-rail aria-label="Workspace sections"></nav><div class="left-view workspace-sidebar-host" data-sidebar-host></div></aside><section class="center-panel" data-document-panel></section><aside class="right-panel" data-editor-panel hidden><div data-workspace-tabs></div><div data-dream-panel hidden></div></aside><div class="panel-resize-handle" data-resize-pane="left" role="separator" tabindex="0" aria-label="Resize sidebar" aria-orientation="vertical"></div><div class="panel-resize-handle" data-resize-pane="dream" role="separator" tabindex="0" aria-label="Resize editor" aria-orientation="vertical"></div></div><section class="word-bottom-panel" data-word-panel hidden></section></main>`;
 		const readerColumn = this.RequireElement("[data-document-panel]");
 		readerColumn.removeAttribute("data-document-panel");
-		readerColumn.innerHTML = '<div class="reader-workspace"><section class="document-panel" data-document-panel></section><section data-lookup-panel aria-label="Dictionary" hidden></section></div>';
+		readerColumn.innerHTML = '<div class="reader-workspace"><section class="document-panel" data-document-panel></section></div>';
 		this.subscriptions.push(events.Subscribe("dream.opened", this.HandleDreamOpened.bind(this)));
 		this.subscriptions.push(events.Subscribe("dream.closed", this.HandleDreamClosed.bind(this)));
 		root.addEventListener("pointerdown", this.menuHandler);
@@ -51,12 +51,13 @@ export class WorkspaceShellPanel
 	// Supplies the already-mounted roots to feature composition without rebuilding their DOM.
 	public GetRoots(): WorkspaceRoots
 	{
-		const explorer = this.RequireElement("[data-workspace-explorer]");
+		const sidebarRail = this.RequireElement("[data-sidebar-rail]");
+		const sidebarHost = this.RequireElement("[data-sidebar-host]");
 		const tabs = this.RequireElement("[data-workspace-tabs]");
 		const document = this.RequireElement("[data-document-panel]");
 		const dream = this.RequireElement("[data-dream-panel]");
-		const lookup = this.RequireElement("[data-lookup-panel]");
-		const roots: WorkspaceRoots = { explorer, tabs, document, dream, lookup };
+		const words = this.RequireElement("[data-word-panel]");
+		const roots: WorkspaceRoots = { sidebarRail, sidebarHost, tabs, document, dream, words };
 		return roots;
 	}
 
@@ -133,9 +134,8 @@ export class WorkspaceShellPanel
 	// Shows one feature editor in the shared right pane.
 	private ShowEditorPanel(editor: "dream" | null): void
 	{
-		this.root.querySelector(".shell")?.classList.add("dream-open");
-		this.root.querySelector<HTMLElement>("[data-editor-panel]")?.removeAttribute("hidden");
-		this.root.querySelector<HTMLElement>("[data-editor-empty]")?.toggleAttribute("hidden", editor !== null);
+		this.root.querySelector(".shell")?.classList.toggle("dream-open", editor !== null);
+		this.root.querySelector<HTMLElement>("[data-editor-panel]")?.toggleAttribute("hidden", editor === null);
 		this.root.querySelector<HTMLElement>("[data-dream-panel]")?.toggleAttribute("hidden", editor !== "dream");
 	}
 

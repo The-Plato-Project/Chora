@@ -10,6 +10,7 @@ import { Errors } from "../diagnostics/MainErrorManager.js";
 import { Signal } from "../signals/Signal.js";
 import { Dream } from "./Dream.js";
 import type { DreamPersistenceRecord, DreamRepository } from "./DreamRepository.js";
+import { WorkStoragePaths } from "./WorkStoragePaths.js";
 
 // Durable aggregate payload and operation state; paths are always relative to the Dream root.
 interface TrashRecord
@@ -32,16 +33,15 @@ interface TrashRecord
 export class DreamTrashRepository
 {
 	// Stores one atomic aggregate record for each deletion; legacy Markdown trash remains untouched.
-	private readonly trashPath: string;
-
 	// Creates the journal beside the Dream library, sharing its canonical repositories.
 	public constructor(
 		private readonly primaryPath: string,
 		private readonly dreams: DreamRepository,
 		private readonly signals: SignalRepository,
-		private readonly conversations: ChatRepository = new ChatRepository(path.join(path.dirname(primaryPath), "Conversations")))
+		private readonly conversations: ChatRepository,
+		private readonly workPaths: WorkStoragePaths,
+		private readonly trashPath: string)
 	{
-		this.trashPath = path.join(path.dirname(primaryPath), "Trash", "DreamBundles");
 	}
 
 	// Commits deletion intent before any live file is removed.
@@ -217,7 +217,7 @@ export class DreamTrashRepository
 	private ResolveOriginalPath(record: TrashRecord): string
 	{
 		if (typeof record.relativePath !== "string" || path.isAbsolute(record.relativePath)) throw new Error("Trash location is invalid.");
-		const workRoot = path.resolve(this.primaryPath, record.dream.workId);
+		const workRoot = this.workPaths.Resolve(record.dream.workId, "Dreams");
 		const filePath = path.resolve(this.primaryPath, record.relativePath);
 		const relative = path.relative(workRoot, filePath);
 		if (relative === "" || relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative) || path.extname(filePath) !== ".md")

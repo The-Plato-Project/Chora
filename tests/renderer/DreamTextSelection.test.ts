@@ -12,9 +12,9 @@ const work = {
 } as TextDocument;
 
 const source: TextSelection = {
-	documentId: "republic",
-	start: { segmentKey: "s1", offset: 2 },
-	end: { segmentKey: "s2", offset: 3 }
+	dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+	start: { stephanus: "s1", offset: 2 },
+	end: { stephanus: "s2", offset: 3 }
 };
 
 describe("Dream source selection", function DreamTextSelectionTests()
@@ -23,8 +23,8 @@ describe("Dream source selection", function DreamTextSelectionTests()
 	{
 		const selection = CreateDreamTextSelection(work, source, 1, 7);
 
-		expect(selection?.start).toEqual({ segmentKey: "s1", offset: 3 });
-		expect(selection?.end).toEqual({ segmentKey: "s2", offset: 2 });
+		expect(selection?.start).toEqual({ stephanus: "s1", offset: 3 });
+		expect(selection?.end).toEqual({ stephanus: "s2", offset: 2 });
 		const document = TextDocument.FromSnapshot(work);
 		expect(selection === null ? "" : document.ReconstructText(selection)).toBe("def\ngh");
 		expect(selection === null ? null : document.ResolveCitation(selection.start)?.value).toBe("327a");

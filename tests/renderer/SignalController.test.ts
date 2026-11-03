@@ -13,9 +13,9 @@ import type { SignalRecord } from "../../src/shared/signals/SignalTypes.js";
 
 // Canonical source selection used by the active Dream.
 const source = {
-	documentId: "republic",
-	start: { segmentKey: "s1", offset: 0 },
-	end: { segmentKey: "s1", offset: 16 }
+	dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+	start: { stephanus: "s1", offset: 0 },
+	end: { stephanus: "s1", offset: 16 }
 };
 
 // Creates one Dream-owned Signal fixture.
@@ -26,7 +26,7 @@ function CreateSignal(id = "signal-1"): SignalRecord
 		dreamId: "dream-1",
 		workId: "republic",
 		sourceRef: "327a",
-		selections: [{ documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 5 } }],
+		selections: [{ dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`, start: { stephanus: "s1", offset: 0 }, end: { stephanus: "s1", offset: 5 } }],
 		text: "alpha",
 		description: "Initial observation",
 		createdAt: "2026-01-01",
@@ -66,6 +66,7 @@ describe("SignalController", function SignalControllerTests()
 		library = new LibraryStore();
 		library.Open({
 			id: "republic",
+			textVersion: `sha256:${"0".repeat(64)}`,
 			urn: null,
 			title: "Republic",
 			titleGreek: null,
@@ -131,7 +132,7 @@ describe("SignalController", function SignalControllerTests()
 	{
 		const existing = CreateSignal();
 		dreams.SetOwnedSignals("dream-1", [existing]);
-		const added = { documentId: "republic", start: { segmentKey: "s1", offset: 11 }, end: { segmentKey: "s1", offset: 16 } };
+		const added = { dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`, start: { stephanus: "s1", offset: 11 }, end: { stephanus: "s1", offset: 16 } };
 		const saved = { ...existing, title: "Descent", selections: [...existing.selections, added], text: "alpha … gamma" };
 		vi.mocked(window.chora.UpdateSignal).mockResolvedValueOnce({ ok: true, value: { ...existing, title: "Descent" } }).mockResolvedValueOnce({ ok: true, value: saved });
 		let jumps = 0;
@@ -174,7 +175,7 @@ describe("SignalController", function SignalControllerTests()
 
 	it("rejects creation outside the active Dream source before IPC", async function RejectsOutsideSelectionAsync(): Promise<void>
 	{
-		const outside = { documentId: "republic", start: { segmentKey: "s1", offset: 16 }, end: { segmentKey: "s1", offset: 16 } };
+		const outside = { dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`, start: { stephanus: "s1", offset: 16 }, end: { stephanus: "s1", offset: 16 } };
 
 		const created = await controller.CreateAsync(outside);
 

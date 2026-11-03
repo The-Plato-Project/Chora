@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { TextDocument } from "../../src/shared/text/TextDocument.js";
 
+const Version = `sha256:${"0".repeat(64)}`;
+
 // Creates the canonical document used to verify exact-range behavior.
 function CreateDocument(): TextDocument
 {
 	const document = new TextDocument({
 		id: "republic",
+		textVersion: Version,
 		urn: null,
 		title: "Republic",
 		titleGreek: "Πολιτεία",
@@ -28,10 +31,16 @@ describe("TextDocument selections", function TextDocumentSelectionTests()
 	{
 		const document = CreateDocument();
 		const selection = document.CreateSelection(
-			{ segmentKey: "s1", offset: 0 },
-			{ segmentKey: "s2", offset: 12 });
+			{ stephanus: "s1", offset: 0 },
+			{ stephanus: "s2", offset: 12 });
 
 		expect(document.ReconstructText(selection)).toBe("Κατέβην χθὲς\n εἰς Πειραιᾶ");
+		expect(selection).toEqual({
+			dialogue: "republic",
+			text_version: Version,
+			start: { stephanus: "s1", offset: 0 },
+			end: { stephanus: "s2", offset: 12 }
+		});
 		expect(document.ResolveCitation(selection.start)?.value).toBe("327a");
 		expect(document.ResolveCitation(selection.end)?.value).toBe("327b");
 	});
@@ -43,8 +52,8 @@ describe("TextDocument selections", function TextDocumentSelectionTests()
 		expect(function CreateInvalidSelection(): void
 		{
 			document.CreateSelection(
-				{ segmentKey: "s1", offset: -1 },
-				{ segmentKey: "s1", offset: 2 });
+				{ stephanus: "s1", offset: -1 },
+				{ stephanus: "s1", offset: 2 });
 		}).toThrow("Invalid selection offset");
 	});
 
@@ -55,9 +64,10 @@ describe("TextDocument selections", function TextDocumentSelectionTests()
 		expect(function ValidateOtherDocument(): void
 		{
 			document.ValidateSelection({
-				documentId: "other",
-				start: { segmentKey: "s1", offset: 0 },
-				end: { segmentKey: "s1", offset: 2 }
+				dialogue: "other",
+				text_version: Version,
+				start: { stephanus: "s1", offset: 0 },
+				end: { stephanus: "s1", offset: 2 }
 			});
 		}).toThrow("does not match the active document");
 	});

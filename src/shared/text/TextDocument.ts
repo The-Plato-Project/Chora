@@ -160,8 +160,8 @@ export interface TextEdition
 	readonly publicationDate: string | null;
 }
 
-// Identifies a document supplied by the bundled corpus.
-export type LibrarySourceKind = "bundled";
+// Identifies a document supplied by PlatoSI.
+export type LibrarySourceKind = "platosi";
 
 // Describes the provenance of a serialized document.
 export interface TextProvenance
@@ -177,6 +177,7 @@ export interface TextProvenance
 export interface TextDocumentSnapshot
 {
 	readonly id: string;
+	readonly textVersion: string;
 	readonly urn: string | null;
 	readonly title: string;
 	readonly titleGreek: string | null;
@@ -191,6 +192,7 @@ export interface TextDocumentSnapshot
 export class TextDocument
 {
 	public readonly id: string;
+	public readonly textVersion: string;
 	public readonly urn: string | null;
 	public readonly title: string;
 	public readonly titleGreek: string | null;
@@ -203,6 +205,7 @@ export class TextDocument
 	public constructor(snapshot: TextDocumentSnapshot)
 	{
 		this.id = snapshot.id;
+		this.textVersion = snapshot.textVersion;
 		this.urn = snapshot.urn;
 		this.title = snapshot.title;
 		this.titleGreek = snapshot.titleGreek;
@@ -229,7 +232,8 @@ export class TextDocument
 	public CreateSelection(start: TextPosition, end: TextPosition): TextSelection
 	{
 		const selection: TextSelection = {
-			documentId: this.id,
+			dialogue: this.id,
+			text_version: this.textVersion,
 			start: { ...start },
 			end: { ...end }
 		};
@@ -241,13 +245,13 @@ export class TextDocument
 	// Validates document ownership, positions, offsets, and boundary ordering.
 	public ValidateSelection(selection: TextSelection): void
 	{
-		if (selection.documentId !== this.id)
+		if (selection.dialogue !== this.id || selection.text_version !== this.textVersion)
 		{
 			throw new Error("Selection document does not match the active document.");
 		}
 
-		const startIndex = this.GetSegmentIndex(selection.start.segmentKey);
-		const endIndex = this.GetSegmentIndex(selection.end.segmentKey);
+		const startIndex = this.GetSegmentIndex(selection.start.stephanus);
+		const endIndex = this.GetSegmentIndex(selection.end.stephanus);
 		const startSegment = this.segments[startIndex];
 		const endSegment = this.segments[endIndex];
 
@@ -269,8 +273,8 @@ export class TextDocument
 	public ReconstructText(selection: TextSelection): string
 	{
 		this.ValidateSelection(selection);
-		const startIndex = this.GetSegmentIndex(selection.start.segmentKey);
-		const endIndex = this.GetSegmentIndex(selection.end.segmentKey);
+		const startIndex = this.GetSegmentIndex(selection.start.stephanus);
+		const endIndex = this.GetSegmentIndex(selection.end.stephanus);
 		const pieces: string[] = [];
 
 		for (let index = startIndex; index <= endIndex; index += 1)
@@ -305,12 +309,42 @@ export class TextDocument
 		return reconstructed;
 	}
 
+	// Narrows a same-segment browser selection to its one Greek word, ignoring surrounding selection punctuation or spacing.
+	public GetSingleGreekWordSelection(selection: TextSelection): TextSelection | null
+	{
+		this.ValidateSelection(selection);
+		if (selection.start.stephanus !== selection.end.stephanus) return null;
+
+		const selectedText = this.ReconstructText(selection);
+		const matches = [...selectedText.matchAll(/(?:(?=\p{Script=Greek})\p{L}|\p{M})+/gu)];
+		if (matches.length !== 1) return null;
+
+		const match = matches[0];
+		const word = match?.[0] ?? "";
+		const startIndex = match?.index;
+		if (word.length === 0 || startIndex === undefined) return null;
+
+		const before = selectedText.slice(0, startIndex);
+		const after = selectedText.slice(startIndex + word.length);
+		const isBoundaryText = (value: string): boolean => /^[\s\p{P}\p{S}]*$/u.test(value);
+		if (!isBoundaryText(before) || !isBoundaryText(after)) return null;
+
+		const wordStart = selection.start.offset + startIndex;
+		const wordSelection = this.CreateSelection(
+			{ stephanus: selection.start.stephanus, offset: wordStart },
+			{ stephanus: selection.start.stephanus, offset: wordStart + word.length }
+		);
+
+		return wordSelection;
+	}
+
 	// Determines whether the first selection is completely contained by the second.
 	public Contains(selection: TextSelection, container: TextSelection): boolean
 	{
 		let contains = false;
 
-		if (selection.documentId === this.id && container.documentId === this.id)
+		if (selection.dialogue === this.id && container.dialogue === this.id
+			&& selection.text_version === this.textVersion && container.text_version === this.textVersion)
 		{
 			this.ValidateSelection(selection);
 			this.ValidateSelection(container);
@@ -360,8 +394,8 @@ export class TextDocument
 	private DoesEndMeetStart(end: TextPosition, start: TextPosition): boolean
 	{
 		const samePosition = this.ComparePositions(end, start) === 0;
-		const endSegmentIndex = this.GetSegmentIndex(end.segmentKey);
-		const startSegmentIndex = this.GetSegmentIndex(start.segmentKey);
+		const endSegmentIndex = this.GetSegmentIndex(end.stephanus);
+		const startSegmentIndex = this.GetSegmentIndex(start.stephanus);
 		const endSegment = this.segments[endSegmentIndex];
 		const crossesSegmentBoundary = endSegment !== undefined
 			&& end.offset === endSegment.text.length
@@ -375,7 +409,7 @@ export class TextDocument
 	// Resolves the citation at one exact position.
 	public ResolveCitation(position: TextPosition): Citation | null
 	{
-		const segment = this.GetSegment(position.segmentKey);
+		const segment = this.GetSegment(position.stephanus);
 		this.ValidateOffset(segment, position.offset);
 
 		return segment.citation;
@@ -384,7 +418,7 @@ export class TextDocument
 	// Resolves the structural division at one exact position.
 	public ResolveDivision(position: TextPosition): DocumentDivision | null
 	{
-		const segment = this.GetSegment(position.segmentKey);
+		const segment = this.GetSegment(position.stephanus);
 		this.ValidateOffset(segment, position.offset);
 
 		return segment.division;
@@ -413,6 +447,7 @@ export class TextDocument
 		});
 		const snapshot: TextDocumentSnapshot = {
 			id: this.id,
+			textVersion: this.textVersion,
 			urn: this.urn,
 			title: this.title,
 			titleGreek: this.titleGreek,
@@ -429,8 +464,8 @@ export class TextDocument
 	// Compares two exact positions in this document.
 	public ComparePositions(first: TextPosition, second: TextPosition): number
 	{
-		const firstIndex = this.GetSegmentIndex(first.segmentKey);
-		const secondIndex = this.GetSegmentIndex(second.segmentKey);
+		const firstIndex = this.GetSegmentIndex(first.stephanus);
+		const secondIndex = this.GetSegmentIndex(second.stephanus);
 		let comparison = firstIndex - secondIndex;
 
 		if (comparison === 0)

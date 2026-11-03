@@ -23,13 +23,13 @@ const summary: LibraryTextSummary = {
 	titleGreek: null,
 	author: "Plato",
 	language: "grc",
-	editor: null,
-	fileName: "republic.json"
+	editor: null
 };
 
 // Full text opened when Dream creation begins.
 const libraryText: TextDocument = {
 	...summary,
+	textVersion: `sha256:${"0".repeat(64)}`,
 	edition: { editor: null, title: null, volume: null, publisher: null, publicationPlace: null, publicationDate: null },
 	provenance: { repository: "PerseusDL", commit: "test", sourceFile: "republic.xml", license: "CC" },
 	segments: [
@@ -150,14 +150,48 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 
 		await events.PublishAsync("library.jump-requested", {
 			selection: {
-				documentId: "republic",
-				start: { segmentKey: "s1", offset: 0 },
-				end: { segmentKey: "s1", offset: 7 }
+				dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+				start: { stephanus: "s1", offset: 0 },
+				end: { stephanus: "s1", offset: 7 }
 			}
 		});
 
 		expect(segment?.querySelector(".signal-source-target")?.textContent).toBe("κατέβην");
 		expect(scroll).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
+	});
+
+	it("keeps Dream and Signal highlights when navigating to a word", async function PreservesHighlightsForWordAsync(): Promise<void>
+	{
+		const nodes = root.querySelectorAll<HTMLElement>("[data-segment-key]");
+		const segments = Array.from(nodes);
+		for (const segment of segments)
+		{
+			segment.scrollIntoView = vi.fn();
+		}
+		const source: TextSelection = {
+			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+			start: { stephanus: "s1", offset: 0 },
+			end: { stephanus: "s1", offset: 7 }
+		};
+		const signal: TextSelection = {
+			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+			start: { stephanus: "s1", offset: 0 },
+			end: { stephanus: "s1", offset: 4 }
+		};
+		const word: TextSelection = {
+			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+			start: { stephanus: "s2", offset: 0 },
+			end: { stephanus: "s2", offset: 4 }
+		};
+		await events.PublishAsync("library.jump-requested", { selection: source });
+		await events.PublishAsync("library.jump-requested", { selection: signal, target: "signal" });
+		await events.PublishAsync("library.jump-requested", { selection: word, target: "word" });
+		const sourceHighlight = root.querySelector<HTMLElement>(".signal-source-target");
+		const signalHighlight = root.querySelector<HTMLElement>(".signal-focus-target");
+		const wordHighlight = root.querySelector<HTMLElement>(".source-quotation-text .word-focus-target");
+		expect(sourceHighlight?.textContent).toBe("κατέβην");
+		expect(signalHighlight?.textContent).toBe("κατέ");
+		expect(wordHighlight?.textContent).toBe("πρὸς");
 	});
 
 	it("highlights every segment covered by a Dream source passage", async function HighlightsCompletePassageAsync()
@@ -168,9 +202,9 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 
 		await events.PublishAsync("library.jump-requested", {
 			selection: {
-				documentId: "republic",
-				start: { segmentKey: "s1", offset: 0 },
-				end: { segmentKey: "s3", offset: libraryText.segments[2]?.text.length ?? 0 },
+				dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+				start: { stephanus: "s1", offset: 0 },
+				end: { stephanus: "s3", offset: libraryText.segments[2]?.text.length ?? 0 },
 				selectedText: "κατέβην\nπρὸς τὸν Πειραιᾶ\nμετὰ Γλαύκωνος",
 				locatorStart: { scheme: "Stephanus", value: "327a" },
 				locatorEnd: { scheme: "Stephanus", value: "327c" }
@@ -194,9 +228,9 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 
 		await events.PublishAsync("library.jump-requested", {
 			selection: {
-				documentId: "republic",
-				start: { segmentKey: "s1", offset: 2 },
-				end: { segmentKey: "s3", offset: 4 },
+				dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+				start: { stephanus: "s1", offset: 2 },
+				end: { stephanus: "s3", offset: 4 },
 				selectedText: "τέβην\nπρὸς τὸν Πειραιᾶ\nμετὰ",
 				locatorStart: { scheme: "Stephanus", value: "327a" },
 				locatorEnd: { scheme: "Stephanus", value: "327c" }
@@ -218,9 +252,9 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 	{
 		await events.PublishAsync("library.jump-requested", {
 			selection: {
-				documentId: "republic",
-				start: { segmentKey: "s1", offset: 0 },
-				end: { segmentKey: "s3", offset: libraryText.segments[2]?.text.length ?? 0 },
+				dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+				start: { stephanus: "s1", offset: 0 },
+				end: { stephanus: "s3", offset: libraryText.segments[2]?.text.length ?? 0 },
 				selectedText: "κατέβην\nπρὸς τὸν Πειραιᾶ\nμετὰ Γλαύκωνος",
 				locatorStart: { scheme: "Stephanus", value: "327a" },
 				locatorEnd: { scheme: "Stephanus", value: "327c" }
@@ -230,9 +264,9 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 		await events.PublishAsync("library.jump-requested", {
 			target: "signal",
 			selection: {
-				documentId: "republic",
-				start: { segmentKey: "s2", offset: 5 },
-				end: { segmentKey: "s2", offset: 8 },
+				dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+				start: { stephanus: "s2", offset: 5 },
+				end: { stephanus: "s2", offset: 8 },
 				selectedText: "τὸν",
 				locatorStart: { scheme: "Stephanus", value: "327b" },
 				locatorEnd: { scheme: "Stephanus", value: "327b" }
@@ -260,14 +294,14 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 			target: "signal",
 			selections: [
 				{
-					documentId: "republic",
-					start: { segmentKey: "s1", offset: 0 },
-					end: { segmentKey: "s1", offset: 3 }
+					dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+					start: { stephanus: "s1", offset: 0 },
+					end: { stephanus: "s1", offset: 3 }
 				},
 				{
-					documentId: "republic",
-					start: { segmentKey: "s2", offset: secondStart },
-					end: { segmentKey: "s2", offset: secondStart + "Πειραιᾶ".length }
+					dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+					start: { stephanus: "s2", offset: secondStart },
+					end: { stephanus: "s2", offset: secondStart + "Πειραιᾶ".length }
 				}
 			]
 		});
@@ -282,14 +316,14 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 		const secondText = libraryText.segments[1]?.text ?? "";
 		const secondStart = secondText.indexOf("Πειραιᾶ");
 		const first = {
-			documentId: "republic",
-			start: { segmentKey: "s1", offset: 0 },
-			end: { segmentKey: "s1", offset: 3 }
+			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+			start: { stephanus: "s1", offset: 0 },
+			end: { stephanus: "s1", offset: 3 }
 		};
 		const second = {
-			documentId: "republic",
-			start: { segmentKey: "s2", offset: secondStart },
-			end: { segmentKey: "s2", offset: secondStart + "Πειραιᾶ".length }
+			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+			start: { stephanus: "s2", offset: secondStart },
+			end: { stephanus: "s2", offset: secondStart + "Πειραιᾶ".length }
 		};
 
 		await events.PublishAsync("library.jump-requested", {
@@ -309,9 +343,9 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 	it("adds selected text to the active Signal through the reader menu", async function AddsToCurrentSignalAsync()
 	{
 		const selection = {
-			documentId: "republic",
-			start: { segmentKey: "s2", offset: 0 },
-			end: { segmentKey: "s2", offset: 4 }
+			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+			start: { stephanus: "s2", offset: 0 },
+			end: { stephanus: "s2", offset: 4 }
 		};
 		const menu = vi.mocked(window.chora.ShowSelectionContextMenu);
 		menu.mockResolvedValue({ ok: true, value: "add-to-selected-signal" });
@@ -321,27 +355,27 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 			request = event;
 		});
 		SetActiveDream({
-			documentId: "republic",
-			start: { segmentKey: "s1", offset: 0 },
-			end: { segmentKey: "s1", offset: 3 }
+			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+			start: { stephanus: "s1", offset: 0 },
+			end: { stephanus: "s1", offset: 3 }
 		}, [{
-				documentId: "republic",
-				start: { segmentKey: "s1", offset: 0 },
-				end: { segmentKey: "s1", offset: 3 }
+				dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+				start: { stephanus: "s1", offset: 0 },
+				end: { stephanus: "s1", offset: 3 }
 		}]);
 
 		await controller.HandleSelectionActionAsync(selection);
 
-		expect(menu).toHaveBeenCalledWith(false, false, true);
+		expect(menu).toHaveBeenCalledWith(false, false, true, true);
 		expect(request).toEqual({ signalId: "signal-1", selection });
 	});
 
 	it("creates a Signal directly in the active Dream from formatted reader text", async function CreatesSignalInActiveDreamAsync()
 	{
 		SetActiveDream({
-			documentId: "republic",
-			start: { segmentKey: "s1", offset: 0 },
-			end: { segmentKey: "s3", offset: libraryText.segments[2]?.text.length ?? 0 }
+			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+			start: { stephanus: "s1", offset: 0 },
+			end: { stephanus: "s3", offset: libraryText.segments[2]?.text.length ?? 0 }
 		});
 		const menu = vi.mocked(window.chora.ShowSelectionContextMenu);
 		menu.mockResolvedValue({ ok: true, value: "add-signal" });
@@ -370,12 +404,12 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 		{
 			expect(request).not.toBeNull();
 		});
-		expect(menu).toHaveBeenCalledWith(true, false, false);
+		expect(menu).toHaveBeenCalledWith(true, false, false, true);
 		expect(request).toEqual({
 			selection: {
-				documentId: "republic",
-				start: { segmentKey: "s2", offset: 0 },
-				end: { segmentKey: "s2", offset: 4 }
+				dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+				start: { stephanus: "s2", offset: 0 },
+				end: { stephanus: "s2", offset: 4 }
 			}
 		});
 	});
@@ -383,9 +417,9 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 	it("retains an automatically selected Signal when its Dream becomes active", async function RetainsAutoSelectedSignalAsync()
 	{
 		const selection = {
-			documentId: "republic",
-			start: { segmentKey: "s2", offset: 0 },
-			end: { segmentKey: "s2", offset: 4 }
+			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+			start: { stephanus: "s2", offset: 0 },
+			end: { stephanus: "s2", offset: 4 }
 		};
 		const menu = vi.mocked(window.chora.ShowSelectionContextMenu);
 		menu.mockResolvedValue({ ok: true, value: "add-to-selected-signal" });
@@ -396,27 +430,27 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 		});
 
 		SetActiveDream({
-			documentId: "republic",
-			start: { segmentKey: "s1", offset: 0 },
-			end: { segmentKey: "s2", offset: 4 }
+			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+			start: { stephanus: "s1", offset: 0 },
+			end: { stephanus: "s2", offset: 4 }
 		}, [{
-				documentId: "republic",
-				start: { segmentKey: "s1", offset: 0 },
-				end: { segmentKey: "s1", offset: 3 }
+				dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+				start: { stephanus: "s1", offset: 0 },
+				end: { stephanus: "s1", offset: 3 }
 		}]);
 
 		await controller.HandleSelectionActionAsync(selection);
 
-		expect(menu).toHaveBeenCalledWith(true, false, true);
+		expect(menu).toHaveBeenCalledWith(true, false, true, true);
 		expect(request).toEqual({ signalId: "signal-1", selection });
 	});
 
 	it("adds an external passage to the active Signal without enabling new Signal creation", async function AddsExternalSignalPassageAsync()
 	{
 		const selection = {
-			documentId: "republic",
-			start: { segmentKey: "s2", offset: 0 },
-			end: { segmentKey: "s2", offset: 4 }
+			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+			start: { stephanus: "s2", offset: 0 },
+			end: { stephanus: "s2", offset: 4 }
 		};
 		const menu = vi.mocked(window.chora.ShowSelectionContextMenu);
 		menu.mockResolvedValue({ ok: true, value: "add-to-selected-signal" });
@@ -426,78 +460,78 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 			request = event;
 		});
 		SetActiveDream({
-			documentId: "republic",
-			start: { segmentKey: "s1", offset: 0 },
-			end: { segmentKey: "s1", offset: 3 }
+			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+			start: { stephanus: "s1", offset: 0 },
+			end: { stephanus: "s1", offset: 3 }
 		}, [{
-				documentId: "republic",
-				start: { segmentKey: "s1", offset: 0 },
-				end: { segmentKey: "s1", offset: 2 }
+				dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+				start: { stephanus: "s1", offset: 0 },
+				end: { stephanus: "s1", offset: 2 }
 		}]);
 
 		await controller.HandleSelectionActionAsync(selection);
 
-		expect(menu).toHaveBeenCalledWith(false, false, true);
+		expect(menu).toHaveBeenCalledWith(false, false, true, true);
 		expect(request).toEqual({ signalId: "signal-1", selection });
 	});
 
 	it("disables adding text already contained by the selected Signal", async function RejectsDuplicateComponentAsync()
 	{
 		const selection = {
-			documentId: "republic",
-			start: { segmentKey: "s1", offset: 1 },
-			end: { segmentKey: "s1", offset: 2 }
+			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+			start: { stephanus: "s1", offset: 1 },
+			end: { stephanus: "s1", offset: 2 }
 		};
 		const menu = vi.mocked(window.chora.ShowSelectionContextMenu);
 		SetActiveDream({
-			documentId: "republic",
-			start: { segmentKey: "s2", offset: 0 },
-			end: { segmentKey: "s2", offset: 4 }
+			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+			start: { stephanus: "s2", offset: 0 },
+			end: { stephanus: "s2", offset: 4 }
 		}, [{
-				documentId: "republic",
-				start: { segmentKey: "s1", offset: 0 },
-				end: { segmentKey: "s1", offset: 3 }
+				dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+				start: { stephanus: "s1", offset: 0 },
+				end: { stephanus: "s1", offset: 3 }
 		}]);
 
 		await controller.HandleSelectionActionAsync(selection);
 
-		expect(menu).toHaveBeenCalledWith(false, false, false);
+		expect(menu).toHaveBeenCalledWith(false, false, false, true);
 	});
 
 	it("enables Dream source extension only for an adjacent selection", async function ChecksDreamSourceAdjacencyAsync()
 	{
 		SetActiveDream({
-			documentId: "republic",
-			start: { segmentKey: "s1", offset: 1 },
-			end: { segmentKey: "s1", offset: 3 }
+			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+			start: { stephanus: "s1", offset: 1 },
+			end: { stephanus: "s1", offset: 3 }
 		});
 		const adjacent = {
-			documentId: "republic",
-			start: { segmentKey: "s1", offset: 3 },
-			end: { segmentKey: "s1", offset: 5 }
+			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+			start: { stephanus: "s1", offset: 3 },
+			end: { stephanus: "s1", offset: 5 }
 		};
 		const separated = {
-			documentId: "republic",
-			start: { segmentKey: "s3", offset: 0 },
-			end: { segmentKey: "s3", offset: 2 }
+			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+			start: { stephanus: "s3", offset: 0 },
+			end: { stephanus: "s3", offset: 2 }
 		};
 		const segmentBoundary = {
-			documentId: "republic",
-			start: { segmentKey: "s2", offset: 0 },
-			end: { segmentKey: "s2", offset: 2 }
+			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+			start: { stephanus: "s2", offset: 0 },
+			end: { stephanus: "s2", offset: 2 }
 		};
 		const menu = vi.mocked(window.chora.ShowSelectionContextMenu);
 		await controller.HandleSelectionActionAsync(adjacent);
 		await controller.HandleSelectionActionAsync(separated);
 		SetActiveDream({
-			documentId: "republic",
-			start: { segmentKey: "s1", offset: 1 },
-			end: { segmentKey: "s1", offset: libraryText.segments[0]?.text.length ?? 0 }
+			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+			start: { stephanus: "s1", offset: 1 },
+			end: { stephanus: "s1", offset: libraryText.segments[0]?.text.length ?? 0 }
 		});
 		await controller.HandleSelectionActionAsync(segmentBoundary);
 
-		expect(menu).toHaveBeenNthCalledWith(1, false, true, false);
-		expect(menu).toHaveBeenNthCalledWith(2, false, false, false);
-		expect(menu).toHaveBeenNthCalledWith(3, false, true, false);
+		expect(menu).toHaveBeenNthCalledWith(1, false, true, false, true);
+		expect(menu).toHaveBeenNthCalledWith(2, false, false, false, true);
+		expect(menu).toHaveBeenNthCalledWith(3, false, true, false, true);
 	});
 });

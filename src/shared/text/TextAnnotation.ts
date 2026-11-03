@@ -18,7 +18,7 @@ export abstract class TextAnnotation
 	protected constructor(snapshot: TextAnnotationSnapshot)
 	{
 		// An annotation never spans documents: its selection and owning work must remain identical.
-		if (snapshot.selection.documentId !== snapshot.workId)
+		if (snapshot.selection.dialogue !== snapshot.workId)
 		{
 			throw new Error("Text annotation selection belongs to another document");
 		}
@@ -26,7 +26,8 @@ export abstract class TextAnnotation
 		this.id = snapshot.id;
 		this.workId = snapshot.workId;
 		this.selection = {
-			documentId: snapshot.selection.documentId,
+			dialogue: snapshot.selection.dialogue,
+			text_version: snapshot.selection.text_version,
 			start: { ...snapshot.selection.start },
 			end: { ...snapshot.selection.end }
 		};

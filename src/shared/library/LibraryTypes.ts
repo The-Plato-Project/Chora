@@ -8,17 +8,6 @@ export type {
 	TextSegmentSnapshot
 } from "../text/TextDocument.js";
 
-export interface LibraryManifest {
-	id: string;
-	title: string;
-	author: string;
-	language: string;
-	sourceRepository: string;
-	sourceCommit: string;
-	license: string;
-	works: LibraryTextSummary[];
-}
-
 export interface LibraryTextSummary {
 	id: string;
 	urn: string | null;
@@ -27,7 +16,6 @@ export interface LibraryTextSummary {
 	author: string;
 	language: string;
 	editor: string | null;
-	fileName: string;
 }
 
 export interface SourceNotice {

@@ -4,6 +4,7 @@ import path from "node:path";
 import type { DreamSnapshot } from "../../shared/dreams/DreamTypes.js";
 import { Errors } from "../diagnostics/MainErrorManager.js";
 import { ParseDreamMarkdown, SerializeDreamMarkdown } from "./DreamMarkdownCodec.js";
+import { WorkStoragePaths } from "./WorkStoragePaths.js";
 
 // A parsed Dream record together with its persistence path.
 export interface DreamPersistenceRecord
@@ -17,24 +18,23 @@ export interface DreamPersistenceRecord
 // Loads and saves serialized Dream records without applying domain decisions.
 export class DreamRepository
 {
-	// Identifies the filesystem root read by this repository.
-	private readonly libraryPath: string;
-
 	// Creates persistence access scoped to one Dream library root.
-	public constructor(libraryPath: string)
+	public constructor(private readonly workPaths: WorkStoragePaths)
 	{
-		this.libraryPath = libraryPath;
 	}
 
 	// Loads persisted records for the Dream library.
 	public async LoadAsync(): Promise<DreamPersistenceRecord[]>
 	{
 		const records = new Map<string, DreamPersistenceRecord>();
-		const paths = await this.ListMarkdownPathsAsync(this.libraryPath);
-
-		for (const filePath of paths)
+		for (const workId of this.workPaths.WorkIds())
 		{
-			await this.LoadPathAsync(filePath, records);
+			const workPath = this.workPaths.Resolve(workId, "Dreams");
+			const paths = await this.ListMarkdownPathsAsync(workPath, true);
+			for (const filePath of paths)
+			{
+				await this.LoadPathAsync(filePath, records);
+			}
 		}
 
 		const loaded = [...records.values()];
@@ -46,24 +46,17 @@ export class DreamRepository
 	public async LoadFolderPathsAsync(): Promise<readonly { readonly workId: string; readonly folderPath: string }[]>
 	{
 		const folders: { workId: string; folderPath: string }[] = [];
-		let works: Dirent<string>[] = [];
-
-		try
+		for (const workId of this.workPaths.WorkIds())
 		{
-			works = await readdir(this.libraryPath, { withFileTypes: true });
-		}
-		catch (error)
-		{
-			const code = this.GetErrorCode(error);
-			if (code !== "ENOENT") throw error;
-		}
-
-		for (const work of works)
-		{
-			if (work.isDirectory())
+			const workPath = this.workPaths.Resolve(workId, "Dreams");
+			try
 			{
-				const workPath = path.join(this.libraryPath, work.name);
-				await this.CollectFolderPathsAsync(work.name, workPath, workPath, folders);
+				await this.CollectFolderPathsAsync(workId, workPath, workPath, folders);
+			}
+			catch (error)
+			{
+				const code = this.GetErrorCode(error);
+				if (code !== "ENOENT") throw error;
 			}
 		}
 
@@ -145,7 +138,7 @@ export class DreamRepository
 	}
 
 	// Recursively finds Markdown records beneath one Dream library directory.
-	private async ListMarkdownPathsAsync(directory: string): Promise<string[]>
+	private async ListMarkdownPathsAsync(directory: string, optional = false): Promise<string[]>
 	{
 		let entries: Dirent<string>[] = [];
 
@@ -157,7 +150,7 @@ export class DreamRepository
 		{
 			const code = this.GetErrorCode(error);
 
-			const isOptionalRoot = code === "ENOENT" && path.resolve(directory) === path.resolve(this.libraryPath);
+			const isOptionalRoot = code === "ENOENT" && optional;
 
 			if (!isOptionalRoot)
 			{

@@ -2,17 +2,34 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-ugly			"name": "Chora",
+			"name": "Chora",
+			"type": "node",
+			"request": "launch",
+			"runtimeExecutable": "${env:LOCALAPPDATA}\\Programs\\nodejs\\node.exe",
+			"program": "${workspaceFolder}\\scripts\\StartMode.mjs",
+			"cwd": "${workspaceFolder}",
+			"console": "integratedTerminal",
+			"env": {
+				"PATH": "${env:LOCALAPPDATA}\\Programs\\nodejs;${env:PATH}"
+			},
+			"autoAttachChildProcesses": true,
+			"outFiles": [
+				"${workspaceFolder}/.vite/build/**/*.js"
+			],
+			"skipFiles": [
+				"<node_internals>/**"
+			]
+		},
+		{
+			"name": "Chora (PATH)",
 			"type": "node",
 			"request": "launch",
 			"program": "${workspaceFolder}\\scripts\\StartMode.mjs",
-			"args": ["copilot-relay"],
 			"cwd": "${workspaceFolder}",
 			"console": "integratedTerminal",
 			"autoAttachChildProcesses": true,
 			"outFiles": [
-				"${workspaceFolder}/.vite/build/**/*.js",
-				"${workspaceFolder}/tools/copilot-relay/dist/**/*.js"
+				"${workspaceFolder}/.vite/build/**/*.js"
 			],
 			"skipFiles": [
 				"<node_internals>/**"

@@ -1,5 +1,4 @@
 import type { DreamSaveCoordinator } from "../dreams/DreamSaveCoordinator.js";
-import type { DreamExportController } from "../dreams/DreamExportController.js";
 import { ErrorManager } from "../core/diagnostics/RendererErrorManager.js";
 import type { DreamTrashPanel } from "../dreams/DreamTrashPanel.js";
 import type { LibraryTextSummary } from "../../shared/library/LibraryTypes.js";
@@ -10,7 +9,7 @@ import type { DreamController } from "../dreams/DreamController.js";
 import type { DreamStore } from "../dreams/DreamStore.js";
 import type { LibraryStore } from "../library/LibraryStore.js";
 import { EscapeHtml } from "../ui/Html.js";
-import { AddIcon, CloseIcon, DocumentIcon, EditIcon, FolderAddIcon, FolderIcon, MoreIcon, SaveIcon, SearchIcon, TrashIcon } from "../ui/Icons.js";
+import { AddIcon, DocumentIcon, FolderAddIcon, FolderIcon, SearchIcon, TrashIcon } from "../ui/Icons.js";
 import { PopupPanel } from "../ui/PopupPanel.js";
 import { DeleteConfirmation } from "../ui/DeleteConfirmation.js";
 import type { DreamFolderSnapshot } from "../../shared/dreams/DreamTypes.js";
@@ -30,7 +29,6 @@ export class WorkspacePanel
 	// Native modal prevents new browser edits while a disk reload is in flight.
 	private reloadDialog: HTMLDialogElement | null = null;
 	private readonly deleteConfirmation = new DeleteConfirmation();
-	private tabOrder: string[] = [];
 	private searchText = "";
 	private workPickerSearchText = "";
 	private renamingDreamId: string | null = null;
@@ -41,15 +39,13 @@ export class WorkspacePanel
 	private selectionAnchorId: string | null = null;
 	public constructor(
 		private readonly explorerRoot: HTMLElement,
-		private readonly tabsRoot: HTMLElement,
 		private readonly events: ChoraEventBus<ChoraEvents>,
 		private readonly dreams: DreamStore,
 		private readonly dreamController: DreamController,
 		private readonly library: LibraryStore,
 		private readonly explorer: DreamExplorerController,
 		private readonly trash: DreamTrashPanel,
-		private readonly saves: DreamSaveCoordinator,
-		private readonly exports: DreamExportController)
+		private readonly saves: DreamSaveCoordinator)
 	{
 		this.errors = new ErrorManager(events);
 		this.explorerRoot.addEventListener("click", this.HandleClick.bind(this));
@@ -58,7 +54,6 @@ export class WorkspacePanel
 		this.explorerRoot.addEventListener("dragover", this.HandleDragOver.bind(this));
 		this.explorerRoot.addEventListener("dragleave", this.HandleDragLeave.bind(this));
 		this.explorerRoot.addEventListener("drop", this.HandleDropAsync.bind(this));
-		this.tabsRoot.addEventListener("click", this.HandleClick.bind(this));
 		this.workPicker = new PopupPanel("Add work");
 		this.workPicker.OnBodyClick(this.HandleWorkPickerClick.bind(this));
 		this.workPicker.OnBodyInput(this.HandleWorkPickerInput.bind(this));
@@ -67,6 +62,7 @@ export class WorkspacePanel
 		this.folderCreatePopup = new PopupPanel("New folder");
 		this.folderCreatePopup.OnBodySubmit(this.HandleFolderCreateSubmitAsync.bind(this));
 		this.subscriptions.push(events.Subscribe("workspace.dreams-focus-requested", this.FocusDreams.bind(this)));
+		this.subscriptions.push(events.Subscribe("dream.rename-requested", this.HandleDreamRenameRequested.bind(this)));
 		this.subscriptions.push(events.Subscribe("dream.passage-filter-changed", this.FocusSearch.bind(this)));
 		this.LoadAddedWorks();
 		const update = this.Update.bind(this);
@@ -110,10 +106,8 @@ export class WorkspacePanel
 
 	private Update(): void
 	{
-		this.ReconcileTabOrder();
 		this.ReconcileSelectedDreams();
 		this.explorerRoot.innerHTML = this.RenderExplorer();
-		this.tabsRoot.innerHTML = this.RenderTabs();
 	}
 
 	private RenderExplorer(): string
@@ -274,49 +268,11 @@ export class WorkspacePanel
 				const isActive = this.dreams.GetActiveDream()?.id === dream.id;
 				const selected = isActive || this.selectedDreamIds.has(dream.id);
 				const title = dream.title || "Untitled";
-				const rename = isActive ? `<button class="workspace-row-action dream-icon-button button-control" data-rename-workspace-dream="${EscapeHtml(dream.id)}" type="button" title="Rename ${EscapeHtml(title)}" aria-label="Rename ${EscapeHtml(title)}">${EditIcon}</button>` : "";
-				rows += `<div class="workspace-item-with-action${selected ? " selected" : ""}" draggable="true" data-workspace-drag-dream="${EscapeHtml(dream.id)}"><button class="workspace-tree-row workspace-item-row button-control${selected ? " selected" : ""}" data-workspace-dream="${EscapeHtml(dream.id)}" type="button" role="treeitem" aria-current="${isActive}" aria-selected="${selected}"><span class="workspace-item-icon" aria-hidden="true">${DocumentIcon}</span><span>${EscapeHtml(title)} <span class="catalogue-reference">(${EscapeHtml(this.FormatSourceRange(dream))})</span></span></button>${rename}</div>`;
+				rows += `<div class="workspace-item-with-action workspace-dream-item${selected ? " selected" : ""}" draggable="true" data-workspace-drag-dream="${EscapeHtml(dream.id)}"><button class="workspace-tree-row workspace-item-row button-control${selected ? " selected" : ""}" data-workspace-dream="${EscapeHtml(dream.id)}" type="button" role="treeitem" aria-current="${isActive}" aria-selected="${selected}"><span class="workspace-item-icon" aria-hidden="true">${DocumentIcon}</span><span>${EscapeHtml(title)} <span class="catalogue-reference">(${EscapeHtml(this.FormatSourceRange(dream))})</span></span></button></div>`;
 			}
 		}
 
 		return rows;
-	}
-
-	private RenderTabs(): string
-	{
-		const tabs = new Map(this.dreams.GetOpenTabs().map((tab) => [tab.dreamId, tab]));
-		let items = "";
-
-		for (const dreamId of this.tabOrder)
-		{
-			const tab = tabs.get(dreamId);
-			if (tab === undefined) continue;
-			const selected = this.dreams.GetActiveDream()?.id === tab.dreamId;
-			const dirty = tab.isDirty ? `<span class="dream-document-tab-dirty" aria-label="Unsaved changes"></span>` : "";
-			const escapedId = EscapeHtml(tab.dreamId);
-			const escapedTitle = EscapeHtml(tab.title);
-			items += `<div class="dream-document-tab${selected ? " selected" : ""}" role="presentation"><button class="dream-document-tab-label button-control" data-workspace-tab="${escapedId}" type="button" role="tab" aria-selected="${selected}" title="${escapedTitle}"><span class="dream-document-tab-icon" aria-hidden="true">${DocumentIcon}</span><span>${escapedTitle}</span></button>${dirty}<button class="dream-document-tab-close button-control" data-close-workspace-tab="${escapedId}" type="button" title="Close ${escapedTitle}" aria-label="Close ${escapedTitle}">${CloseIcon}</button></div>`;
-		}
-
-		if (items.length === 0) return "";
-		return `<div class="dream-document-bar workspace-document-bar"><div class="dream-document-tabs" role="tablist" aria-label="Open Dreams">${items}</div><div class="dream-document-actions">${this.RenderDreamActions()}</div></div>`;
-	}
-
-	private RenderDreamActions(): string
-	{
-		const status = this.dreams.GetSaveState() === "saving" ? "Saving…" : this.dreams.GetSaveState() === "error" ? "Save failed" : this.dreams.GetIsDirty() ? "Unsaved" : "Saved";
-		return `<button class="workspace-save-button button-control" data-workspace-save-dream type="button" title="Save Dream" aria-label="Save Dream"${this.dreams.GetSaveState() === "saving" ? " disabled" : ""}>Save</button><span class="dream-toolbar-status" role="status" aria-live="polite">${status}</span><details class="action-menu"><summary title="Dream actions" aria-label="Dream actions">${MoreIcon}</summary><div class="action-menu-items"><button data-workspace-save-dream type="button">${SaveIcon}Save</button><button data-workspace-close-dream type="button">${CloseIcon}Close</button><button data-workspace-delete-dream type="button">${TrashIcon}Delete</button><button data-workspace-copy-dream type="button">Copy as Markdown</button></div></details>`;
-	}
-
-	private ReconcileTabOrder(): void
-	{
-		const available = new Set(this.dreams.GetOpenTabs().map((tab) => tab.dreamId));
-		this.tabOrder = this.tabOrder.filter((dreamId) => available.has(dreamId));
-
-		for (const dreamId of available)
-		{
-			if (!this.tabOrder.includes(dreamId)) this.tabOrder.push(dreamId);
-		}
 	}
 
 	private HandleLibraryTextOpened(): void
@@ -424,9 +380,6 @@ export class WorkspacePanel
 			const selectFolder = target?.closest<HTMLElement>("[data-select-dream-folder]");
 			const toggle = target?.closest<HTMLElement>("[data-workspace-toggle]")?.dataset.workspaceToggle;
 			const dreamId = target?.closest<HTMLElement>("[data-workspace-dream]")?.dataset.workspaceDream;
-			const renameId = target?.closest<HTMLElement>("[data-rename-workspace-dream]")?.dataset.renameWorkspaceDream;
-			const tabId = target?.closest<HTMLElement>("[data-workspace-tab]")?.dataset.workspaceTab;
-			const closeId = target?.closest<HTMLElement>("[data-close-workspace-tab]")?.dataset.closeWorkspaceTab;
 
 			if (newFolder !== null && newFolder !== undefined)
 			{
@@ -473,36 +426,13 @@ export class WorkspacePanel
 				const selection = this.library.GetSelection();
 				if (selection !== null) void this.explorer.CreateDreamAsync(selection);
 			}
-			else if (renameId !== undefined)
-			{
-				this.OpenDreamRenamePopup(renameId);
-			}
-			else if (tabId !== undefined)
-			{
-				this.dreamController.ActivateTab(tabId);
-			}
-			else if (closeId !== undefined)
-			{
-				void this.CloseTabAsync(closeId);
-			}
-			else if (target?.closest("[data-workspace-save-dream]") !== null)
-			{
-				void this.saves.SaveAsync();
-			}
-			else if (target?.closest("[data-workspace-close-dream]") !== null)
-			{
-				void this.CloseActiveDreamAsync();
-			}
-			else if (target?.closest("[data-workspace-copy-dream]") !== null)
-			{
-				void this.exports.CopyDreamAsMarkdownAsync();
-			}
-			else
-			{
-				const deleteTrigger = target?.closest<HTMLElement>("[data-workspace-delete-dream]") ?? null;
-				if (deleteTrigger !== null) this.ConfirmDreamDelete(deleteTrigger);
-			}
 		}
+	}
+
+	// Opens the existing Explorer rename workflow for a requested Dream.
+	private HandleDreamRenameRequested(event: ChoraEvents["dream.rename-requested"]): void
+	{
+		this.OpenDreamRenamePopup(event.dreamId);
 	}
 
 	// Opens the folder-name form for one parent path.
@@ -723,44 +653,6 @@ export class WorkspacePanel
 
 	}
 
-	private async CloseTabAsync(dreamId: string): Promise<void>
-	{
-		await this.dreamController.CloseTabAsync(dreamId);
-		this.SelectAvailableDocument();
-	}
-
-	private async CloseActiveDreamAsync(): Promise<void>
-	{
-		await this.dreamController.CloseAsync();
-		this.SelectAvailableDocument();
-	}
-
-	private SelectAvailableDocument(): void
-	{
-		this.Update();
-	}
-
-	private ConfirmDreamDelete(trigger: HTMLElement): void
-	{
-		const dream = this.dreams.GetActiveDream();
-
-		if (dream !== null)
-		{
-			this.deleteConfirmation.Open(
-				"Dream",
-				dream.title,
-				"The Dream and its Signals will stay in Trash until you restore or permanently delete them.",
-				trigger,
-				async (): Promise<boolean> =>
-				{
-					const deleted = await this.dreamController.DeleteAsync();
-					if (deleted) this.SelectAvailableDocument();
-
-					return deleted;
-				});
-		}
-	}
-
 	private OpenDreamRenamePopup(dreamId: string): void
 	{
 		const dream = this.dreams.GetCatalogue().find((candidate) => candidate.id === dreamId);
@@ -876,8 +768,7 @@ export class WorkspacePanel
 				titleGreek: snapshot.text.titleGreek,
 				author: snapshot.text.author,
 				language: snapshot.text.language,
-				editor: snapshot.text.edition.editor,
-				fileName: snapshot.text.provenance.sourceFile
+				editor: snapshot.text.edition.editor
 			});
 		}
 

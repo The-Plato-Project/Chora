@@ -14,12 +14,14 @@ describe("LayoutSettingsStore", function LayoutSettingsStoreTests()
 		const settings = new LayoutSettingsStore();
 		settings.SetDimension("leftPaneWidth", 312);
 		settings.SetDimension("dreamSourceHeight", 284);
+		settings.SetDimension("wordPaneHeight", 336);
 		settings.SetExplorerCollapsed(true);
 
 		const restored = new LayoutSettingsStore();
 
 		expect(restored.GetDimension("leftPaneWidth", 220)).toBe(312);
 		expect(restored.GetDimension("dreamSourceHeight", 144)).toBe(284);
+		expect(restored.GetDimension("wordPaneHeight", 220)).toBe(336);
 		expect(restored.GetExplorerCollapsed()).toBe(true);
 	});
 
@@ -38,7 +40,6 @@ describe("LayoutSettingsStore", function LayoutSettingsStoreTests()
 
 		expect(restored.GetDimension("leftPaneWidth", 220)).toBe(220);
 		expect(restored.GetDimension("editorPaneWidth", 500)).toBe(500);
-		expect(restored.GetDimension("lookupHeight", 320)).toBe(320);
 		expect(restored.GetExplorerCollapsed()).toBe(false);
 	});
 });

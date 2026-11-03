@@ -2,8 +2,8 @@
 export type LayoutDimension =
 	"leftPaneWidth"
 	| "editorPaneWidth"
+	| "wordPaneHeight"
 	| "signalNavigationWidth"
-	| "lookupHeight"
 	| "dreamSourceHeight"
 	| "dreamReflectionsHeight"
 	| "chatComposerHeight";
@@ -112,8 +112,8 @@ export class LayoutSettingsStore
 		const names: readonly string[] = [
 			"leftPaneWidth",
 			"editorPaneWidth",
+			"wordPaneHeight",
 			"signalNavigationWidth",
-			"lookupHeight",
 			"dreamSourceHeight",
 			"dreamReflectionsHeight",
 			"chatComposerHeight"

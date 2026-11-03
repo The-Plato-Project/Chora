@@ -11,9 +11,9 @@ const applicationMocks = vi.hoisted(function CreateApplicationMocks()
 		libraryStop: vi.fn(),
 		dreamsStart: vi.fn(),
 		dreamsStop: vi.fn(),
-		lookupRegister: vi.fn(),
-		lookupUnregister: vi.fn(),
-		windowOpen: vi.fn()
+		windowOpen: vi.fn(),
+		platosiStart: vi.fn(),
+		platosiStop: vi.fn()
 	};
 });
 
@@ -25,6 +25,16 @@ vi.mock("electron", function MockElectron()
 vi.mock("../../src/main/bootstrap/Environment.js", function MockEnvironment()
 {
 	return { LoadEnvironmentFiles: vi.fn() };
+});
+
+vi.mock("../../src/main/platosi/PlatoSiClient.js", function MockPlatoSi()
+{
+	return {
+		PlatoSiClient: vi.fn(function PlatoSiClient()
+		{
+			return { StartAsync: applicationMocks.platosiStart, StopAsync: applicationMocks.platosiStop };
+		})
+	};
 });
 
 vi.mock("../../src/main/bootstrap/WindowManager.js", function MockWindowManager()
@@ -65,26 +75,12 @@ vi.mock("../../src/main/dreams/DreamModule.js", function MockDreamModule()
 
 			const module = {
 				GetService,
+				PrepareAsync: vi.fn(),
 				Start: applicationMocks.dreamsStart,
 				Stop: applicationMocks.dreamsStop
 			};
 
 			return module;
-		})
-	};
-});
-
-vi.mock("../../src/main/library/LookupService.js", function MockLookupService()
-{
-	return { LookupService: vi.fn() };
-});
-
-vi.mock("../../src/main/library/LookupIpcController.js", function MockLookupIpcController()
-{
-	return {
-		LookupIpcController: vi.fn(function LookupIpcController()
-		{
-			return { Register: applicationMocks.lookupRegister, Unregister: applicationMocks.lookupUnregister };
 		})
 	};
 });
@@ -203,24 +199,20 @@ describe("Application menu", function ApplicationMenuTests(): void
 			throw new Error("menu failed");
 		});
 
-		const application = new ChoraApplication("documents");
+		const application = new ChoraApplication("documents", "internal");
 
 		await expect(application.StartAsync()).rejects.toThrow("menu failed");
 		expect(applicationMocks.libraryStart).toHaveBeenCalledTimes(1);
-		expect(applicationMocks.lookupRegister).toHaveBeenCalledTimes(1);
 		expect(applicationMocks.dreamsStart).toHaveBeenCalledTimes(1);
-		expect(applicationMocks.lookupUnregister).toHaveBeenCalledTimes(1);
 		expect(applicationMocks.dreamsStop).toHaveBeenCalledTimes(1);
 		expect(applicationMocks.libraryStop).toHaveBeenCalledTimes(1);
 
 		await application.StartAsync();
 		expect(applicationMocks.libraryStart).toHaveBeenCalledTimes(2);
-		expect(applicationMocks.lookupRegister).toHaveBeenCalledTimes(2);
 		expect(applicationMocks.dreamsStart).toHaveBeenCalledTimes(2);
 
-		application.Stop();
-		application.Stop();
-		expect(applicationMocks.lookupUnregister).toHaveBeenCalledTimes(2);
+		await application.StopAsync();
+		await application.StopAsync();
 		expect(applicationMocks.dreamsStop).toHaveBeenCalledTimes(2);
 		expect(applicationMocks.libraryStop).toHaveBeenCalledTimes(2);
 	});

@@ -79,7 +79,7 @@ export function ShowEditContextMenu(window: BrowserWindow, params: ContextMenuPa
 	menu.popup({ window });
 }
 
-export async function ShowSelectionContextMenu(canAddSignal: boolean, canAddToDreamSource: boolean, canAddToCurrentSignal: boolean): Promise<SelectionAction>
+export async function ShowSelectionContextMenu(canAddSignal: boolean, canAddToDreamSource: boolean, canAddToCurrentSignal: boolean, canExploreWord: boolean): Promise<SelectionAction>
 {
 	const result = await new Promise<SelectionAction>((resolve) =>
 	{
@@ -124,10 +124,11 @@ export async function ShowSelectionContextMenu(canAddSignal: boolean, canAddToDr
 				}
 			},
 			{
-				label: "Look up",
-				click: () =>
+				label: "Explore word",
+				enabled: canExploreWord,
+				click: function LookUpWord(): void
 				{
-					resolve("lookup");
+					resolve("explore-word");
 				}
 			}
 		];
@@ -142,7 +143,7 @@ export async function ShowSelectionContextMenu(canAddSignal: boolean, canAddToDr
 	return result;
 }
 
-export async function ShowDreamSourceContextMenu(canAddToSelectedSignal: boolean): Promise<SelectionAction>
+export async function ShowDreamSourceContextMenu(canAddToSelectedSignal: boolean, canExploreWord: boolean): Promise<SelectionAction>
 {
 	const result = await new Promise<SelectionAction>((resolve) =>
 	{
@@ -150,7 +151,14 @@ export async function ShowDreamSourceContextMenu(canAddToSelectedSignal: boolean
 			{ label: "Copy", click: () => resolve("copy-dream-source") },
 			{ label: "Create Signal", click: () => resolve("add-dream-source-signal") },
 			{ label: "Add to Selected Signal", enabled: canAddToSelectedSignal, click: () => resolve("add-to-selected-signal") },
-			{ label: "Look up", click: () => resolve("lookup") }
+			{
+				label: "Explore word",
+				enabled: canExploreWord,
+				click: function LookUpWord(): void
+				{
+					resolve("explore-word");
+				}
+			}
 		]);
 		menu.popup({ callback: () => resolve(null) });
 	});

@@ -25,7 +25,7 @@ import { DocumentIcon } from "../../src/renderer/ui/Icons.js";
 
 // A passage split across segments followed by two further passages.
 const text: TextDocument = {
-	id: "republic", title: "Republic", urn: null, titleGreek: null, author: "Plato", language: "grc",
+	id: "republic", textVersion: `sha256:${"0".repeat(64)}`, title: "Republic", urn: null, titleGreek: null, author: "Plato", language: "grc",
 	edition: { editor: null, title: null, volume: null, publisher: null, publicationPlace: null, publicationDate: null },
 	provenance: { repository: "test", commit: "test", sourceFile: "test", license: "test" },
 	segments: [
@@ -43,7 +43,7 @@ function CreateDream(): DreamView
 		id: "dream", workId: text.id, dialogue: text.title, title: "Attention", signals: [], reflection: "",
 		linkedDreamIds: [], createdAt: "2026-09-07", updatedAt: "2026-09-07",
 		source: {
-			documentId: text.id, start: { segmentKey: "s1", offset: 1 }, end: { segmentKey: "s4", offset: 3 }
+			dialogue: text.id, text_version: `sha256:${"0".repeat(64)}`, start: { stephanus: "s1", offset: 1 }, end: { stephanus: "s4", offset: 3 }
 		}
 	};
 	return dream;
@@ -232,7 +232,7 @@ describe("Dream passage matching", function PassageTests()
 		otherText.title = "Phaedo";
 		library.SetLibrary([text, otherText].map(function Summarize(work)
 		{
-			return { ...work, editor: null, fileName: `${work.id}.json` };
+			return { ...work, editor: null };
 		}));
 		library.Open(text, null);
 		const store = new DreamStore(new SessionStore());
@@ -241,7 +241,7 @@ describe("Dream passage matching", function PassageTests()
 		otherDream.id = "other-dream";
 		otherDream.workId = otherText.id;
 		otherDream.dialogue = otherText.title;
-		otherDream.source.documentId = otherText.id;
+		otherDream.source.dialogue = otherText.id;
 		store.SetCatalogue([dream], [], [{ dreamId: dream.id, workId: dream.workId, folderPath: "" }]);
 		store.Open(dream, false);
 		const gateway = new DreamGateway();
@@ -316,7 +316,7 @@ describe("Dream passage matching", function PassageTests()
 		dream.source.end.offset = 0;
 		store.SetCatalogue([dream], [], [{ dreamId: dream.id, workId: dream.workId, folderPath: "" }]);
 		expect([...store.GetPassageCounts(text)]).toEqual([["s1", 1], ["s3", 1]]);
-		dream.source.start.segmentKey = "missing";
+		dream.source.start.stephanus = "missing";
 		store.SetCatalogue([dream], [], [{ dreamId: dream.id, workId: dream.workId, folderPath: "" }]);
 		expect(store.GetPassageCounts(text).size).toBe(0);
 	});
@@ -328,8 +328,7 @@ describe("Dream passage matching", function PassageTests()
 		const dream = CreateDream();
 		const single = CreateDream();
 		single.id = "single";
-		single.source.end = { segmentKey: "s1", offset: 4 };
-		single.source.locatorEnd = single.source.locatorStart;
+		single.source.end = { stephanus: "s1", offset: 4 };
 		store.SetCatalogue([dream, single], [], [
 			{ dreamId: dream.id, workId: dream.workId, folderPath: "" },
 			{ dreamId: single.id, workId: single.workId, folderPath: "" }

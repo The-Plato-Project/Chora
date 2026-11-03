@@ -3,6 +3,7 @@ import { clipboard, ipcMain } from "electron";
 import { IPC_CHANNELS } from "../../shared/contracts/IpcChannels.js";
 import { ShowDreamSourceContextMenu, ShowSelectionContextMenu } from "../shell/ContextMenu.js";
 import { LibraryService } from "./LibraryService.js";
+import type { SelectionAction } from "../../shared/text/TextSelection.js";
 
 export class LibraryIpcController
 {
@@ -17,14 +18,21 @@ export class LibraryIpcController
 		IpcErrorBoundary.Register(IPC_CHANNELS.listLibraryTexts, () => this.service.ListAsync());
 		IpcErrorBoundary.Register(IPC_CHANNELS.loadLibraryText, (_event, textId: string) => this.service.GetAsync(textId));
 		IpcErrorBoundary.Register(IPC_CHANNELS.getSourceNotice, (_event, textId: string) => this.service.GetSourceNoticeAsync(textId));
-		IpcErrorBoundary.Register(IPC_CHANNELS.showSelectionContextMenu, (_event, canAddSignal: boolean, canAddToDreamSource: boolean, canAddToCurrentSignal: boolean) => ShowSelectionContextMenu(canAddSignal, canAddToDreamSource, canAddToCurrentSignal));
-		IpcErrorBoundary.Register(IPC_CHANNELS.showDreamSourceContextMenu, (_event, canAddToSelectedSignal: boolean) => ShowDreamSourceContextMenu(canAddToSelectedSignal));
+		const showSelectionMenu = this.ShowSelectionMenuAsync.bind(this);
+		IpcErrorBoundary.Register(IPC_CHANNELS.showSelectionContextMenu, showSelectionMenu);
+		IpcErrorBoundary.Register(IPC_CHANNELS.showDreamSourceContextMenu, (_event, canAddToSelectedSignal: boolean, canExploreWord: boolean) => ShowDreamSourceContextMenu(canAddToSelectedSignal, canExploreWord));
 		IpcErrorBoundary.Register(IPC_CHANNELS.copySelectedText, (_event, text: string) => clipboard.writeText(text));
 	}
 
 	public Unregister(): void
 	{
 		for (const channel of this.channels) ipcMain.removeHandler(channel);
+	}
+
+	private async ShowSelectionMenuAsync(_event: unknown, canAddSignal: boolean, canAddToDreamSource: boolean, canAddToCurrentSignal: boolean, canExploreWord: boolean): Promise<SelectionAction>
+	{
+		const action = await ShowSelectionContextMenu(canAddSignal, canAddToDreamSource, canAddToCurrentSignal, canExploreWord);
+		return action;
 	}
 
 }

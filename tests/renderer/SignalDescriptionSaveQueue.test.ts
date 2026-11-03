@@ -10,9 +10,9 @@ function CreateSignal(description: string): SignalRecord
 		dreamId: "dream-1",
 		workId: "republic",
 		selections: [{
-			documentId: "republic",
-			start: { segmentKey: "s1", offset: 0 },
-			end: { segmentKey: "s1", offset: 3 },
+			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+			start: { stephanus: "s1", offset: 0 },
+			end: { stephanus: "s1", offset: 3 },
 			selectedText: "abc",
 			locatorStart: null,
 			locatorEnd: null

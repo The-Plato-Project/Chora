@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { SignalMarkdownCodec } from "../../src/main/signals/SignalMarkdownCodec.js";
 import { SignalRepository } from "../../src/main/signals/SignalRepository.js";
+import { WorkStoragePaths } from "../../src/main/dreams/WorkStoragePaths.js";
 import type { SignalRecord } from "../../src/shared/signals/SignalTypes.js";
 
 // Contains temporary repository roots removed after each test.
@@ -18,9 +19,9 @@ function CreateSignal(description: string): SignalRecord
 		workId: "republic",
 		sourceRef: "327a",
 		selections: [{
-			documentId: "republic",
-			start: { segmentKey: "s1", offset: 0 },
-			end: { segmentKey: "s1", offset: 3 }
+			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+			start: { stephanus: "s1", offset: 0 },
+			end: { stephanus: "s1", offset: 3 }
 		}],
 		text: "abc",
 		description,
@@ -42,7 +43,8 @@ describe("SignalRepository", function SignalRepositoryTests()
 		const root = await mkdtemp(path.join(os.tmpdir(), "chora-signals-"));
 		temporaryRoots.push(root);
 		const codec = new SignalMarkdownCodec();
-		const repository = new SignalRepository(root, codec);
+		const works = new WorkStoragePaths(root, [{ id: "republic", title: "Republic" }]);
+		const repository = new SignalRepository(root, codec, works);
 		const descriptions = ["First", "Second", "Third", "Fourth"];
 		const saves: Promise<void>[] = [];
 
@@ -52,7 +54,7 @@ describe("SignalRepository", function SignalRepositoryTests()
 		}
 
 		await Promise.all(saves);
-		const directory = path.join(root, "republic", "Signals");
+		const directory = path.join(root, "The Republic", "Signals");
 		const entries = await readdir(directory);
 		expect(entries).toEqual(["signal-1.md"]);
 		const content = await readFile(path.join(directory, "signal-1.md"), "utf8");
@@ -63,7 +65,8 @@ describe("SignalRepository", function SignalRepositoryTests()
 	{
 		const root = await mkdtemp(path.join(os.tmpdir(), "chora-signals-"));
 		temporaryRoots.push(root);
-		const repository = new SignalRepository(root, new SignalMarkdownCodec());
+		const works = new WorkStoragePaths(root, [{ id: "republic", title: "Republic" }]);
+		const repository = new SignalRepository(root, new SignalMarkdownCodec(), works);
 		await repository.SaveAsync(CreateSignal("Owned observation"));
 
 		const loaded = await repository.LoadAsync();

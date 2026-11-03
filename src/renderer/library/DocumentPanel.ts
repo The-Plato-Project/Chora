@@ -473,20 +473,24 @@ export class DocumentPanel
 	}
 
 	// Scrolls requested components into view and clears the browser's native selection.
-	private JumpToSelections(selections: readonly TextSelection[], navigationTarget: "source" | "signal"): void
+	private JumpToSelections(selections: readonly TextSelection[], navigationTarget: "source" | "signal" | "word"): void
 	{
 		this.ClearFindHighlights();
-		this.ClearSignalHighlights();
+		this.ClearWordHighlights();
+		if (navigationTarget !== "word")
+		{
+			this.ClearSignalHighlights();
+		}
 		if (navigationTarget === "source") this.ClearSourceHighlights();
 		const firstSegment = this.HighlightSelections(selections, navigationTarget);
 		const firstSelection = selections[0];
 		firstSegment?.scrollIntoView({ behavior: "smooth", block: "center" });
-		if (firstSegment !== null && firstSelection !== undefined) this.controller.SetFocusSegment(firstSelection.start.segmentKey);
+		if (firstSegment !== null && firstSelection !== undefined) this.controller.SetFocusSegment(firstSelection.start.stephanus);
 		ClearBrowserSelection();
 	}
 
 	// Applies exact source or Signal decorations and returns the first covered segment.
-	private HighlightSelections(selections: readonly TextSelection[], targetKind: "source" | "signal"): HTMLElement | null
+	private HighlightSelections(selections: readonly TextSelection[], targetKind: "source" | "signal" | "word"): HTMLElement | null
 	{
 		const document = this.library.GetText();
 		const renderedSegments = Array.from(this.root.querySelectorAll<HTMLElement>("[data-segment-key]"));
@@ -496,11 +500,11 @@ export class DocumentPanel
 		{
 			const startIndex = renderedSegments.findIndex(function FindStart(candidate): boolean
 			{
-				return candidate.dataset.segmentKey === selection.start.segmentKey;
+				return candidate.dataset.segmentKey === selection.start.stephanus;
 			});
 			const endIndex = renderedSegments.findIndex(function FindEnd(candidate): boolean
 			{
-				return candidate.dataset.segmentKey === selection.end.segmentKey;
+				return candidate.dataset.segmentKey === selection.end.stephanus;
 			});
 
 			if (document !== null && startIndex >= 0 && endIndex >= startIndex)
@@ -514,8 +518,15 @@ export class DocumentPanel
 					if (sourceSegment === undefined) continue;
 					const from = sourceSegmentIndex === startIndex ? selection.start.offset : 0;
 					const to = sourceSegmentIndex === endIndex ? selection.end.offset : sourceSegment.text.length;
-					if (targetKind === "source") this.HighlightSourceText(target, sourceSegment.text, from, to);
-					else this.HighlightSignalText(target, from, to);
+					if (targetKind === "source")
+					{
+						this.HighlightSourceText(target, sourceSegment.text, from, to);
+					}
+					else
+					{
+						const highlightClass = targetKind === "signal" ? "signal-focus-target" : "word-focus-target";
+						this.HighlightText(target, from, to, highlightClass);
+					}
 				}
 			}
 		}
@@ -549,6 +560,19 @@ export class DocumentPanel
 		}
 	}
 
+	private ClearWordHighlights(): void
+	{
+		const nodes = this.root.querySelectorAll<HTMLElement>(".word-focus-target");
+		const highlights = Array.from(nodes);
+		for (const highlight of highlights)
+		{
+			const parent = highlight.parentNode;
+			const children = Array.from(highlight.childNodes);
+			highlight.replaceWith(...children);
+			parent?.normalize();
+		}
+	}
+
 	// Wraps only the canonical character range belonging to one selected source segment.
 	private HighlightSourceText(segment: HTMLElement, canonicalText: string, from: number, to: number): void
 	{
@@ -566,7 +590,7 @@ export class DocumentPanel
 	}
 
 	// Adds a focused Signal layer without replacing an existing Dream source decoration.
-	private HighlightSignalText(segment: HTMLElement, from: number, to: number): void
+	private HighlightText(segment: HTMLElement, from: number, to: number, highlightClass: string): void
 	{
 		const textElement = segment.querySelector<HTMLElement>(".segment-text");
 		const textLength = textElement?.textContent?.length ?? 0;
@@ -608,7 +632,7 @@ export class DocumentPanel
 				range.setStart(item.node, item.start);
 				range.setEnd(item.node, item.end);
 				const highlight = document.createElement("span");
-				highlight.className = "signal-focus-target";
+				highlight.className = highlightClass;
 				range.surroundContents(highlight);
 			}
 		}

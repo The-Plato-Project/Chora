@@ -37,7 +37,7 @@ body {
 }
 
 .left-panel {
-	flex-direction: column;
+	flex-direction: row;
 	border-right-color: var(--panel-border);
 	background: var(--side-panel-background);
 }
@@ -48,12 +48,16 @@ body {
 }
 
 .center-panel {
-	background: var(--reader-background);
+	background: #ebe6dc;
 }
 
 #readingPane {
+	max-width: 72rem;
+	margin: 0 auto;
 	background: var(--reader-background);
-	box-shadow: inset 1px 0 0 #f0f0f2;
+	box-shadow:
+		0 0 0 1px rgba(106, 91, 70, 0.08),
+		0 10px 28px rgba(73, 57, 40, 0.09);
 }
 
 .reader-toolbar {
@@ -426,7 +430,7 @@ html {
 
 .shell {
 	--left-pane-width: clamp(180px, 16vw, 240px);
-	--dream-pane-width: clamp(300px, 46vw, 760px);
+	--dream-pane-width: clamp(520px, 46vw, 1100px);
 	height: 100dvh;
 }
 
@@ -445,7 +449,9 @@ html {
 
 .shell #readingPane {
 	padding: 0 22px 48px;
-	box-shadow: none;
+	box-shadow:
+		0 0 0 1px rgba(106, 91, 70, 0.08),
+		0 10px 28px rgba(73, 57, 40, 0.09);
 }
 
 .shell .reader-toolbar {
@@ -841,26 +847,47 @@ html {
 }
 
 .dream-document-bar {
-	border-bottom-color: transparent;
+	border-bottom-color: var(--panel-border);
+	padding-left: 4px;
+}
+
+.dream-document-tabs {
+	gap: 2px;
+	padding: 0 3px;
 }
 
 .dream-document-tab {
-	height: 29px;
-	margin-top: 2px;
-	border-radius: 0;
-	background: transparent;
+	height: 35px;
+	margin-top: 0;
+	margin-bottom: -1px;
+	border: 1px solid color-mix(in srgb, var(--panel-border) 72%, transparent);
+	border-bottom-color: var(--panel-border);
+	border-radius: 7px 7px 0 0;
+	background: color-mix(in srgb, var(--dream-raised) 52%, var(--panel-background));
+	transition: background-color 120ms ease, border-color 120ms ease;
 }
 
-.dream-document-tab.selected {
-	border-color: transparent;
+.dream-document-tab:not(:last-child)::after {
+	content: none;
+}
+
+.dream-document-tab:hover {
 	background: var(--dream-raised);
 }
 
+.dream-document-tab.selected {
+	z-index: 1;
+	border-color: var(--panel-border);
+	border-bottom-color: var(--dream-background);
+	background: var(--dream-background);
+}
+
 .dream-document-tab-label {
+	height: 35px;
+	line-height: 35px;
 	font-size: 11px;
 }
 
 .dream-document-tab-icon {
 	color: var(--muted-text);
 }
-

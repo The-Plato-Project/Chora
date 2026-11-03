@@ -7,6 +7,8 @@ import { Dream } from "../../src/main/dreams/Dream.js";
 import { DreamLibrary } from "../../src/main/dreams/DreamLibrary.js";
 import { ParseDreamMarkdown, SerializeDreamMarkdown } from "../../src/main/dreams/DreamMarkdownCodec.js";
 import { DreamRepository } from "../../src/main/dreams/DreamRepository.js";
+import { WorkStoragePaths } from "../../src/main/dreams/WorkStoragePaths.js";
+import { ChatRepository } from "../../src/main/chat/ChatRepository.js";
 import { SignalMarkdownCodec } from "../../src/main/signals/SignalMarkdownCodec.js";
 import { SignalRepository } from "../../src/main/signals/SignalRepository.js";
 import type { DreamSnapshot } from "../../src/shared/dreams/DreamTypes.js";
@@ -19,6 +21,7 @@ const roots: string[] = [];
 // Canonical document used for Dream and Signal validation.
 const document = new TextDocument({
 	id: "republic",
+	textVersion: `sha256:${"0".repeat(64)}`,
 	urn: null,
 	title: "Republic",
 	titleGreek: null,
@@ -41,9 +44,9 @@ function CreateDream(id = "dream-1", title = "Descent"): DreamSnapshot
 		dialogue: "Republic",
 		title,
 		source: {
-			documentId: "republic",
-			start: { segmentKey: "s1", offset: 0 },
-			end: { segmentKey: "s2", offset: 6 }
+			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+			start: { stephanus: "s1", offset: 0 },
+			end: { stephanus: "s2", offset: 6 }
 		},
 		signals: [],
 		reflection: "",
@@ -54,22 +57,23 @@ function CreateDream(id = "dream-1", title = "Descent"): DreamSnapshot
 }
 
 // Creates a temporary aggregate library with real Markdown repositories.
-async function CreateLibraryAsync(): Promise<{ library: DreamLibrary; root: string; dreams: DreamRepository; signals: SignalRepository }>
+async function CreateLibraryAsync(): Promise<{ library: DreamLibrary; root: string; dreams: DreamRepository; signals: SignalRepository; works: WorkStoragePaths; conversations: ChatRepository }>
 {
 	const root = await mkdtemp(path.join(os.tmpdir(), "chora-dream-"));
 	roots.push(root);
-	const dreamRoot = path.join(root, "Dreams");
-	const dreams = new DreamRepository(dreamRoot);
-	const signals = new SignalRepository(root, new SignalMarkdownCodec());
+	const works = new WorkStoragePaths(root, [{ id: "republic", title: "Republic" }]);
+	const dreams = new DreamRepository(works);
+	const signals = new SignalRepository(root, new SignalMarkdownCodec(), works);
+	const conversations = new ChatRepository(path.join(root, "Conversations"));
 	const documents = {
 		GetAsync: async function GetAsync(): Promise<TextDocument>
 		{
 			return document;
 		}
 	};
-	const library = new DreamLibrary(dreamRoot, dreams, signals, documents as never);
+	const library = new DreamLibrary(root, dreams, signals, documents as never, works, conversations, path.join(root, "Trash", "DreamBundles"));
 
-	return { library, root, dreams, signals };
+	return { library, root, dreams, signals, works, conversations };
 }
 
 afterEach(async function RemoveTemporaryRootsAsync(): Promise<void>
@@ -128,7 +132,7 @@ describe("DreamLibrary", function DreamLibraryTests()
 		vi.spyOn(context.signals, "DeleteAsync").mockRejectedValueOnce(new Error("file locked"));
 		await context.library.DeleteAsync(owner.id);
 		expect((await context.library.ListAsync()).dreams).toEqual([]);
-		const restarted = new DreamLibrary(path.join(context.root, "Dreams"), context.dreams, context.signals, {} as never);
+		const restarted = new DreamLibrary(context.root, context.dreams, context.signals, {} as never, context.works, context.conversations, path.join(context.root, "Trash", "DreamBundles"));
 		expect((await restarted.ListAsync()).dreams).toEqual([]);
 		expect(await context.signals.LoadAsync()).toEqual([]);
 		const retained = await restarted.ListTrashAsync();
@@ -148,7 +152,7 @@ describe("DreamLibrary", function DreamLibraryTests()
 		await expect(context.library.RestoreTrashAsync(retained[0]!.id)).rejects.toThrow("disk unavailable");
 		await expect(context.library.PurgeTrashAsync(retained[0]!.id)).rejects.toThrow("being restored");
 		await expect(context.library.EmptyTrashAsync()).rejects.toThrow("Finish restoring");
-		const restarted = new DreamLibrary(path.join(context.root, "Dreams"), context.dreams, context.signals, {} as never);
+		const restarted = new DreamLibrary(context.root, context.dreams, context.signals, {} as never, context.works, context.conversations, path.join(context.root, "Trash", "DreamBundles"));
 		const catalogue = await restarted.ListAsync();
 		expect(catalogue.dreams[0]?.id).toBe(owner.id);
 		expect(catalogue.dreams[0]?.signals).toHaveLength(1);
@@ -183,7 +187,7 @@ describe("DreamLibrary", function DreamLibraryTests()
 		const fileName = `${retained[0]!.id}.json`;
 		const content = await readFile(path.join(directory, fileName), "utf8");
 		await writeFile(path.join(directory, `${fileName}.01234567-0123-4123-8123-012345678901.tmp`), content, "utf8");
-		const restarted = new DreamLibrary(path.join(context.root, "Dreams"), context.dreams, context.signals, {} as never);
+		const restarted = new DreamLibrary(context.root, context.dreams, context.signals, {} as never, context.works, context.conversations, path.join(context.root, "Trash", "DreamBundles"));
 		await restarted.ListAsync();
 		expect(await readdir(directory)).toEqual([fileName]);
 	});
@@ -249,7 +253,7 @@ describe("DreamLibrary", function DreamLibraryTests()
 			source: CreateDream().source,
 			folderPath: ""
 		});
-		const files = await readdir(path.join(context.root, "Dreams", "republic"));
+		const files = await readdir(path.join(context.root, "The Republic", "Dreams"));
 
 		expect(created.id).not.toBe("");
 		expect(created.signals).toEqual([]);
@@ -267,7 +271,7 @@ describe("DreamLibrary", function DreamLibraryTests()
 		});
 		const signal = await context.library.CreateSignalAsync({
 			dreamId: created.id,
-			selection: { documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 3 } }
+			selection: { dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`, start: { stephanus: "s1", offset: 0 }, end: { stephanus: "s1", offset: 3 } }
 		});
 		const updated = await context.library.UpdateAsync({
 			dreamId: created.id,
@@ -298,7 +302,7 @@ describe("DreamLibrary", function DreamLibraryTests()
 		});
 		const signal = await context.library.CreateSignalAsync({
 			dreamId: owner.id,
-			selection: { documentId: "republic", start: { segmentKey: "s1", offset: 1 }, end: { segmentKey: "s1", offset: 4 } }
+			selection: { dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`, start: { stephanus: "s1", offset: 1 }, end: { stephanus: "s1", offset: 4 } }
 		});
 
 		await expect(context.library.UpdateSignalAsync({
@@ -319,13 +323,13 @@ describe("DreamLibrary", function DreamLibraryTests()
 		const owner = await context.library.CreateAsync({
 			workId: "republic",
 			dialogue: "Republic",
-			source: { documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 3 } },
+			source: { dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`, start: { stephanus: "s1", offset: 0 }, end: { stephanus: "s1", offset: 3 } },
 			folderPath: ""
 		});
 
 		await expect(context.library.CreateSignalAsync({
 			dreamId: owner.id,
-			selection: { documentId: "republic", start: { segmentKey: "s2", offset: 0 }, end: { segmentKey: "s2", offset: 3 } }
+			selection: { dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`, start: { stephanus: "s2", offset: 0 }, end: { stephanus: "s2", offset: 3 } }
 		})).rejects.toThrow("inside its owning Dream source");
 	});
 
@@ -333,14 +337,14 @@ describe("DreamLibrary", function DreamLibraryTests()
 	{
 		const context = await CreateLibraryAsync();
 		const dream = CreateDream();
-		const dreamPath = path.join(context.root, "Dreams", "republic", "descent--dream-1.md");
-		const signalPath = path.join(context.root, "republic", "Signals", "signal-1.md");
+		const dreamPath = path.join(context.root, "The Republic", "Dreams", "descent--dream-1.md");
+		const signalPath = path.join(context.root, "The Republic", "Signals", "signal-1.md");
 		const signal: SignalRecord = {
 			id: "signal-1",
 			dreamId: "dream-1",
 			workId: "republic",
 			sourceRef: "327a",
-			selections: [{ documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 3 } }],
+			selections: [{ dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`, start: { stephanus: "s1", offset: 0 }, end: { stephanus: "s1", offset: 3 } }],
 			text: "abc",
 			description: "Concurrent observation",
 			createdAt: "2026-01-01",
@@ -375,12 +379,12 @@ describe("DreamLibrary", function DreamLibraryTests()
 		});
 		const signal = await context.library.CreateSignalAsync({
 			dreamId: dream.id,
-			selection: { documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 3 } }
+			selection: { dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`, start: { stephanus: "s1", offset: 0 }, end: { stephanus: "s1", offset: 3 } }
 		});
 
 		await context.library.DeleteAsync(dream.id);
 
-		await expect(readFile(path.join(context.root, "republic", "Signals", `${signal.id}.md`), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+		await expect(readFile(path.join(context.root, "The Republic", "Signals", `${signal.id}.md`), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
 		expect((await context.library.ListAsync()).dreams).toEqual([]);
 	});
 
@@ -413,14 +417,14 @@ describe("DreamLibrary", function DreamLibraryTests()
 		expect(moved.folderPath).toBe("Themes/Justice");
 		expect(catalogue.folders).toEqual([themes, justice]);
 		expect(catalogue.locations).toContainEqual(moved);
-		await expect(readFile(path.join(context.root, "Dreams", "republic", "Themes", "Justice", `dream--${dream.id}.md`), "utf8")).resolves.toContain(dream.id);
+		await expect(readFile(path.join(context.root, "The Republic", "Dreams", "Themes", "Justice", `dream--${dream.id}.md`), "utf8")).resolves.toContain(dream.id);
 		await expect(context.library.DeleteFolderAsync({ workId: "republic", folderPath: justice.path })).rejects.toThrow("must be empty");
 		await expect(context.library.DeleteFolderAsync({ workId: "republic", folderPath: themes.path })).rejects.toThrow("must be empty");
 
 		await context.library.MoveDreamAsync({ dreamId: dream.id, folderPath: "" });
 		await context.library.DeleteFolderAsync({ workId: "republic", folderPath: justice.path });
 		await context.library.DeleteFolderAsync({ workId: "republic", folderPath: themes.path });
-		await expect(readdir(path.join(context.root, "Dreams", "republic", "Themes"))).rejects.toMatchObject({ code: "ENOENT" });
+		await expect(readdir(path.join(context.root, "The Republic", "Dreams", "Themes"))).rejects.toMatchObject({ code: "ENOENT" });
 	});
 });
 
@@ -441,7 +445,7 @@ describe("Dream Markdown", function DreamMarkdownTests()
 			dreamId: "other",
 			workId: "republic",
 			sourceRef: "327a",
-			selections: [{ documentId: "republic", start: { segmentKey: "s1", offset: 0 }, end: { segmentKey: "s1", offset: 3 } }],
+			selections: [{ dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`, start: { stephanus: "s1", offset: 0 }, end: { stephanus: "s1", offset: 3 } }],
 			text: "abc",
 			description: "",
 			createdAt: "2026-01-01",

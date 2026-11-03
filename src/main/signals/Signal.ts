@@ -39,15 +39,15 @@ export class Signal
 	// Creates a new Signal from reader-authored data and authoritative metadata.
 	public static Create(command: CreateSignalCommand, signalId: string, timestamp: string, document: TextDocument): Signal
 	{
-		const selections = Signal.NormalizeSelections([command.selection], command.selection.documentId, document);
+		const selections = Signal.NormalizeSelections([command.selection], command.selection.dialogue, document);
 		const firstSelection = selections[0] as TextSelection;
 		const title = document.ReconstructText(firstSelection).trim();
 
 		const record: SignalRecord = {
 			id: signalId,
 			dreamId: command.dreamId,
-			workId: command.selection.documentId,
-			sourceRef: document.ResolveCitation(firstSelection.start)?.value ?? firstSelection.start.segmentKey,
+			workId: command.selection.dialogue,
+			sourceRef: document.ResolveCitation(firstSelection.start)?.value ?? firstSelection.start.stephanus,
 			title,
 			selections,
 			text: Signal.ReconstructText(selections, document),
@@ -75,7 +75,7 @@ export class Signal
 			title: command.title ?? this.record.title ?? document.ReconstructText(firstSelection).trim(),
 			selections,
 			text: Signal.ReconstructText(selections, document),
-			sourceRef: document.ResolveCitation(firstSelection.start)?.value ?? firstSelection.start.segmentKey,
+			sourceRef: document.ResolveCitation(firstSelection.start)?.value ?? firstSelection.start.stephanus,
 			description: command.description,
 			updatedAt: timestamp
 		};
@@ -143,7 +143,7 @@ export class Signal
 		{
 			document.ValidateSelection(selection);
 			const selectedText = document.ReconstructText(selection);
-			const isValid = selection.documentId === workId
+			const isValid = selection.dialogue === workId
 				&& IsValidSignalSelection(selection)
 				&& selectedText.trim().length > 0;
 
@@ -201,7 +201,7 @@ export class Signal
 
 		for (const selection of selections)
 		{
-			const isValid = selection.documentId === workId
+			const isValid = selection.dialogue === workId
 				&& IsValidSignalSelection(selection)
 				&& selection.start.offset >= 0
 				&& selection.end.offset >= 0;
@@ -222,8 +222,8 @@ export class Signal
 
 		if (!shouldMerge)
 		{
-			const firstSegmentIndex = document.segments.findIndex((segment) => segment.key === first.end.segmentKey);
-			const secondSegmentIndex = document.segments.findIndex((segment) => segment.key === second.start.segmentKey);
+			const firstSegmentIndex = document.segments.findIndex((segment) => segment.key === first.end.stephanus);
+			const secondSegmentIndex = document.segments.findIndex((segment) => segment.key === second.start.stephanus);
 			const firstSegment = document.segments[firstSegmentIndex];
 			shouldMerge = firstSegment !== undefined
 				&& first.end.offset === firstSegment.text.length

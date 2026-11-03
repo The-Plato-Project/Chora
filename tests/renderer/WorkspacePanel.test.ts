@@ -15,6 +15,7 @@ import { ChoraEventBus } from "../../src/renderer/core/events/ChoraEventBus.js";
 import type { ChoraEvents } from "../../src/renderer/core/events/ChoraEvents.js";
 import { LibraryStore } from "../../src/renderer/library/LibraryStore.js";
 import { WorkspacePanel } from "../../src/renderer/workspace/WorkspacePanel.js";
+import { DreamTabsPanel } from "../../src/renderer/workspace/DreamTabsPanel.js";
 import { DreamExplorerController } from "../../src/renderer/workspace/DreamExplorerController.js";
 import type { DreamView } from "../../src/renderer/dreams/DreamView.js";
 import type { TextDocument, LibraryTextSummary } from "../../src/shared/library/LibraryTypes.js";
@@ -26,19 +27,19 @@ const summary: LibraryTextSummary = {
 	titleGreek: "Πολιτεία",
 	author: "Plato",
 	language: "grc",
-	editor: null,
-	fileName: "republic.xml"
+	editor: null
 };
 
 const text: TextDocument = {
 	id: summary.id,
+	textVersion: `sha256:${"0".repeat(64)}`,
 	urn: summary.urn,
 	title: summary.title,
 	titleGreek: summary.titleGreek,
 	author: summary.author,
 	language: summary.language,
 	edition: { editor: null, title: null, volume: null, publisher: null, publicationPlace: null, publicationDate: null },
-	provenance: { repository: "test", commit: "test", sourceFile: summary.fileName, license: "test" },
+	provenance: { repository: "test", commit: "test", sourceFile: "republic.xml", license: "test" },
 	segments: [{
 		key: "s1",
 		citation: { system: "stephanus", value: "327a" },
@@ -55,12 +56,9 @@ function CreateDream(id = "dream-1", title = "Descent"): DreamView
 		dialogue: text.title,
 		title,
 		source: {
-			documentId: text.id,
-			start: { segmentKey: "s1", offset: 0 },
-			end: { segmentKey: "s1", offset: 3 },
-			selectedText: "abc",
-			locatorStart: { scheme: "Stephanus", value: "327a" },
-			locatorEnd: { scheme: "Stephanus", value: "327a" }
+			dialogue: text.id, text_version: text.textVersion,
+			start: { stephanus: "s1", offset: 0 },
+			end: { stephanus: "s1", offset: 3 }
 		},
 		signals: [],
 		reflection: "",
@@ -82,6 +80,7 @@ describe("WorkspacePanel", function WorkspacePanelTests()
 	let explorer: DreamExplorerController;
 	let library: LibraryStore;
 	let panel: WorkspacePanel;
+	let dreamTabs: DreamTabsPanel;
 	// Trash feature composed alongside the Explorer under test.
 	let trashPanel: DreamTrashPanel;
 
@@ -108,12 +107,14 @@ describe("WorkspacePanel", function WorkspacePanelTests()
 		const exporter = new DreamExportController(dreamStore, library, reader);
 		const trashController = new DreamTrashController(gateway, catalogue, errors);
 		trashPanel = new DreamTrashPanel(trashController);
-		panel = new WorkspacePanel(explorerRoot, tabsRoot, events, dreamStore, dreamController, library, explorer, trashPanel, saves, exporter);
+		panel = new WorkspacePanel(explorerRoot, events, dreamStore, dreamController, library, explorer, trashPanel, saves);
+		dreamTabs = new DreamTabsPanel(tabsRoot, events, dreamStore, dreamController, saves, exporter);
 	});
 
 	afterEach(function Cleanup(): void
 	{
 		panel.Dispose();
+		dreamTabs.Dispose();
 		trashPanel.Dispose();
 		explorer.Dispose();
 		catalogue.Dispose();
@@ -150,13 +151,21 @@ describe("WorkspacePanel", function WorkspacePanelTests()
 		expect(tabsRoot.querySelector('[data-workspace-tab="dream-1"]')?.textContent).toContain("Descent");
 	});
 
-	it("orders Dream actions as Save, Close, Delete", async function OrdersDreamActionsAsync(): Promise<void>
+	it("offers Dream actions from the tab context menu", async function OpensDreamActionsAsync(): Promise<void>
 	{
 		dreamController.Open("dream-1");
 		await events.PublishAsync("dream.opened", {});
-		const labels = Array.from(tabsRoot.querySelectorAll<HTMLButtonElement>(".action-menu-items button"), (button) => button.textContent?.trim());
+		const tab = tabsRoot.querySelector<HTMLElement>('[data-workspace-tab="dream-1"]')!;
+		tab.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+		await vi.waitFor(function ContextMenuOpened(): void
+		{
+			expect(tabsRoot.querySelector<HTMLElement>(".dream-context-menu")?.hidden).toBe(false);
+		});
+		const menu = tabsRoot.querySelector<HTMLElement>(".dream-context-menu")!;
+		const labels = Array.from(menu.querySelectorAll<HTMLButtonElement>("button"), (button) => button.textContent?.trim());
 
-		expect(labels.slice(0, 3)).toEqual(["Save", "Close", "Delete"]);
+		expect(labels).toEqual(["Rename Dream", "Save Dream", "Copy as Markdown", "Delete Dream"]);
+		expect(explorerRoot.querySelector("[data-rename-workspace-dream]")).toBeNull();
 	});
 
 	it("filters Dreams without changing the Library text", function FiltersDreams(): void

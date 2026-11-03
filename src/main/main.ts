@@ -1,12 +1,10 @@
 import { app, BrowserWindow } from "electron";
 import squirrelStartup from "electron-squirrel-startup";
 import { ChoraApplication } from "./bootstrap/ChoraApplication.js";
-import { EnvironmentFile } from "./bootstrap/EnvironmentFile.js";
 import { Errors } from "./diagnostics/MainErrorManager.js";
 import { InstallProcessOutputGuard } from "./diagnostics/ProcessOutputGuard.js";
 
 InstallProcessOutputGuard();
-EnvironmentFile.LoadFromWorkingDirectory();
 
 let application: ChoraApplication | null = null;
 // Prevents recursive shutdown while the diagnostic queue drains.
@@ -21,7 +19,8 @@ async function StartApplicationAsync(): Promise<void>
 	if (application === null)
 	{
 		const documentsPath = app.getPath("documents");
-		application = new ChoraApplication(documentsPath);
+		const internalPath = app.getPath("userData");
+		application = new ChoraApplication(documentsPath, internalPath);
 	}
 
 	await application.StartAsync();
@@ -62,7 +61,7 @@ async function FinishQuitAsync(): Promise<void>
 {
 	try
 	{
-		application?.Stop();
+		await application?.StopAsync();
 	}
 	catch (error)
 	{

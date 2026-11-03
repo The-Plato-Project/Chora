@@ -4,13 +4,15 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { SignalRecord } from "../../shared/signals/SignalTypes.js";
 import { SignalMarkdownCodec } from "./SignalMarkdownCodec.js";
+import { WorkStoragePaths } from "../dreams/WorkStoragePaths.js";
 
 // Owns canonical Signal files.
 export class SignalRepository
 {
 	public constructor(
 		private readonly rootPath: string,
-		private readonly codec: SignalMarkdownCodec)
+		private readonly codec: SignalMarkdownCodec,
+		private readonly workPaths: WorkStoragePaths)
 	{
 	}
 
@@ -25,7 +27,7 @@ export class SignalRepository
 	// Saves one Signal at its canonical work-owned path.
 	public async SaveAsync(signal: SignalRecord): Promise<void>
 	{
-		const directoryPath = path.resolve(this.rootPath, signal.workId, "Signals");
+		const directoryPath = this.workPaths.Resolve(signal.workId, "Signals");
 		const filePath = path.resolve(directoryPath, `${signal.id}.md`);
 		this.AssertInsideRoot(filePath);
 		const temporaryPath = `${filePath}.${randomUUID()}.tmp`;
@@ -46,7 +48,7 @@ export class SignalRepository
 	// Deletes one canonical Signal file.
 	public async DeleteAsync(signal: SignalRecord): Promise<void>
 	{
-		const filePath = path.resolve(this.rootPath, signal.workId, "Signals", `${signal.id}.md`);
+		const filePath = path.resolve(this.workPaths.Resolve(signal.workId, "Signals"), `${signal.id}.md`);
 		this.AssertInsideRoot(filePath);
 
 		try
@@ -65,29 +67,24 @@ export class SignalRepository
 	{
 		const records: SignalRecord[] = [];
 		const ids = new Set<string>();
-		const workEntries = await this.ReadEntriesAsync(this.rootPath);
-
-		for (const workEntry of workEntries)
+		for (const workId of this.workPaths.WorkIds())
 		{
-			if (workEntry.isDirectory())
-			{
-				const signalPath = path.join(this.rootPath, workEntry.name, "Signals");
-				const entries = await this.ReadEntriesAsync(signalPath);
+			const signalPath = this.workPaths.Resolve(workId, "Signals");
+			const entries = await this.ReadEntriesAsync(signalPath);
 
-				for (const entry of entries)
+			for (const entry of entries)
+			{
+				if (entry.isFile() && entry.name.toLocaleLowerCase().endsWith(".md"))
 				{
-					if (entry.isFile() && entry.name.toLocaleLowerCase().endsWith(".md"))
+					const content = await readFile(path.join(signalPath, entry.name), "utf8");
+					const record = this.codec.Parse(content);
+					if (record.workId !== workId || `${record.id}.md` !== entry.name)
 					{
-						const content = await readFile(path.join(signalPath, entry.name), "utf8");
-						const record = this.codec.Parse(content);
-						if (record.workId !== workEntry.name || `${record.id}.md` !== entry.name)
-						{
-							throw new Error("Signal identity does not match its canonical file location.");
-						}
-						if (ids.has(record.id)) throw new Error(`Duplicate Signal identifier: ${record.id}`);
-						ids.add(record.id);
-						records.push(record);
+						throw new Error("Signal identity does not match its canonical file location.");
 					}
+					if (ids.has(record.id)) throw new Error(`Duplicate Signal identifier: ${record.id}`);
+					ids.add(record.id);
+					records.push(record);
 				}
 			}
 		}

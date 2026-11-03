@@ -37,7 +37,13 @@ export class ChoraWindowManager
 			minHeight: 540,
 			resizable: true,
 			show: false,
-			backgroundColor: "#0f1115",
+			backgroundColor: "#eee9df",
+			titleBarStyle: "hidden",
+			titleBarOverlay: {
+				color: "#eeeee7",
+				symbolColor: "#17465c",
+				height: 32
+			},
 			webPreferences: {
 				preload: path.join(app.getAppPath(), ".vite", "build", "src", "preload", "preload.js"),
 				contextIsolation: true,
