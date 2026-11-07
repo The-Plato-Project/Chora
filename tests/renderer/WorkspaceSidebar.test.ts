@@ -22,6 +22,7 @@ describe("WorkspaceSidebar", function WorkspaceSidebarTests()
 		const shell = new WorkspaceShellPanel(root, events);
 		const layout = new WorkspaceLayoutPanel(root, events);
 		const roots = shell.GetRoots();
+		expect(root.querySelectorAll(".panel-resize-handle.column-resize-handle")).toHaveLength(2);
 		function MountPanel(_root: HTMLElement): { Dispose(): void }
 		{
 			function Dispose(): void

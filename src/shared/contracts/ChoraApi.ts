@@ -5,7 +5,7 @@ import type { TextDocumentSnapshot, LibraryTextSummary, SourceNotice } from "../
 import type { SelectionAction, TextSelection } from "../text/TextSelection.js";
 import type { CreateDreamCommand, CreateDreamFolderCommand, DeleteDreamFolderCommand, DreamCatalogueSnapshot, DreamFolderSnapshot, DreamLocationSnapshot, DreamSnapshot, MoveDreamCommand, UpdateDreamCommand } from "../dreams/DreamTypes.js";
 import type { CreateSignalCommand, DeleteSignalCommand, SignalRecord, UpdateSignalCommand } from "../signals/SignalTypes.js";
-import type { WordEvidenceResult, WordObservation, WordObservationKey, WordPersonResearch, WordSearchResult } from "../library/WordExplorationTypes.js";
+import type { WordEvidenceResult, WordNameNote, WordNameNoteKey, WordObservation, WordObservationKey, WordPersonResearch, WordSearchResult } from "../library/WordExplorationTypes.js";
 
 export type ApiSubscription = () => void;
 
@@ -28,6 +28,8 @@ export interface ChoraApi
 	SearchWord(workId: string, form: string): Promise<OperationResult<WordSearchResult>>;
 	GetWordEvidence(selection: TextSelection): Promise<OperationResult<WordEvidenceResult>>;
 	GetPersonResearch(selection: TextSelection, lemma: string): Promise<OperationResult<WordPersonResearch>>;
+	GetWordNameNote(key: WordNameNoteKey): Promise<OperationResult<WordNameNote>>;
+	SaveWordNameNote(note: WordNameNote): Promise<OperationResult<WordNameNote>>;
 	OpenExternalSource(url: string): Promise<OperationResult<void>>;
 	GetWordObservation(key: WordObservationKey): Promise<OperationResult<WordObservation>>;
 	SaveWordObservation(observation: WordObservation): Promise<OperationResult<WordObservation>>;

@@ -276,7 +276,7 @@ export class DreamPanel
 	private RenderEditor(dream: DreamView): string
 	{
 		const source = this.RenderDreamSource(dream);
-		const editor = `<div class="dream-editor-stack"><section class="dream-panel dream-editor document-editor">${source}<div class="dream-source-divider" data-dream-source-divider role="separator" tabindex="0" aria-label="Resize Source Passage" aria-orientation="horizontal"></div><section class="dream-signals-section document-signals-section" aria-label="Dream content"><div class="dream-tabs-host document-signal-view-host" data-dream-tabs></div></section></section></div>`;
+		const editor = `<div class="dream-editor-stack"><section class="dream-panel dream-editor document-editor">${source}<div class="dream-source-divider row-resize-handle" data-dream-source-divider role="separator" tabindex="0" aria-label="Resize Source Passage" aria-orientation="horizontal"></div><section class="dream-signals-section document-signals-section" aria-label="Dream content"><div class="dream-tabs-host document-signal-view-host" data-dream-tabs></div></section></section></div>`;
 
 		return editor;
 	}

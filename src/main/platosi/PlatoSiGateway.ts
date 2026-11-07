@@ -7,6 +7,7 @@ import type {
 	WordDialogueLemma,
 	WordDictionaryEntry,
 	WordEvidenceCandidate,
+	WordEvidenceCoverage,
 	WordEvidenceResult,
 	WordEvidenceSource,
 	WordEvidenceValue,
@@ -14,6 +15,7 @@ import type {
 	WordLemmaPossibility,
 	WordParadigmForm,
 	WordPersonResearch,
+	WordPersonSource,
 	WordRelatedLemma
 } from "../../shared/library/WordExplorationTypes.js";
 import type { PlatoSiClient } from "./PlatoSiClient.js";
@@ -100,82 +102,92 @@ export class PlatoSiGateway implements PlatoSiApi
 
 }
 
+/** Validates consolidated name research and the stable identities used by reader notes. */
 function DecodePersonResearch(
 	value: unknown,
 	requested: TextSelection,
 	lemma: string): WordPersonResearch
 {
-	if (!IsRecord(value) || value.contract !== "platosi.person-research.v1"
+	if (!IsRecord(value) || value.contract !== "platosi.person-research.v3"
 		|| typeof value.status !== "string" || value.lemma !== lemma
 		|| !IsRecord(value.target) || !IsRecord(value.classification)
 		|| typeof value.classification.proper_name_candidate !== "boolean"
 		|| typeof value.classification.basis !== "string"
-		|| !Array.isArray(value.roots) || !Array.isArray(value.sources)
-		|| !Array.isArray(value.warnings)
+		|| typeof value.overview !== "string" || !Array.isArray(value.sources)
+		|| !Array.isArray(value.candidates) || !Array.isArray(value.warnings)
 		|| (value.model !== null && !IsRecord(value.model)))
 	{
-		throw new Error("PlatoSI returned invalid person research.");
+		throw new Error("PlatoSI returned invalid name research.");
 	}
 	const selection = DecodeTextSelection(value.target.location);
-	if (JSON.stringify(selection) !== JSON.stringify(requested))
+	const actualLocation = JSON.stringify(selection);
+	const expectedLocation = JSON.stringify(requested);
+	if (actualLocation !== expectedLocation)
 	{
-		throw new Error("PlatoSI returned person research for a different selection.");
+		throw new Error("PlatoSI returned name research for a different selection.");
 	}
-	let summary: WordPersonResearch["summary"] = null;
-	if (value.summary !== null)
+	/** Validates source text and the external link exposed to the reader. */
+	function DecodePersonSource(source: unknown): WordPersonSource
 	{
-		if (!IsRecord(value.summary) || typeof value.summary.person !== "string"
-			|| typeof value.summary.name_meaning !== "string"
-			|| !Array.isArray(value.summary.relationships))
-		{
-			throw new Error("PlatoSI returned an invalid person summary.");
-		}
-		summary = {
-			person: value.summary.person,
-			nameMeaning: value.summary.name_meaning,
-			relationships: DecodeStrings(value.summary.relationships, "person relationship")
-		};
-	}
-	const sources = value.sources.map(function DecodePersonSource(source)
-	{
+		const relevance = IsRecord(source) ? source.relevance : undefined;
 		if (!IsRecord(source) || typeof source.id !== "string" || typeof source.kind !== "string"
 			|| typeof source.title !== "string" || typeof source.url !== "string"
 			|| typeof source.excerpt !== "string" || typeof source.provider !== "string"
-			|| typeof source.cached !== "boolean")
+			|| typeof source.cached !== "boolean"
+			|| (relevance !== "plato_dialogue" && relevance !== "other"))
 		{
-			throw new Error("PlatoSI returned an invalid person source.");
+			throw new Error("PlatoSI returned an invalid name source.");
 		}
 		const url = new URL(source.url);
-		if (url.protocol !== "https:")
+		if (url.protocol !== "https:" || url.username.length > 0 || url.password.length > 0)
 		{
-			throw new Error("PlatoSI returned an unsafe person source URL.");
+			throw new Error("PlatoSI returned an unsafe name source URL.");
 		}
-		return {
+		const normalizedUrl = url.toString();
+		const result: WordPersonSource = {
 			id: source.id,
 			kind: source.kind,
 			title: source.title,
-			url: url.toString(),
+			url: normalizedUrl,
 			excerpt: source.excerpt,
 			provider: source.provider,
-			cached: source.cached
+			cached: source.cached,
+			relevance
 		};
-	});
-	return {
-		contract: "platosi.person-research.v1",
+		return result;
+	}
+	/** Decodes note targets without treating them as separate research answers. */
+	function DecodeCandidate(candidate: unknown): WordPersonResearch["candidates"][number]
+	{
+		if (!IsRecord(candidate) || typeof candidate.id !== "string"
+			|| typeof candidate.label !== "string" || !Array.isArray(candidate.sources))
+		{
+			throw new Error("PlatoSI returned an invalid research identity.");
+		}
+		const sources = candidate.sources.map(DecodePersonSource);
+		const result = { id: candidate.id, label: candidate.label, sources };
+		return result;
+	}
+	const candidates = value.candidates.map(DecodeCandidate);
+	const sources = value.sources.map(DecodePersonSource);
+	const warnings = DecodeStrings(value.warnings, "name research warning");
+	const model = value.model === null ? null : DecodeJsonObject(value.model);
+	const result: WordPersonResearch = {
+		contract: "platosi.person-research.v3",
 		status: value.status,
 		lemma,
 		classification: {
 			properNameCandidate: value.classification.proper_name_candidate,
 			basis: value.classification.basis
 		},
-		roots: DecodeStrings(value.roots, "person lexical root"),
-		summary,
+		overview: value.overview,
 		sources,
-		model: value.model === null ? null : DecodeJsonObject(value.model),
-		warnings: DecodeStrings(value.warnings, "person research warning")
+		candidates,
+		model,
+		warnings
 	};
+	return result;
 }
-
 function DecodeCatalogue(value: unknown): readonly CanonicalEntry[]
 {
 	if (!IsRecord(value) || value.contract !== "platosi.location.v1" || !Array.isArray(value.works))
@@ -293,7 +305,7 @@ function DecodeDialogueLexicon(value: unknown, requested: TextSelection): WordEv
 {
 	if (!IsRecord(value) || value.contract !== "platosi.dialogue-lexicon.v1"
 		|| !IsRecord(value.target) || !Array.isArray(value.lemmas)
-		|| !IsRecord(value.dictionary) || !IsRecord(value.dilemma)
+		|| !IsRecord(value.dictionary) || !IsRecord(value.morphology)
 		|| !Array.isArray(value.warnings) || typeof value.limitations !== "string")
 	{
 		throw new Error("PlatoSI returned an invalid dialogue lexicon.");
@@ -318,6 +330,7 @@ function DecodeDialogueLexicon(value: unknown, requested: TextSelection): WordEv
 	{
 		throw new Error("PlatoSI returned invalid dictionary evidence.");
 	}
+	const coverage = DecodeCoverage(value.coverage);
 	const result: WordEvidenceResult = {
 		contract: "platosi.dialogue-lexicon.v1",
 		selection,
@@ -325,15 +338,175 @@ function DecodeDialogueLexicon(value: unknown, requested: TextSelection): WordEv
 		context,
 		possibilities: value.lemmas.map(DecodePossibility),
 		lemmas: value.lemmas.map((lemma) => DecodeDialogueLemma(lemma, requested)),
+		coverage,
 		dictionary: {
 			status: value.dictionary.status,
 			entries: value.dictionary.entries.map(DecodeDictionaryEntry),
 			possiblyTruncated: value.dictionary.possibly_truncated
 		},
-		morphology: DecodeMorphology(value.dilemma),
+		morphology: DecodeMorphology(value.morphology),
 		warnings: DecodeStrings(value.warnings, "dialogue lexicon warning"),
 		limitations: value.limitations
 	};
+	return result;
+}
+
+/** Validates optional provider coverage without treating missing coverage as verification. */
+function DecodeCoverage(value: unknown): WordEvidenceCoverage | null
+{
+	let result: WordEvidenceCoverage | null = null;
+	if (value !== undefined && value !== null)
+	{
+		if (!IsRecord(value) || !Array.isArray(value.analysis_providers)
+			|| !Array.isArray(value.form_inventory_providers) || !Array.isArray(value.analysis_only_providers))
+		{
+			throw new Error("PlatoSI returned invalid analysis coverage.");
+		}
+		const analysisProviders = DecodeStrings(value.analysis_providers, "analysis provider");
+		const formInventoryProviders = DecodeStrings(value.form_inventory_providers, "form inventory provider");
+		const analysisOnlyProviders = DecodeStrings(value.analysis_only_providers, "analysis-only provider");
+		const morphologyProviders = value.morphology_index_providers ?? [];
+		if (!Array.isArray(morphologyProviders))
+		{
+			throw new Error("PlatoSI returned invalid morphology index providers.");
+		}
+		const morphologyIndexProviders = DecodeStrings(morphologyProviders, "morphology index provider");
+		const morphologyIndexes = DecodeMorphologyIndexes(value.morphology_indexes ?? []);
+		for (const coverage of morphologyIndexes)
+		{
+			if (!morphologyIndexProviders.includes(coverage.provider))
+			{
+				throw new Error("PlatoSI returned inconsistent morphology index coverage.");
+			}
+		}
+		const cachedProviders = value.cached_analysis_providers ?? [];
+		if (!Array.isArray(cachedProviders))
+		{
+			throw new Error("PlatoSI returned invalid cached analysis providers.");
+		}
+		const cachedAnalysisProviders = DecodeStrings(cachedProviders, "cached analysis provider");
+		const cachedFormCoverage = DecodeCachedFormCoverage(value.cached_form_coverage ?? []);
+		for (const coverage of cachedFormCoverage)
+		{
+			if (!cachedAnalysisProviders.includes(coverage.provider))
+			{
+				throw new Error("PlatoSI returned inconsistent cached morphology coverage.");
+			}
+		}
+		for (const provider of analysisOnlyProviders)
+		{
+			if (!analysisProviders.includes(provider) || formInventoryProviders.includes(provider)
+				|| morphologyIndexProviders.includes(provider) || cachedAnalysisProviders.includes(provider))
+			{
+				throw new Error("PlatoSI returned inconsistent analysis coverage.");
+			}
+		}
+		result = { analysisProviders, formInventoryProviders, analysisOnlyProviders,
+			morphologyIndexProviders, morphologyIndexes, cachedAnalysisProviders, cachedFormCoverage };
+	}
+	return result;
+}
+
+/** Decodes finite canonical form and token totals. */
+function DecodeCoverageCount(value: unknown): number
+{
+	let result = 0;
+	if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0)
+	{
+		throw new Error("PlatoSI returned invalid morphology totals.");
+	}
+	else
+	{
+		result = value;
+	}
+	return result;
+}
+
+/** Validates permanent dialogue morphology coverage. */
+function DecodeMorphologyIndexes(value: unknown): NonNullable<WordEvidenceCoverage["morphologyIndexes"]>
+{
+	const result: NonNullable<WordEvidenceCoverage["morphologyIndexes"]>[number][] = [];
+	if (!Array.isArray(value))
+	{
+		throw new Error("PlatoSI returned invalid morphology index coverage.");
+	}
+	for (const item of value)
+	{
+		if (!IsRecord(item) || typeof item.provider !== "string" || item.provider.length === 0
+			|| typeof item.state !== "string" || typeof item.whole_dialogue_complete !== "boolean"
+			|| typeof item.context_reviewed !== "boolean")
+		{
+			throw new Error("PlatoSI returned invalid morphology index coverage.");
+		}
+		const checkedForms = DecodeCoverageCount(item.checked_forms);
+		const totalForms = DecodeCoverageCount(item.total_forms);
+		const analyzedForms = DecodeCoverageCount(item.analyzed_forms);
+		const unresolvedForms = DecodeCoverageCount(item.unresolved_forms);
+		const failedForms = DecodeCoverageCount(item.failed_forms);
+		const pendingForms = DecodeCoverageCount(item.pending_forms);
+		if (checkedForms !== analyzedForms + unresolvedForms
+			|| checkedForms + failedForms + pendingForms !== totalForms
+			|| item.whole_dialogue_complete !== (item.state === "ready" && checkedForms === totalForms))
+		{
+			throw new Error("PlatoSI returned inconsistent morphology index totals.");
+		}
+		result.push({ provider: item.provider, state: item.state, checkedForms, totalForms,
+			analyzedForms, unresolvedForms, failedForms, pendingForms,
+			wholeDialogueComplete: item.whole_dialogue_complete, contextReviewed: item.context_reviewed });
+	}
+	return result;
+}
+
+/** Validates cache coverage without treating missing forms as absent lemmas. */
+function DecodeCachedFormCoverage(value: unknown): NonNullable<WordEvidenceCoverage["cachedFormCoverage"]>
+{
+	const result: NonNullable<WordEvidenceCoverage["cachedFormCoverage"]>[number][] = [];
+	if (!Array.isArray(value))
+	{
+		throw new Error("PlatoSI returned invalid cached morphology coverage.");
+	}
+	for (const item of value)
+	{
+		if (!IsRecord(item) || typeof item.provider !== "string" || item.provider.length === 0
+			|| typeof item.whole_dialogue_complete !== "boolean" || typeof item.context_reviewed !== "boolean")
+		{
+			throw new Error("PlatoSI returned invalid cached morphology coverage.");
+		}
+		const checkedForms = DecodeCoverageCount(item.checked_forms);
+		const totalForms = DecodeCoverageCount(item.total_forms);
+		const checkedTokens = DecodeCoverageCount(item.checked_tokens);
+		const totalTokens = DecodeCoverageCount(item.total_tokens);
+		if (checkedForms > totalForms || checkedTokens > totalTokens
+			|| item.whole_dialogue_complete !== (checkedForms === totalForms))
+		{
+			throw new Error("PlatoSI returned inconsistent cached morphology totals.");
+		}
+		result.push({ provider: item.provider, checkedForms, totalForms, checkedTokens, totalTokens,
+			wholeDialogueComplete: item.whole_dialogue_complete, contextReviewed: item.context_reviewed });
+	}
+	return result;
+}
+
+/** Validates the provider's named grammatical features before renderer transport. */
+function DecodeFeatures(value: unknown): Readonly<Record<string, string>> | null
+{
+	let result: Record<string, string> | null = null;
+	if (value !== undefined && value !== null)
+	{
+		if (!IsRecord(value))
+		{
+			throw new Error("PlatoSI returned invalid grammatical features.");
+		}
+		result = {};
+		for (const [name, feature] of Object.entries(value))
+		{
+			if (typeof feature !== "string")
+			{
+				throw new Error("PlatoSI returned an invalid grammatical feature.");
+			}
+			result[name] = feature;
+		}
+	}
 	return result;
 }
 
@@ -406,11 +579,23 @@ function DecodeRelatedLemma(value: unknown, requested: TextSelection): WordRelat
 	{
 		throw new Error("PlatoSI returned inconsistent related-lemma dialogue counts.");
 	}
+	let dictionary: WordRelatedLemma["dictionary"] = null;
+	if (value.dictionary !== undefined && value.dictionary !== null)
+	{
+		if (!IsRecord(value.dictionary) || typeof value.dictionary.status !== "string"
+			|| !Array.isArray(value.dictionary.entries) || typeof value.dictionary.possibly_truncated !== "boolean")
+		{
+			throw new Error("PlatoSI returned invalid related-lemma dictionary evidence.");
+		}
+		const entries = value.dictionary.entries.map(DecodeDictionaryEntry);
+		dictionary = { status: value.dictionary.status, entries, possiblyTruncated: value.dictionary.possibly_truncated };
+	}
 	return {
 		lemma: value.lemma,
 		relationType: value.relation_type,
 		direction: value.direction,
 		presentInDialogue: value.present_in_dialogue,
+		dictionary,
 		total: value.count,
 		forms,
 		evidence: value.evidence.map(DecodeEvidenceRecord)
@@ -446,6 +631,13 @@ function DecodeCandidate(value: unknown): WordEvidenceCandidate
 	{
 		throw new Error("PlatoSI returned an invalid linguistic candidate.");
 	}
+	const headword = value.headword ?? null;
+	const homograph = value.homograph ?? null;
+	if (!IsNullableString(headword) || !IsNullableString(homograph))
+	{
+		throw new Error("PlatoSI returned an invalid headword identity.");
+	}
+	const features = DecodeFeatures(value.features);
 	return {
 		provider: value.provider,
 		providerVersion: value.provider_version,
@@ -457,6 +649,9 @@ function DecodeCandidate(value: unknown): WordEvidenceCandidate
 		via: value.via,
 		citation: value.citation,
 		tag: value.tag,
+		headword,
+		homograph,
+		features,
 		settings: DecodeJsonObject(value.settings),
 		source: DecodeSourceMetadata(value.source)
 	};

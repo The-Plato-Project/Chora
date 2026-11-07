@@ -52,7 +52,7 @@ export class MarkdownEditor
 	public constructor(markdown: string, private readonly label: string, private readonly onChange: (value: string) => void, private readonly errors: ErrorManager, private readonly readOnly = false, placeholder = "", private readonly layoutDimension: LayoutDimension | null = null)
 	{
 		this.markdown = markdown;
-		this.Root.className = "markdown-editor";
+		this.Root.className = "markdown-editor multiline-input";
 		this.Root.setAttribute("aria-busy", "true");
 		this.toolbar.className = "markdown-toolbar";
 		this.toolbar.hidden = true;

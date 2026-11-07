@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TextDocument, type TextDocumentSnapshot } from "../../src/shared/text/TextDocument.js";
 import type { WordSearchResult } from "../../src/shared/library/WordExplorationTypes.js";
@@ -19,6 +20,17 @@ afterEach(function Cleanup(): void
 
 describe("WordExplorationPanel", function WordExplorationPanelTests()
 {
+	it("keeps all name research states within the panel margins", function KeepsNameResearchWithinMargins(): void
+	{
+		const css = readFileSync("src/renderer/styles/base.css", "utf8");
+		const rule = css.match(/\.word-person-content\s*\{(?<declarations>[^}]*)\}/s);
+
+		expect(rule?.groups?.declarations).toMatch(/box-sizing:\s*border-box;/);
+		expect(rule?.groups?.declarations).toMatch(/width:\s*100%;/);
+		expect(rule?.groups?.declarations).toMatch(/padding:\s*0\.55rem 1rem 1rem;/);
+		expect(rule?.groups?.declarations).not.toMatch(/max-width:/);
+	});
+
 	it("opens selected text and renders organized PlatoSI evidence", async function ExploresWordAsync(): Promise<void>
 	{
 		const snapshot: TextDocumentSnapshot = {
@@ -60,28 +72,34 @@ describe("WordExplorationPanel", function WordExplorationPanelTests()
 		});
 		const saveObservation = vi.spyOn(gateway, "SaveObservationAsync").mockImplementation(
 			async (observation) => observation);
+		vi.spyOn(gateway, "GetNameNoteAsync").mockResolvedValue({
+			dialogue: "republic",
+			lemma: "κατάβασις",
+			text: "The port matters to this dialogue."
+		});
+		const saveNameNote = vi.spyOn(gateway, "SaveNameNoteAsync").mockImplementation(
+			async (note) => note);
+		const researchSource = {
+			id: "S2", kind: "plato_prosopography", title: "Polemarchus",
+			url: "https://humanisticadigitalia.eu/GreekTexts/Plato/#p-polemarchus",
+			excerpt: "Polemarchus was the eldest son of Cephalus.",
+			provider: "Platonis Humanistica Digitalia", cached: false,
+			relevance: "plato_dialogue" as const
+		};
 		const personResearch = vi.spyOn(gateway, "GetPersonResearchAsync").mockResolvedValue({
-			contract: "platosi.person-research.v1",
+			contract: "platosi.person-research.v3",
 			status: "ok",
 			lemma: "κατάβασις",
 			classification: {
 				properNameCandidate: true,
-				basis: "Dilemma returned a capitalized lemma."
+				basis: "Fixture morphology returned a capitalized lemma."
 			},
-			roots: [],
-			summary: {
-				person: "A grounded identity summary. [S1]",
-				nameMeaning: "The available sources do not establish a name meaning.",
-				relationships: ["A sourced relationship. [S1]"]
-			},
-			sources: [{
-				id: "S1",
-				kind: "wikidata",
-				title: "Research source",
-				url: "https://www.wikidata.org/wiki/Q1",
-				excerpt: "Evidence",
-				provider: "Wikidata",
-				cached: false
+			overview: "Polemarchus was the eldest son of Cephalus. [S2]",
+			sources: [researchSource],
+			candidates: [{
+				id: "reference:polemarchus",
+				label: "Polemarchus",
+				sources: [researchSource]
 			}],
 			model: { model: "qwen3.5:9b" },
 			warnings: []
@@ -94,42 +112,69 @@ describe("WordExplorationPanel", function WordExplorationPanelTests()
 			selection,
 			form: "κατέβην",
 			context: [{ stephanus: "327a", text: "κατέβην χθὲς" }],
+			coverage: {
+				analysisProviders: ["fixture-morphology", "morpheus"],
+				formInventoryProviders: ["fixture-morphology", "morpheus"],
+				analysisOnlyProviders: [],
+				morphologyIndexProviders: ["morpheus"],
+				morphologyIndexes: [{ provider: "morpheus", state: "ready", checkedForms: 10,
+					totalForms: 10, analyzedForms: 9, unresolvedForms: 1, failedForms: 0,
+					pendingForms: 0, wholeDialogueComplete: true, contextReviewed: false }]
+			},
 			possibilities: [
 				{
 					lemma: "καταβαίνω",
 					candidates: [{
-						provider: "dilemma", providerVersion: "1", method: "lookup",
+						provider: "fixture-morphology", providerVersion: "1", method: "lookup",
 						classification: "lookup_candidate", language: "grc", proper: false,
 						rank: 1, via: "exact", citation: "unchanged", tag: "",
 						settings: { resolve_articles: false },
-						source: { attribution: "Dilemma", revision: "test", repository: null }
+						source: { attribution: "Fixture morphology", revision: "test", repository: null }
+					}, {
+						provider: "morpheus", providerVersion: "1", method: "morpheus",
+						classification: "morphological_analysis_candidate", language: "grc", proper: false,
+						rank: null, via: null, citation: null, tag: "",
+						headword: "καταβαίνω", homograph: null,
+						features: { part_of_speech: "verb", tense: "aorist", voice: "active",
+							mood: "indicative", person: "1st", number: "singular" },
+						settings: { strict_case: true },
+						source: { attribution: "Morpheus", revision: null, repository: null }
+					}, {
+						provider: "morpheus", providerVersion: "1", method: "morpheus",
+						classification: "morphological_analysis_candidate", language: "grc", proper: false,
+						rank: null, via: null, citation: null, tag: "",
+						headword: "καταβαίνω", homograph: null,
+						features: { part_of_speech: "verb", tense: "aorist", voice: "active",
+							mood: "indicative", person: "3rd", number: "plural", dialect: "epic Doric Aeolic" },
+						settings: { strict_case: true },
+						source: { attribution: "Morpheus", revision: null, repository: null }
 					}]
 				},
 				{
 					lemma: "κατάβασις",
 					candidates: [{
-						provider: "dilemma", providerVersion: "1", method: "lookup",
+						provider: "fixture-morphology", providerVersion: "1", method: "lookup",
 						classification: "lookup_candidate", language: "grc", proper: true,
 						rank: 2, via: "exact", citation: "unchanged", tag: "",
 						settings: { resolve_articles: false },
-						source: { attribution: "Dilemma", revision: "test", repository: null }
+						source: { attribution: "Fixture morphology", revision: "test", repository: null }
 					}]
 				}
 			],
 			lemmas: [{
 				lemma: "καταβαίνω",
 				candidates: [{
-					provider: "dilemma", providerVersion: "1", method: "lookup",
+					provider: "fixture-morphology", providerVersion: "1", method: "lookup",
 					classification: "lookup_candidate", language: "grc", proper: false,
 					rank: 1, via: "exact", citation: "unchanged", tag: "",
 					settings: { resolve_articles: false },
-					source: { attribution: "Dilemma", revision: "test", repository: null }
+					source: { attribution: "Fixture morphology", revision: "test", repository: null }
 				}],
 				forms: [{
 					form: "κατέβην",
 					occurrences: [occurrence],
 					total: 1,
-					evidence: [{ provider: "dilemma", classification: "direct_lookup" }]
+					evidence: [{ provider: "fixture-morphology", classification: "direct_lookup" }]
 				}],
 				relatedLemmas: [{
 					lemma: "βάσις",
@@ -138,17 +183,26 @@ describe("WordExplorationPanel", function WordExplorationPanelTests()
 					presentInDialogue: false,
 					total: 0,
 					forms: [],
-					evidence: [{ provider: "lsj-logeion", classification: "explicit_dictionary_markup" }]
+					evidence: [{ provider: "lsj-logeion", classification: "explicit_dictionary_markup" }],
+					dictionary: {
+						status: "ok", possiblyTruncated: false,
+						entries: [{
+							provider: "lsj-logeion", providerVersion: "1", headword: "βάσις", matchedTerm: "βάσις",
+							entryId: "basis", plainText: "βάσις step, pace",
+							entryXml: "<div2><head>βάσις</head><sense><i>step, pace</i></sense></div2>",
+							source: { attribution: "LSJ", revision: "test", repository: null }, license: { status: "test" }
+						}]
+					}
 				}]
 			},
 			{
 				lemma: "κατάβασις",
 				candidates: [{
-					provider: "dilemma", providerVersion: "1", method: "lookup",
+					provider: "fixture-morphology", providerVersion: "1", method: "lookup",
 					classification: "lookup_candidate", language: "grc", proper: false,
 					rank: 2, via: "exact", citation: "unchanged", tag: "",
 					settings: { resolve_articles: false },
-					source: { attribution: "Dilemma", revision: "test", repository: null }
+					source: { attribution: "Fixture morphology", revision: "test", repository: null }
 				}],
 				forms: [],
 				relatedLemmas: []
@@ -167,7 +221,7 @@ describe("WordExplorationPanel", function WordExplorationPanelTests()
 			},
 			morphology: {
 				status: "ok",
-				provider: { attribution: "Dilemma", revision: "test", repository: null },
+				provider: { attribution: "Fixture morphology", revision: "test", repository: null },
 				normalization: { original: "κατέβην" },
 				spellingSuggestions: ["κατέβην"],
 				formAttestation: {
@@ -205,6 +259,11 @@ describe("WordExplorationPanel", function WordExplorationPanelTests()
 		await events.PublishAsync("word.exploration-requested", { selection });
 		expect(root.hidden).toBe(false);
 		expect(root.querySelector("[data-word-title]")?.textContent).toBe("Word lookup: κατέβην");
+		expect(root.querySelector("[data-word-close]")?.textContent).toBe("");
+		expect(root.querySelector("[data-word-close] svg")).not.toBeNull();
+		expect(root.querySelector("[data-word-close]")?.getAttribute("aria-label")).toBe("Close word lookup");
+		expect(root.querySelector("[data-resize-pane=\"word\"]")?.classList.contains("row-resize-handle"))
+			.toBe(true);
 		expect(root.querySelector(".word-evidence-target")).toBeNull();
 		expect(evidence).toHaveBeenCalledWith(selection);
 		expect(personResearch).not.toHaveBeenCalled();
@@ -212,7 +271,40 @@ describe("WordExplorationPanel", function WordExplorationPanelTests()
 		expect(root.textContent).toContain("Lemmas");
 		expect(root.querySelector<HTMLElement>("[data-word-content]")?.style.gridTemplateColumns)
 			.toContain("max-content");
+		expect(root.querySelectorAll(".word-column-resize-handle:not(.column-resize-handle)")).toHaveLength(0);
+		expect(root.querySelectorAll(".word-column-resize-handle.column-resize-handle").length)
+			.toBeGreaterThan(0);
+		for (const textarea of root.querySelectorAll("textarea"))
+		{
+			expect(textarea.classList.contains("multiline-input")).toBe(true);
+		}
 		expect(root.textContent).toContain("καταβαίνω");
+		expect(root.querySelectorAll(".word-analysis-reading")).toHaveLength(3);
+		expect(root.querySelector(".word-analysis-reading h4")).toBeNull();
+		expect(root.querySelector(".word-analysis-content")?.textContent).toContain("1st person · singular");
+		expect(root.querySelector(".word-analysis-content")?.textContent).toContain("3rd person · plural");
+		expect(root.querySelector(".word-analysis-context")?.textContent)
+			.toBe("Possible readings of κατέβην as καταβαίνω.");
+		expect(root.querySelector(".word-analysis-disagreement")).toBeNull();
+		expect(root.querySelector(".word-analysis-section > .word-column-heading > h3")?.textContent)
+			.toBe("Morphology");
+		const columnSections = root.querySelectorAll<HTMLElement>("[data-word-content] > section");
+		expect(columnSections.length).toBeGreaterThan(0);
+		for (const section of columnSections)
+		{
+			expect(section.querySelector(":scope > .word-column-heading")).not.toBeNull();
+		}
+		expect(root.querySelector(".word-analysis-section [data-word-float]")).toBeNull();
+		expect(root.querySelector(".word-lemma-section [data-word-float]")).toBeNull();
+		expect(root.textContent).not.toContain("These are possible readings of the selected word");
+		expect(root.querySelector(".word-lemma-tabs")?.getAttribute("aria-orientation")).toBe("vertical");
+		const css = readFileSync("src/renderer/styles/base.css", "utf8");
+		expect(css).toMatch(/\.word-lemma-tabs\.tab-list\s*\{[^}]*flex-direction:\s*column;/s);
+		expect(css).toMatch(/\.word-exploration\s*\{[^}]*padding:\s*0;/s);
+		expect(css).toMatch(/\.floating-panel-close svg\s*\{[^}]*stroke:\s*currentColor;/s);
+		expect(css).toMatch(/\.column-resize-handle\s*\{[^}]*border-left:\s*1px solid var\(--panel-border\);/s);
+		expect(css).toMatch(/\.multiline-input,[^{]*\.dream-field textarea\s*\{[^}]*border:\s*1px solid var\(--panel-border\);/s);
+		expect(root.querySelector(".word-analysis-notices")?.textContent).toContain("fixture notice");
 		const lemmaTabs = root.querySelectorAll<HTMLButtonElement>("[data-word-lemma-index]");
 		expect(lemmaTabs).toHaveLength(2);
 		expect(lemmaTabs[0]?.getAttribute("aria-selected")).toBe("true");
@@ -223,12 +315,41 @@ describe("WordExplorationPanel", function WordExplorationPanelTests()
 			expect(root.querySelectorAll<HTMLButtonElement>("[data-word-lemma-index]")[1]
 				?.getAttribute("aria-selected")).toBe("true");
 			expect(personResearch).toHaveBeenCalledWith(selection, "κατάβασις");
-			expect(root.textContent).toContain("A grounded identity summary.");
+			expect(root.querySelectorAll(".word-name-overview")).toHaveLength(1);
+			expect(root.querySelector(".word-occurrences-heading > span")?.textContent).toBe("Not established");
+			expect(root.querySelector(".word-occurrence-empty")?.textContent)
+				.toContain("does not establish that the lemma is absent");
+			expect(root.querySelector(".word-name-overview")?.textContent)
+				.toBe("Polemarchus was the eldest son of Cephalus. [S2]");
+			expect(root.textContent).toContain("Name research");
+			expect(root.querySelectorAll("[data-person-source]")).toHaveLength(1);
+			expect(root.querySelector<HTMLTextAreaElement>("[data-word-name-note]")?.value)
+				.toBe("The port matters to this dialogue.");
 		});
-		root.querySelector<HTMLButtonElement>("[data-person-source]")?.click();
+		const overview = root.querySelector(".word-name-overview");
+		expect(overview?.nextElementSibling?.classList.contains("word-person-sources")).toBe(true);
+		expect(root.textContent).not.toContain("Show evidence");
+		expect(root.textContent).not.toContain("Research details");
+		expect(root.querySelector(".word-person-issues")).toBeNull();
+		const nameNote = root.querySelector<HTMLTextAreaElement>("[data-word-name-note]");
+		if (nameNote !== null)
+		{
+			nameNote.value = "The harbor frames the dialogue's opening.";
+			nameNote.dispatchEvent(new Event("input", { bubbles: true }));
+		}
+		await vi.waitFor(function NameNoteSaved(): void
+		{
+			expect(saveNameNote).toHaveBeenCalledWith({
+				dialogue: "republic",
+				lemma: "κατάβασις",
+				text: "The harbor frames the dialogue's opening."
+			});
+		}, { timeout: 1000 });
+		root.querySelector<HTMLAnchorElement>("[data-person-source]")?.click();
 		await vi.waitFor(function SourceOpened(): void
 		{
-			expect(openSource).toHaveBeenCalledWith("https://www.wikidata.org/wiki/Q1");
+			expect(openSource).toHaveBeenCalledWith(
+				"https://humanisticadigitalia.eu/GreekTexts/Plato/#p-polemarchus");
 		});
 		expect(root.querySelector(".word-dictionary-section")).toBeNull();
 		expect(root.querySelector(".word-person-section")).not.toBeNull();
@@ -241,25 +362,37 @@ describe("WordExplorationPanel", function WordExplorationPanelTests()
 		expect(root.textContent).toContain("go down");
 		expect(root.querySelector(".word-dictionary-entry")?.textContent).toContain("go down");
 		expect(root.querySelector(".word-dictionary-entry")?.textContent?.trim().startsWith("καταβαίνω"))
-			.toBe(false);
+			.toBe(true);
 		const dictionary = root.querySelector<HTMLElement>(".word-dictionary-content");
 		expect(dictionary).not.toBeNull();
 		expect(root.textContent).toContain("Occurrences in the Republic");
-		const occurrences = root.querySelector<HTMLDetailsElement>(".word-occurrences-section > details");
-		expect(occurrences?.open).toBe(true);
-		expect(root.querySelector(".word-occurrences-heading > span")?.textContent).toBe("1");
-		occurrences?.querySelector<HTMLElement>(":scope > summary")?.click();
-		expect(occurrences?.open).toBe(false);
-		occurrences?.querySelector<HTMLElement>(":scope > summary")?.click();
+		const occurrenceHeading = root.querySelector<HTMLElement>(".word-occurrences-heading");
+		expect(occurrenceHeading?.tagName).toBe("HEADER");
+		expect(root.querySelector(".word-occurrences-section > details:not(.word-occurrence-row)")).toBeNull();
+		expect(root.querySelector(".word-occurrences-heading > span")?.textContent).toBe("1 mapped");
+		expect(root.querySelector(".word-occurrence-coverage")?.textContent).toContain("Coverage");
+		expect(root.querySelector(".word-occurrence-coverage")?.textContent)
+			.toContain("PlatoSI indexed all 10 dialogue forms with Morpheus");
+		occurrenceHeading?.click();
 		expect(root.textContent).toContain("Book I");
 		expect(root.textContent).toContain("Related lemmas");
 		expect(root.textContent).toContain("βάσις");
-		expect(root.textContent).toContain("not in this dialogue");
+		expect(root.querySelector(".word-related-definition")?.textContent).toContain("LSJ");
+		expect(root.querySelector(".word-related-definition")?.textContent).toContain("step, pace");
+		const relatedRow = root.querySelector<HTMLDetailsElement>(".word-related-row");
+		expect(relatedRow?.open).toBe(false);
+		relatedRow?.querySelector("summary")?.click();
+		expect(relatedRow?.open).toBe(true);
+		const relatedDictionary = relatedRow?.querySelector<HTMLDetailsElement>(".word-related-dictionary");
+		expect(relatedDictionary?.open).toBe(false);
+		expect(root.textContent).toContain("No mapped matches");
 		expect(root.textContent).not.toContain("Occurrences in this dialogue");
 		expect(root.textContent).not.toContain("Selected-form attestations");
 		expect(root.textContent).not.toContain("Lemma usage");
 		expect(root.textContent).not.toContain("Provider notices");
 		expect(root.textContent).not.toContain("Sources and artifact provenance");
+		expect(Array.from(root.querySelectorAll("h3"), (heading) => heading.textContent))
+			.toContain("Notes");
 		const highlighted = root.querySelector<HTMLElement>(".word-occurrence-form");
 		expect(highlighted?.textContent).toBe("κατέβην");
 		const occurrenceRow = root.querySelector<HTMLDetailsElement>(".word-occurrence-row");
@@ -279,12 +412,24 @@ describe("WordExplorationPanel", function WordExplorationPanelTests()
 			expect(root.querySelector<HTMLTextAreaElement>("[data-word-observation]")?.value)
 				.toBe("Opening descent.");
 		});
+		const floatButtons = root.querySelectorAll<HTMLButtonElement>("[data-word-float]");
+		expect(Array.from(floatButtons, (button) => button.dataset.wordFloat))
+			.toEqual(["dictionary", "occurrences", "related", "notes"]);
+		root.querySelector<HTMLButtonElement>('[data-word-float="dictionary"]')?.click();
+		root.querySelector<HTMLButtonElement>('[data-word-float="notes"]')?.click();
+		expect(document.querySelectorAll(".floating-panel:not([hidden])")).toHaveLength(2);
+		expect(document.querySelector("[data-floating-panel=\"dictionary\"]")?.textContent)
+			.toContain("go down");
+		expect(document.querySelector("[data-floating-panel=\"notes\"]")?.textContent)
+			.toContain("Notes");
 		const observation = root.querySelector<HTMLTextAreaElement>("[data-word-observation]");
 		if (observation !== null)
 		{
 			observation.value = "A spatial and temporal descent.";
 			observation.dispatchEvent(new Event("input", { bubbles: true }));
 		}
+		expect(document.querySelector<HTMLTextAreaElement>("[data-floating-panel=\"notes\"] [data-word-observation]")?.value)
+			.toBe("A spatial and temporal descent.");
 		await vi.waitFor(function ObservationSaved(): void
 		{
 			expect(saveObservation).toHaveBeenCalledWith({

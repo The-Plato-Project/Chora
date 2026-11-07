@@ -3,6 +3,13 @@ export type LayoutDimension =
 	"leftPaneWidth"
 	| "editorPaneWidth"
 	| "wordPaneHeight"
+	| "wordLemmaWidth"
+	| "wordAnalysisWidth"
+	| "wordDictionaryWidth"
+	| "wordPersonWidth"
+	| "wordOccurrencesWidth"
+	| "wordRelatedWidth"
+	| "wordObservationWidth"
 	| "signalNavigationWidth"
 	| "dreamSourceHeight"
 	| "dreamReflectionsHeight"
@@ -113,6 +120,13 @@ export class LayoutSettingsStore
 			"leftPaneWidth",
 			"editorPaneWidth",
 			"wordPaneHeight",
+			"wordLemmaWidth",
+			"wordAnalysisWidth",
+			"wordDictionaryWidth",
+			"wordPersonWidth",
+			"wordOccurrencesWidth",
+			"wordRelatedWidth",
+			"wordObservationWidth",
 			"signalNavigationWidth",
 			"dreamSourceHeight",
 			"dreamReflectionsHeight",

@@ -59,8 +59,7 @@
 }
 
 :root[data-theme="dark"] .reader-control select,
-:root[data-theme="dark"] .dream-field input,
-:root[data-theme="dark"] .dream-field textarea {
+:root[data-theme="dark"] .dream-field input {
 	border-color: var(--panel-border);
 	background: var(--dream-raised);
 	color: var(--app-text);
@@ -145,12 +144,7 @@
 }
 
 :root[data-theme="dark"] .document-interpretation input:focus-visible,
-:root[data-theme="dark"] .signal-view-search input:focus-visible,
-:root[data-theme="dark"] .signal-observation .signal-markdown-editor:focus-within {
+:root[data-theme="dark"] .signal-view-search input:focus-visible {
 	outline: 2px solid var(--accent);
 	outline-offset: 1px;
-}
-:root[data-theme="dark"] .signal-observation .signal-markdown-editor:focus-within {
-	outline: 1px solid rgba(190, 190, 190, 0.3);
-	outline-offset: 0;
 }

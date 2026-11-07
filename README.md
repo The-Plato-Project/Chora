@@ -4,13 +4,13 @@
 
 ## What is Chora?
 
-Chora is a desktop environment for sustained reading and inquiry. It keeps the Greek text, the passages you choose, and your developing observations together so that you can return to the work with a growing record of what you have noticed.
+Chora is a desktop environment for sustained reading and inquiry. Its new direction is a writing-first workspace in which exact Greek words and passages remain connected to a reader's developing thought. Over time, reader-confirmed relationships become Signals: a durable memory of what the reader noticed across sections and distant parts of a dialogue.
 
-The central relationship is between **you and the text**. You choose the passages, create the connections you want to pursue, and write your own reflections. Dictionary evidence and optional model-assisted research support that work without deciding its meaning for you.
+The central relationship is between **you and the text**. Chora may return you to earlier writing and suggest material that could be relevant, but it does not establish those connections for you. Dictionary evidence, exact source anchors, and optional local-model retrieval support attention without deciding what Plato means.
 
 Chora was built to work with **PlatoSI**, which supplies Plato's canonical Greek texts, dictionary and linguistic evidence, dialogue-wide occurrences, and personal-name research. Chora provides the reading workspace and saves your contributions. PlatoSI's separate browser playground is a development and testing tool; you do not use it to read in Chora.
 
-This guide describes implemented Chora workflows inspected on **4 November 2026**. [VISION.md](VISION.md) explains the wider direction; ideas in that document are not all current features.
+This guide describes the currently implemented Chora workflows inspected on **7 November 2026**. The existing passage-bound Dreams and Dream-owned Signals are transitional and remain available while their replacement is built. [VISION.md](VISION.md) defines the new product direction, and [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) describes the build-first, remove-later transition.
 
 ## What you can do
 
@@ -19,7 +19,7 @@ This guide describes implemented Chora workflows inspected on **4 November 2026*
 - Mark **Signals** within a Dream and add further exact passages from the same work to a selected Signal.
 - Keep several Dreams open, organize them in folders, filter your collection, and return explicitly to their source passages.
 - Explore a Greek word's candidate lemmas and available LSJ entry, compare mapped forms across the whole dialogue, and inspect explicitly supported related lemmas.
-- Save your own observation for a lemma in a particular dialogue and text version.
+- Save your own notes for a lemma and for its name research.
 - Consult optional personal-name research with linked sources and a local-model summary.
 - Copy a Dream as Markdown, recover deleted Dreams and their Signals from Trash, and reload records edited outside Chora.
 - Adjust reading appearance and workspace dimensions to suit your attention.
@@ -34,7 +34,7 @@ Reading and writing Dreams do not require a language model. Word exploration dep
 4. Give the Dream a title if useful and write in **Reflections**.
 5. Select a word or phrase inside that Dream's source and choose **Create Signal**. Add your own description of what you notice.
 6. To investigate one Greek word, select it in the reader or Dream source and choose **Explore word**.
-7. Compare the returned evidence, follow an occurrence when you choose, and add an observation about the lemma.
+7. Compare the returned evidence, follow an occurrence when you choose, and add a note about the lemma.
 
 You can stop at any stage. A Dream does not need Signals, and a Signal does not need a description. They record your attention rather than require a completed interpretation.
 
@@ -75,9 +75,9 @@ Selecting a Dream or Signal opens its editing context without automatically movi
 
 Open **Reading settings** to choose serif or sans text, adjust text size, and switch between light and dark appearance. Preferences are retained locally when application storage is available.
 
-## Dreams: rooms of attention
+## Current Dreams workflow (transitional)
 
-A Dream brings together an exact source passage, an optional title, your Reflections, and any Signals you choose to create. It gives an inquiry a place to begin while allowing you to investigate elsewhere in the same work.
+A Dream currently brings together an exact source passage, an optional title, your Reflections, and any Signals you choose to create. This passage-bound container remains implemented and its data must remain recoverable, but it is not the target product model. The planned writing-first workspace will allow sustained writing across many passages without first creating a Dream from a selection.
 
 ### Create and edit a Dream
 
@@ -99,9 +99,11 @@ Opening Dreams adds editor tabs. Switch between them to continue different lines
 
 Use the Dream actions menu to copy its source passage, citations, Signals and their descriptions, and Reflections as Markdown. This is a clipboard export, not a complete application backup.
 
-## Signals: exact words and passages you choose
+## Current Signals workflow (transitional)
 
 A Signal belongs to one Dream. Create it by selecting text inside the active Dream's source, either in the main reader or in the copied source passage, then choosing **Create Signal**.
+
+This is the current storage and interface behavior, not the new definition of a Signal. In the new vision, a Signal is a reader-authored relationship among evidence that can grow across sections and distant passages. A word or selection is not automatically a Signal, and no model establishes that relationship for the reader.
 
 Signals appear in source order. Select one to write or revise its description, give it a title, inspect its passages, or use an explicit jump control. The Signal index can be filtered. The description editor uses the same formatting tools as Reflections, and descriptions save as you edit.
 
@@ -117,7 +119,7 @@ Chora does not automatically create Signals, write their descriptions, or link t
 
 Select a single Greek word in the reader or a Dream source and choose **Explore word**. The Word lookup pane opens across the bottom of the workspace with the selected form in its title. It starts hidden, can be closed, and reopens when you explore another word.
 
-The pane's columns scroll horizontally. Depending on the returned evidence, they include **Lemmas**, **Dictionary**, **Person**, **Occurrences**, **Related lemmas**, and **Observations**. A dictionary column is omitted when no matching entry is available.
+The pane's columns scroll horizontally. Depending on the returned evidence, they include **Lemmas**, **Dictionary**, **Name research**, **Occurrences**, **Related lemmas**, and **Notes**. A dictionary column is omitted when no matching entry is available.
 
 ### Candidate lemmas and dictionary entries
 
@@ -139,19 +141,19 @@ When the configured sources support a related lemma, Chora shows its relation ty
 
 Current relationships come from a limited subset of explicit dictionary evidence. Similar spelling, a shared possible root, and a connection you notice in context are different kinds of evidence. Chora does not automatically merge them into one linguistic conclusion.
 
-### Your lemma observations
+### Your lemma notes
 
-Write in **Observations** to keep your own note for the selected lemma. The text saves after a short pause and is associated with the dialogue, its canonical text version, and that lemma.
+Write in **Notes** to keep your own note for the selected lemma. The text saves after a short pause and is associated with the dialogue, its canonical text version, and that lemma.
 
-Opening a different form of the same lemma in the same dialogue and version returns to the same observation. A different dialogue or text version has a separate note. This is distinct from a Dream's Reflections and from an individual Signal's description; it is not yet a combined cross-dialogue notebook.
+Opening a different form of the same lemma in the same dialogue and version returns to the same note. A different dialogue or text version has a separate note. This is distinct from a Dream's Reflections and from an individual Signal's description; it is not yet a combined cross-dialogue notebook.
 
 ## Personal-name research and optional AI
 
 When a selected lemma has a capitalized-headword candidate, Chora requests personal-name research through PlatoSI while the rest of the word pane remains usable. There is no separate general chat pane or model-selection screen in the current Chora interface.
 
-The **Person** column can show an identity summary, possible name meaning, and relationships, along with links to retrieved sources. PlatoSI gathers reference candidates from Wikidata, English Wikipedia and English Wiktionary, may look up an LSJ lexical comparison, and uses its configured local model to prepare a sourced synthesis.
+The **Name research** column presents a source-cited summary. Its source links appear directly below the summary and open the original pages externally. Retrieval or synthesis issues appear below the research in red.
 
-The source list shows the provider and document title. Sources tagged as relevant to Plato or the dialogue appear first, with other candidates retained separately. Select a source to open its original page externally.
+Write in the column's **Notes** box to keep your own note about that name in the current dialogue. The note saves after a short pause and remains separate from the generated summary.
 
 This remains experimental research. A capitalized lemma is a trigger, not proof that the word identifies a particular person. Namesakes, unclear identity, source quality, and unsupported derivations can affect the result. A possible lexical comparison is not an established etymology, and source citations do not guarantee that the model's statement follows from them.
 
@@ -171,7 +173,7 @@ The Explorer can be collapsed and restored using its divider or activity-rail co
 | --- | --- |
 | Dreams and Reflections | Local Markdown files, organized by work and your folders |
 | Signals and descriptions | Separate local Markdown files, owned by their Dream |
-| Lemma Observations | Chora's local application-data storage, separately from Dream files |
+| Lemma and name-research Notes | Chora's local application-data storage, separately from Dream files |
 | Reading appearance and workspace dimensions | Local application preferences |
 | Open drafts and tab state | Session state; saved Dream files remain the durable records |
 | Deleted Dreams and Signals | Local Dream Trash until restored or permanently removed |
@@ -184,7 +186,7 @@ Documents/Chora/<work name>/Dreams/
 Documents/Chora/<work name>/Signals/
 ```
 
-For the Republic, the work folder is **The Republic**. Dream folders you create are real folders beneath Dreams. Lemma observations and Trash are in Chora's application data, so backing up only Documents does not preserve everything. Chora provides no built-in account synchronization or complete backup/export command; retain an independent backup of the stores you need.
+For the Republic, the work folder is **The Republic**. Dream folders you create are real folders beneath Dreams. Lemma notes, name-research notes and Trash are in Chora's application data, so backing up only Documents does not preserve everything. Chora provides no built-in account synchronization or complete backup/export command; retain an independent backup of the stores you need.
 
 ### Reloading the Dream catalogue
 
@@ -223,7 +225,7 @@ PLATOSI_PYTHON=C:\path\to\python.exe
 PLATOSI_READER_API=C:\path\to\PlatoSI\scripts\reader_api.py
 ```
 
-The Python interpreter must have access to any optional Dilemma package you use. Model settings belong in PlatoSI, not in Chora's environment file. Keep `.env.local` private and out of version control.
+Model settings belong in PlatoSI, not in Chora's environment file. Keep `.env.local` private and out of version control.
 
 ### Launch Chora
 
@@ -246,9 +248,9 @@ Use **Help → Open Logs Folder** to locate diagnostic logs when investigating a
 
 Chora currently reads the Plato collection supplied by PlatoSI; arbitrary document import is not implemented. Word mappings and lexical relations depend on configured evidence and can be incomplete or wrong in context. Personal-name research is not general recognition of places, gods, or every kind of named entity, and generated summaries can be mistaken.
 
-There is no current general Dream chat, automatic Signal writing, reader graph visualization, cross-Dream linking workflow, cross-dialogue lemma notebook, or model training on reader history. PlatoSI's standalone conversation, two-model examination and Dilemma laboratory are test/service tools rather than Chora screens.
+There is no current writing-first dialogue workspace, anchored-reference editor, reader-confirmed relationship graph, memory surface, cross-Dream linking workflow, cross-dialogue lemma notebook, or model retrieval over reader history. There is also no general Dream chat or automatic Signal writing. PlatoSI's standalone conversation and two-model examination are test/service tools rather than Chora screens.
 
-The larger vision is to deepen the reader's continuing encounter with the work through chosen passages, remembered observations, and inquiry. The current features above provide part of that foundation; proposed extensions remain distinct from what the application already does. See [VISION.md](VISION.md) and [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
+The new vision is to make the application an extension of the reader's memory: continuous writing remains attached to exact evidence, Signals preserve relationships the reader confirms, and earlier thoughts can return as transparent possibilities rather than conclusions. The current features above provide part of that foundation but still fragment writing around passage-bound Dreams and Dream-owned Signals. See [VISION.md](VISION.md) and [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
 ## Development
 

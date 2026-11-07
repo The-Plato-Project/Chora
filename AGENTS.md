@@ -23,6 +23,19 @@ Evaluate every proposed feature against its guiding question:
 
 Keep the reader-text relationship at the center. The model should support attention, memory, and continuing inquiry without replacing the reader's judgment or presenting itself as the authority.
 
+The target workflow is writing-first:
+
+- The reader can write continuously without first creating a passage-bound Dream.
+- Exact Greek words and passages become anchored evidence inside the writing, not mandatory containers for it.
+- A Signal is a reader-authored relationship among evidence and may grow across sections and distant passages.
+- A selection or note is not automatically a Signal.
+- The graph emerges from reader-confirmed connections; do not make the reader maintain graph data directly.
+- Retrieval and models may surface earlier reader-authored material with an explicit reason, but only the reader can make a connection permanent.
+- Preserve uncertainty. Do not rewrite an unresolved perception as a conclusion.
+- The creator's structural sections are an attributed cultivated reading, not neutral divisions silently assigned to Plato.
+
+The currently implemented Dream-owned workflow is transitional. Build its replacement alongside it and preserve existing reader data. Do not remove old UI or persistence code until the replacement works and migration or archival behavior is explicit.
+
 ## Build and Development
 
 Prerequisites: Node.js 24+, npm
@@ -65,14 +78,14 @@ Read `CODING_STANDARDS.md` first. This project uses the C#-style rules described
 
 - The renderer has no direct filesystem or network access. Use the IPC channels defined in `src/shared/contracts/IpcChannels.ts`.
 - PlatoSI owns model-provider configuration; Chora stores only its local PlatoSI paths in `.env.local`.
-- Dreams and Signals are local Markdown files under `Documents/Chora/<work name>/Dreams/` and `Documents/Chora/<work name>/Signals/`. The main process owns persistence, folder placement, and recoverable aggregate trash.
+- Current Dreams and Signals are local Markdown files under `Documents/Chora/<work name>/Dreams/` and `Documents/Chora/<work name>/Signals/`. This is a transitional persistence model; the main process continues to own it, folder placement, and recoverable aggregate trash until migration is designed.
 - Catalogue reads use the in-memory `DreamLibrary`; explicit **Reload from disk** stages and validates a filesystem rescan before replacing it.
 - Reading uses PlatoSI's canonical catalogue and text; opening or importing external text files is not supported.
 - Dream sources and Signal selections use PlatoSI's versioned Stephanus-relative location contract.
 
 ## Current Model Workflow
 
-PlatoSI owns model configuration and inquiry execution. Chora has no model-provider or chat runtime. `ChatRepository` remains only to preserve previously saved conversation data when Dreams enter or leave Trash.
+PlatoSI owns model configuration and inquiry execution. Chora has no model-provider or chat runtime. `ChatRepository` remains only to preserve previously saved conversation data when Dreams enter or leave Trash. A future local-model memory workflow may retrieve bounded earlier writing and linguistic evidence, but it must return candidates with reasons and must never create reader graph connections.
 
 ## Configuration
 

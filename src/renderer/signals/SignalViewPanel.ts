@@ -86,7 +86,7 @@ export abstract class SignalViewPanel extends TabPanel
 		this.list.className = "signal-list";
 		this.list.setAttribute("aria-label", "Signals");
 		this.list.append(this.search);
-		this.divider.className = "signal-view-divider";
+		this.divider.className = "signal-view-divider column-resize-handle";
 		this.divider.setAttribute("role", "separator");
 		this.divider.setAttribute("aria-label", "Resize Signal list");
 		this.divider.setAttribute("aria-orientation", "vertical");

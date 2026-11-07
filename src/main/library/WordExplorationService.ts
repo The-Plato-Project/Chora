@@ -2,6 +2,8 @@ import type { TextDocument } from "../../shared/text/TextDocument.js";
 import { DecodeTextSelection } from "../../shared/text/TextSelection.js";
 import type {
 	WordEvidenceResult,
+	WordNameNote,
+	WordNameNoteKey,
 	WordObservation,
 	WordObservationKey,
 	WordOccurrence,
@@ -12,6 +14,7 @@ import { ApplicationError } from "../../shared/diagnostics/OperationResult.js";
 import type { PlatoSiApi } from "../platosi/PlatoSiGateway.js";
 import { LibraryService } from "./LibraryService.js";
 import { WordObservationRepository } from "./WordObservationRepository.js";
+import { WordNameNoteRepository } from "./WordNameNoteRepository.js";
 
 export class WordExplorationService
 {
@@ -20,8 +23,30 @@ export class WordExplorationService
 	public constructor(
 		private readonly library: LibraryService,
 		private readonly platosi: PlatoSiApi,
-		private readonly observations: WordObservationRepository)
+		private readonly observations: WordObservationRepository,
+		private readonly nameNotes: WordNameNoteRepository)
 	{
+	}
+
+	public async GetNameNoteAsync(value: unknown): Promise<WordNameNote>
+	{
+		const key = this.DecodeNameNoteKey(value);
+		return this.nameNotes.GetAsync(key);
+	}
+
+	public async SaveNameNoteAsync(value: unknown): Promise<WordNameNote>
+	{
+		const key = this.DecodeNameNoteKey(value);
+		const record = value as Record<string, unknown>;
+		const text = record.text;
+		if (typeof text !== "string" || text.length > 50000)
+		{
+			throw ApplicationError.Expected(
+				"validation",
+				"INVALID_WORD_NAME_NOTE",
+				"Name notes must contain at most 50,000 characters.");
+		}
+		return this.nameNotes.SaveAsync({ ...key, text });
 	}
 
 	public async GetObservationAsync(value: unknown): Promise<WordObservation>
@@ -119,6 +144,25 @@ export class WordExplorationService
 			throw ApplicationError.Expected("validation", "INVALID_WORD_OBSERVATION", "Word observation identity is invalid.");
 		}
 		return { dialogue, textVersion, lemma: lemma.normalize("NFC") };
+	}
+
+	private DecodeNameNoteKey(value: unknown): WordNameNoteKey
+	{
+		if (value === null || typeof value !== "object")
+		{
+			throw ApplicationError.Expected(
+				"validation", "INVALID_WORD_NAME_NOTE", "Name note identity is invalid.");
+		}
+		const record = value as Record<string, unknown>;
+		const dialogue = record.dialogue;
+		const lemma = record.lemma;
+		if (typeof dialogue !== "string" || dialogue.length === 0 || dialogue.length > 200
+			|| typeof lemma !== "string" || lemma.length === 0 || lemma.length > 200)
+		{
+			throw ApplicationError.Expected(
+				"validation", "INVALID_WORD_NAME_NOTE", "Name note identity is invalid.");
+		}
+		return { dialogue, lemma: lemma.normalize("NFC") };
 	}
 
 	private FindOccurrences(document: TextDocument, form: string): WordSearchResult

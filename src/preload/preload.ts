@@ -10,6 +10,8 @@ import { IPC_CHANNELS } from "../shared/contracts/IpcChannels.js";
 import type { ApiSubscription, ChoraApi, FormattingAction } from "../shared/contracts/ChoraApi.js";
 import type {
 	WordEvidenceResult,
+	WordNameNote,
+	WordNameNoteKey,
 	WordObservation,
 	WordObservationKey,
 	WordPersonResearch,
@@ -34,6 +36,18 @@ async function GetPersonResearch(
 {
 	const result = await ipcRenderer.invoke(IPC_CHANNELS.getPersonResearch, selection, lemma);
 	return result as OperationResult<WordPersonResearch>;
+}
+
+async function GetWordNameNote(key: WordNameNoteKey): Promise<OperationResult<WordNameNote>>
+{
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.getWordNameNote, key);
+	return result as OperationResult<WordNameNote>;
+}
+
+async function SaveWordNameNote(note: WordNameNote): Promise<OperationResult<WordNameNote>>
+{
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.saveWordNameNote, note);
+	return result as OperationResult<WordNameNote>;
 }
 
 async function OpenExternalSource(url: string): Promise<OperationResult<void>>
@@ -255,6 +269,8 @@ const api: ChoraApi = {
 	SearchWord,
 	GetWordEvidence,
 	GetPersonResearch,
+	GetWordNameNote,
+	SaveWordNameNote,
 	OpenExternalSource,
 	GetWordObservation,
 	SaveWordObservation,

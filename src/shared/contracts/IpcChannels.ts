@@ -12,6 +12,8 @@ export const IPC_CHANNELS = {
 	searchWord: "chora:search-word",
 	getWordEvidence: "chora:get-word-evidence",
 	getPersonResearch: "chora:get-person-research",
+	getWordNameNote: "chora:get-word-name-note",
+	saveWordNameNote: "chora:save-word-name-note",
 	openExternalSource: "chora:open-external-source",
 	getWordObservation: "chora:get-word-observation",
 	saveWordObservation: "chora:save-word-observation",

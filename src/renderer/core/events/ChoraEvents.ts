@@ -19,6 +19,8 @@ export interface ChoraEvents
 	"workspace.sidebar-select-requested": { id: string };
 	"word.exploration-requested": { selection: TextSelection };
 	"word.exploration-changed": Record<string, never>;
+	// Announces the exact canonical ranges belonging to the active Word Lookup lemma.
+	"word.highlights-changed": { selections: readonly TextSelection[] };
 	"lookup.changed": Record<string, never>;
 	"library.text-opened": Record<string, never>;
 	"library.text-open-requested": { textId: string };

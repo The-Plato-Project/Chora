@@ -10,8 +10,10 @@ export interface WordExplorationSnapshot
 	readonly selectedLemma: string | null;
 	readonly observation: string;
 	readonly personResearch: WordPersonResearch | null;
+	readonly nameNote: string;
 	readonly loadingObservation: boolean;
 	readonly loadingPersonResearch: boolean;
+	readonly loadingNameNote: boolean;
 	readonly searching: boolean;
 	readonly loadingEvidence: boolean;
 }
@@ -25,8 +27,10 @@ export class WordExplorationStore
 	private selectedLemma: string | null = null;
 	private observation = "";
 	private personResearch: WordPersonResearch | null = null;
+	private nameNote = "";
 	private loadingObservation = false;
 	private loadingPersonResearch = false;
+	private loadingNameNote = false;
 	private searching = false;
 	private loadingEvidence = false;
 
@@ -40,8 +44,10 @@ export class WordExplorationStore
 			selectedLemma: this.selectedLemma,
 			observation: this.observation,
 			personResearch: this.personResearch,
+			nameNote: this.nameNote,
 			loadingObservation: this.loadingObservation,
 			loadingPersonResearch: this.loadingPersonResearch,
+			loadingNameNote: this.loadingNameNote,
 			searching: this.searching,
 			loadingEvidence: this.loadingEvidence
 		};
@@ -58,8 +64,10 @@ export class WordExplorationStore
 		this.selectedLemma = null;
 		this.observation = "";
 		this.personResearch = null;
+		this.nameNote = "";
 		this.loadingObservation = false;
 		this.loadingPersonResearch = false;
+		this.loadingNameNote = false;
 	}
 
 	public Clear(): void
@@ -71,8 +79,10 @@ export class WordExplorationStore
 		this.selectedLemma = null;
 		this.observation = "";
 		this.personResearch = null;
+		this.nameNote = "";
 		this.loadingObservation = false;
 		this.loadingPersonResearch = false;
+		this.loadingNameNote = false;
 		this.searching = false;
 		this.loadingEvidence = false;
 	}
@@ -93,6 +103,8 @@ export class WordExplorationStore
 		this.selectedLemma = lemma;
 		this.observation = "";
 		this.personResearch = null;
+		this.nameNote = "";
+		this.loadingNameNote = false;
 	}
 
 	public SetObservation(value: string): void
@@ -110,9 +122,19 @@ export class WordExplorationStore
 		this.personResearch = value === null ? null : structuredClone(value);
 	}
 
+	public SetNameNote(value: string): void
+	{
+		this.nameNote = value;
+	}
+
 	public SetLoadingPersonResearch(value: boolean): void
 	{
 		this.loadingPersonResearch = value;
+	}
+
+	public SetLoadingNameNote(value: boolean): void
+	{
+		this.loadingNameNote = value;
 	}
 
 	public SetSearching(searching: boolean): void

@@ -176,6 +176,7 @@ export class LibraryController
 		const action = await this.gateway.ShowSelectionContextMenuAsync(canAddSignal, canAddToDreamSource, canAddToSelectedSignal, canExploreWord);
 		if (action === "explore-word" && wordSelection !== null)
 		{
+			this.SetSelection(null);
 			await this.events.PublishAsync("word.exploration-requested", { selection: wordSelection });
 		}
 		if (action === "create-dream") await this.events.PublishAsync("dream.create-requested", { selection });

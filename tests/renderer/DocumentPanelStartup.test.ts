@@ -160,7 +160,7 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 		expect(scroll).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
 	});
 
-	it("keeps Dream and Signal highlights when navigating to a word", async function PreservesHighlightsForWordAsync(): Promise<void>
+	it("keeps Dream, Signal, and lemma occurrence highlights independent", async function PreservesHighlightsForWordAsync(): Promise<void>
 	{
 		const nodes = root.querySelectorAll<HTMLElement>("[data-segment-key]");
 		const segments = Array.from(nodes);
@@ -183,15 +183,20 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 			start: { stephanus: "s2", offset: 0 },
 			end: { stephanus: "s2", offset: 4 }
 		};
+		const secondWord: TextSelection = {
+			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+			start: { stephanus: "s3", offset: 0 },
+			end: { stephanus: "s3", offset: 4 }
+		};
+		await events.PublishAsync("word.highlights-changed", { selections: [word, secondWord] });
 		await events.PublishAsync("library.jump-requested", { selection: source });
 		await events.PublishAsync("library.jump-requested", { selection: signal, target: "signal" });
-		await events.PublishAsync("library.jump-requested", { selection: word, target: "word" });
 		const sourceHighlight = root.querySelector<HTMLElement>(".signal-source-target");
 		const signalHighlight = root.querySelector<HTMLElement>(".signal-focus-target");
-		const wordHighlight = root.querySelector<HTMLElement>(".source-quotation-text .word-focus-target");
+		const wordHighlights = Array.from(root.querySelectorAll<HTMLElement>(".word-focus-target"));
 		expect(sourceHighlight?.textContent).toBe("κατέβην");
 		expect(signalHighlight?.textContent).toBe("κατέ");
-		expect(wordHighlight?.textContent).toBe("πρὸς");
+		expect(wordHighlights.map(function ReadHighlight(item): string | null { return item.textContent; })).toEqual(["πρὸς", "μετὰ"]);
 	});
 
 	it("highlights every segment covered by a Dream source passage", async function HighlightsCompletePassageAsync()

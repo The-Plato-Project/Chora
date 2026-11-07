@@ -2,6 +2,8 @@ import { ReadOperationAsync } from "../../../shared/diagnostics/OperationResult.
 import type { TextSelection } from "../../../shared/text/TextSelection.js";
 import type {
 	WordEvidenceResult,
+	WordNameNote,
+	WordNameNoteKey,
 	WordObservation,
 	WordObservationKey,
 	WordPersonResearch,
@@ -15,6 +17,18 @@ export class WordExplorationGateway
 		const operation = window.chora.SearchWord(workId, form);
 		const result = await ReadOperationAsync(operation);
 		return result;
+	}
+
+	public async GetNameNoteAsync(key: WordNameNoteKey): Promise<WordNameNote>
+	{
+		const operation = window.chora.GetWordNameNote(key);
+		return ReadOperationAsync(operation);
+	}
+
+	public async SaveNameNoteAsync(note: WordNameNote): Promise<WordNameNote>
+	{
+		const operation = window.chora.SaveWordNameNote(note);
+		return ReadOperationAsync(operation);
 	}
 
 	public async GetEvidenceAsync(selection: TextSelection): Promise<WordEvidenceResult>

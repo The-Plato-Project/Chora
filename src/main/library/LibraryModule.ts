@@ -7,6 +7,7 @@ import { PlatoSiGateway } from "../platosi/PlatoSiGateway.js";
 import { WordExplorationIpcController } from "./WordExplorationIpcController.js";
 import { WordObservationRepository } from "./WordObservationRepository.js";
 import { WordExplorationService } from "./WordExplorationService.js";
+import { WordNameNoteRepository } from "./WordNameNoteRepository.js";
 
 // Owns Library composition and its renderer-facing IPC boundary.
 export class LibraryModule extends ApplicationModule
@@ -27,7 +28,9 @@ export class LibraryModule extends ApplicationModule
 		this.service = new LibraryService(repository);
 		this.ipcController = new LibraryIpcController(this.service);
 		const observations = new WordObservationRepository(internalPath);
-		this.words = new WordExplorationService(this.service, platosi, observations);
+		const nameNotes = new WordNameNoteRepository(internalPath);
+		this.words = new WordExplorationService(
+			this.service, platosi, observations, nameNotes);
 		this.wordsIpc = new WordExplorationIpcController(this.words);
 	}
 

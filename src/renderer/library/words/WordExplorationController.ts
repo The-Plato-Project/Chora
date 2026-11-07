@@ -101,6 +101,7 @@ export class WordExplorationController
 					if (possibility !== undefined)
 					{
 						this.store.SelectLemma(possibility.lemma);
+						await this.PublishHighlightsAsync();
 						void this.LoadPersonResearchAsync(selection, possibility.lemma);
 						await this.LoadObservationAsync(selection, possibility.lemma);
 					}
@@ -139,6 +140,7 @@ export class WordExplorationController
 		if (available)
 		{
 			this.store.SelectLemma(lemma);
+			await this.PublishHighlightsAsync();
 			await this.ChangedAsync();
 			if (snapshot.selection !== null)
 			{
@@ -181,6 +183,25 @@ export class WordExplorationController
 		}
 	}
 
+	public async SaveNameNoteAsync(text: string): Promise<void>
+	{
+		const snapshot = this.store.GetSnapshot();
+		if (snapshot.selection === null || snapshot.selectedLemma === null) return;
+		this.store.SetNameNote(text);
+		try
+		{
+			await this.gateway.SaveNameNoteAsync({
+				dialogue: snapshot.selection.dialogue,
+				lemma: snapshot.selectedLemma,
+				text
+			});
+		}
+		catch (error)
+		{
+			this.errors.Report("WordExploration", error, "Could not save this name note.");
+		}
+	}
+
 	public async JumpAsync(selection: TextSelection): Promise<void>
 	{
 		await this.reader.RevealSelectionAsync(selection, "word");
@@ -198,6 +219,7 @@ export class WordExplorationController
 			{
 				const form = document.ReconstructText(event.selection);
 				this.store.Select(event.selection, form);
+				await this.PublishHighlightsAsync();
 				if (version === this.selectionVersion)
 				{
 					await this.LoadEvidenceAsync(event.selection);
@@ -255,10 +277,13 @@ export class WordExplorationController
 		if (!isProperCandidate)
 		{
 			this.store.SetPersonResearch(null);
+			this.store.SetNameNote("");
 			this.store.SetLoadingPersonResearch(false);
+			this.store.SetLoadingNameNote(false);
 			await this.ChangedAsync();
 			return;
 		}
+		void this.LoadNameNoteAsync(selection, lemma);
 		const generation = this.generation;
 		this.store.SetPersonResearch(null);
 		this.store.SetLoadingPersonResearch(true);
@@ -294,12 +319,85 @@ export class WordExplorationController
 		}
 	}
 
+	private async LoadNameNoteAsync(selection: TextSelection, lemma: string): Promise<void>
+	{
+		const generation = this.generation;
+		this.store.SetNameNote("");
+		this.store.SetLoadingNameNote(true);
+		await this.ChangedAsync();
+		try
+		{
+			const note = await this.gateway.GetNameNoteAsync({
+				dialogue: selection.dialogue,
+				lemma
+			});
+			const current = this.store.GetSnapshot();
+			if (generation === this.generation && current.selectedLemma === lemma)
+			{
+				this.store.SetNameNote(note.text);
+			}
+		}
+		catch (error)
+		{
+			if (generation === this.generation)
+			{
+				this.errors.Report("WordExploration", error, "Could not load this name note.");
+			}
+		}
+		finally
+		{
+			const current = this.store.GetSnapshot();
+			if (generation === this.generation && current.selectedLemma === lemma)
+			{
+				this.store.SetLoadingNameNote(false);
+				await this.ChangedAsync();
+			}
+		}
+	}
+
 	private async ResetAsync(): Promise<void>
 	{
 		this.generation += 1;
 		this.selectionVersion += 1;
 		this.store.Clear();
+		await this.PublishHighlightsAsync();
 		await this.ChangedAsync();
+	}
+
+	// Publishes the original word and every mapped occurrence of the reader-selected lemma.
+	private async PublishHighlightsAsync(): Promise<void>
+	{
+		const snapshot = this.store.GetSnapshot();
+		const selections = new Map<string, TextSelection>();
+		if (snapshot.selection !== null)
+		{
+			const key = this.GetSelectionKey(snapshot.selection);
+			selections.set(key, snapshot.selection);
+		}
+		const lemma = snapshot.evidence?.lemmas.find(function MatchesLemma(candidate): boolean
+		{
+			return candidate.lemma === snapshot.selectedLemma;
+		});
+		for (const form of lemma?.forms ?? [])
+		{
+			for (const occurrence of form.occurrences)
+			{
+				const key = this.GetSelectionKey(occurrence.selection);
+				selections.set(key, occurrence.selection);
+			}
+		}
+		const highlights = Array.from(selections.values());
+		await this.events.PublishAsync("word.highlights-changed", { selections: highlights });
+	}
+
+	// Returns the stable canonical identity used to remove duplicate occurrence ranges.
+	private GetSelectionKey(selection: TextSelection): string
+	{
+		const start = selection.start;
+		const end = selection.end;
+		const key = `${selection.dialogue}:${selection.text_version}:${start.stephanus}:${start.offset}:${end.stephanus}:${end.offset}`;
+
+		return key;
 	}
 
 	private async ChangedAsync(): Promise<void>

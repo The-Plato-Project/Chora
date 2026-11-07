@@ -394,6 +394,13 @@ describe("DreamPanel", function DreamPanelTests()
 		const body = root.querySelector<HTMLElement>(".signal-view-body")!;
 		const list = root.querySelector<HTMLElement>(".signal-view-body > .signal-list")!;
 		const divider = root.querySelector<HTMLElement>(".signal-view-divider")!;
+		expect(divider.classList.contains("column-resize-handle")).toBe(true);
+		expect(root.querySelector("[data-dream-source-divider]")?.classList.contains("row-resize-handle"))
+			.toBe(true);
+		expect(root.querySelector(".signal-markdown-editor")?.classList.contains("multiline-input"))
+			.toBe(true);
+		expect(root.querySelector(".dream-reflections-markdown")?.classList.contains("multiline-input"))
+			.toBe(true);
 		const first = root.querySelector<HTMLButtonElement>('[data-signal-toggle="signal-1"]')!;
 		vi.spyOn(body, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 800, 500));
 		vi.spyOn(list, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 232, 500));

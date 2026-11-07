@@ -1,182 +1,488 @@
-# Development Plan: Rooms and Word Exploration
+# Development Plan: Writing, Signals, and Reader Memory
 
-This plan translates [VISION.md](VISION.md) into a proposed sequence of work. It describes future behavior, not features that are already implemented. Implementation details and open decisions require review before code changes. The current application is described in [README.md](README.md).
+This plan translates [VISION.md](VISION.md) into a staged transition from the current passage-bound Dream workflow to a writing-first workspace with durable, reader-confirmed relationships.
 
-## Desired Experience
+The replacement must be built and exercised before old code is removed. Existing Dreams, Signals, Reflections, passages, and Trash records remain reader data and must stay recoverable until an explicit migration or archival decision is made. [README.md](README.md) documents the currently implemented behavior during this transition.
 
-The reader chooses a passage in a work and creates a Dream, a focused room for reading and memory. The reader selects Signals and writes their own observations. From that room, they can explore a word across the entire current work, find Greek passages and related forms, and follow possible connections back to the text. English can help describe a word and its range, but does not replace the Greek or reduce it to one fixed equivalent.
+## Target Experience
 
-Chora holds the reader's attention by surfacing the objects in the chosen room. The model acts like an animated object that speaks when asked: it offers information in response to the reader's requests, but does not make the reader's personal connections or impose a viewpoint. The reader examines sources, decides what matters, and preserves their own observations. Markers allow the reader to return to earlier encounters and remember and connect them personally. A future visualization may present overlapping relationships, but must not replace that act of discovery.
+The reader opens a dialogue and writes continuously in the middle workspace without first creating a container from a text selection. They can bring exact Greek words and passages into that writing as anchored evidence. Clicking an anchor returns to the source; clicking a Greek word can open the same linguistic evidence available through Word Lookup.
 
-## Guiding Constraints
+When the reader notices that several pieces of evidence may belong together, they can preserve that relationship as a Signal. A Signal can grow across sections and distant parts of a dialogue. It can remain a question or unresolved possibility.
 
-- The reader chooses the room, Signals, questions, and direction of inquiry.
-- Surface Greek text, locations, and requested linguistic information; do not generate or impose the reader's interpretation or automatically connect their Dreams.
-- Make earlier passages and reader-created observations available as markers for the reader to revisit, not as a model-created memory presented in place of their own.
-- The model responds when asked. It may provide information about linguistic relationships the reader requests, but it should not make unsolicited connections among the reader's experiences or observations.
-- English is useful support for understanding, not a substitute for returning to the Greek.
-- New UX should feel native to Chora's existing CSS design. Reuse its theme variables, typography, spacing, controls, icons, and panel patterns where appropriate rather than introducing a separate visual language. Support both light and dark themes, keyboard and focus states, and existing responsive layouts.
+While the reader continues, Chora can surface a small number of earlier thoughts that may be relevant. Each candidate explains why it appeared. The reader decides whether to open it, connect it, dismiss it, or ignore it. No model or retrieval system establishes the relationship for them.
 
-## Current Starting Point
+The first release does not require semantic retrieval. It succeeds when a reader who referenced a money-related word while writing about Cephalus can select that word later in Thrasymachus, see the earlier Dream in Word Lookup, reopen it at the reference, add the new passage, and continue the existing inquiry.
 
-- Chora obtains its Plato catalogue, canonical reading text, and organized word evidence from PlatoSI. It owns PlatoSI-versioned selections, Dream-owned Signals, reader-authored reflections, and the native presentation of returned evidence.
-- The main process owns persistence and the PlatoSI connection. The renderer uses the typed preload bridge, feature gateways, stores, and event bus.
-- The Dream editor no longer shows Clarity Check, and the unused Chora model-provider runtime has been removed. Existing conversation data remains recoverable through Dream Trash.
-- The workspace has an activity rail and built-in sidebar-extension host. Explorer and Word Exploration are built-in panels; the Dream tab strip has a separate owner.
-- PlatoSI is a local dependency providing canonical text and deterministic linguistic evidence. Its `linguistics.evidence` operation validates one exact canonical word selection and organizes attributed lemma candidates, the local LSJ entry, normalization, spelling suggestions, attestation distributions and citations, compact paradigms, warnings, and provenance. After the reader selects a lemma candidate, Chora matches its returned paradigm forms against the canonical current dialogue and owns the exact occurrence navigation. Roots, compounds, and broader lexical relationships remain future work.
+## Transition Rules
 
-## Phase 1: Remove the Chat Surface Safely
+- Build the new workflow beside the existing Dream and Signal workflow.
+- Do not delete, rewrite, or silently migrate reader files while the replacement is experimental.
+- Keep current exact-selection reconstruction and navigation working.
+- Reuse proven Markdown editing, autosave, layout, Word Lookup, and PlatoSI boundaries where they fit.
+- Treat the current Dream-owned Signal model as transitional, not as the target domain.
+- Remove old UI and persistence code only after the replacement is working and migration behavior has been decided and tested.
 
-The Clarity Check panel and its unreachable chat/provider runtime have been removed. Dream editing, Signal workflows, saves, and navigation remain. `ChatRepository` retains only the persistence needed to preserve existing conversation files in Dream Trash.
+## Product Invariants
 
-**Completion:** The chat surface is no longer presented; existing reader data remains recoverable and the remaining Dream workflows continue to work.
+- The writing surface is primary; a passage selection is not required to begin thinking.
+- Exact text remains available beside every observation that cites it.
+- A selection or note does not automatically become a completed Signal.
+- A Signal is a reader-authored relationship among evidence.
+- The same evidence may participate in several Signals.
+- A Signal may cross authored sections and distant dialogue locations.
+- Uncertainty and unresolved questions must be preserved.
+- Retrieval may suggest; only the reader confirms.
+- Every suggestion must state why it appeared.
+- Deterministic textual or linguistic evidence must remain distinguishable from model similarity.
+- The graph is an underlying result of reading, not a form the reader must maintain manually.
+- Reader writing remains local unless a future, explicit model action identifies exactly what will be read.
 
-## Phase 2: Built-in Workspace Extensions
+## Working Domain Concepts
 
-Add a narrow contribution contract for features shipped as part of Chora. Each extension provides an identity, title, icon, and panel lifecycle. A workspace host owns registration, activity-bar selection, visibility, and cleanup. This is not a third-party extension marketplace or a promise to load arbitrary code.
+These names describe responsibilities, not final class or storage names.
 
-Move Explorer into the new host as an always-available built-in extension. Separate Explorer ownership from the Dream tab strip where the existing UI combines them. Preserve the reader and Dream editor while switching panels, and retain panel state, resizing, collapse, keyboard access, and saved layout. Use the existing typed events, stores, and feature gateways for shared capabilities rather than having panels call one another.
+### Structural section
 
-**Completion:** Explorer remains usable, and a second built-in panel can be registered without rewriting the workspace shell or disrupting an open Dream. The activity bar and sidebar fit the existing visual design in both themes and remain usable at supported window sizes.
+An authored division or transition in a dialogue. Chora may provide a cultivated structural map, and readers may eventually create personal divisions. A structural section is navigation and context; it must not imply that adjacent parts are unrelated.
 
-## Phase 3: Evaluate PlatoSI and Greek Evidence
+### Writing document
 
-Chora now uses PlatoSI as its sole source of canonical text, catalogue metadata, version fingerprints, and reader-requested inquiries. The local PlatoSI process remains an explicit development/runtime dependency configured through environment variables.
+A sustained reader-authored text associated with a dialogue or inquiry. The current working product name may remain **Dream** during the transition. It can cite many distant passages and words. It may remember an origin passage, but it is not owned or bounded by that passage.
 
-Chora does not bundle Plato texts, lexical indexes, morphology data, or generated corpus artifacts. PlatoSI owns source acquisition, revision pinning, normalization, licensing metadata, and evidence-provider policy.
+### Text anchor
 
-PlatoSI supplies one rendered section per Stephanus location. Chora persists PlatoSI's exact `dialogue`, `text_version`, and start/end `{ stephanus, offset }` contract and validates every selection against the active version before reconstruction or navigation.
+An exact, PlatoSI-versioned reference to a word, phrase, or passage. It preserves the original Greek, canonical location, and enough context to reconstruct and navigate safely.
 
-**Completion:** Chora has one canonical text source and no independent corpus pipeline or bundled text copy.
+### Signal
 
-### Evidence Review
+A reader-authored relationship that gathers one or more anchors and the reader's developing account of why they may belong together. A Signal can grow and can remain unresolved.
 
-- Chora treats PlatoSI's text-version fingerprint as part of every persisted passage address. A location from another version is rejected rather than silently mapped.
-- Chora uses UTF-16, section-relative, start-inclusive and end-exclusive offsets, matching the contract exposed by PlatoSI to Chora.
-- PlatoSI corpus search finds literal forms. Its experimental word reader uses morphology candidates to look up dictionary headwords and can join a selected lemma's direct provider mappings to forms attested in a requested source scope. This is not exhaustive or contextual disambiguation, and a missing candidate does not prove that no analysis exists.  The Dilemma and GLEM providers remain optional and have unresolved data or artifact licensing questions.
-- PlatoSI identifies its LSJ source as CC BY-SA 4.0, but its inclusion and redistribution still require review of the selected files, attribution, and applicable obligations. GLEM and derived indexes must not be bundled or used commercially without resolving the rights identified in [PlatoSI's licensing review](../PlatoSI/docs/glem-licensing-review.md).
+### Candidate memory
 
-#### Local evaluation, 1 November 2026
+An earlier piece of reader writing or a Signal surfaced for possible relevance. It records why it was retrieved but is not a graph relationship until the reader confirms one.
 
-The configured PlatoSI `0.1.0.dev1` process reported the 35-work canonical catalogue. Its *Republic* has 1,355 canonical sections. A live `canonical.resolve` request returned κατέβην at 327a; additional checks reconstructed a newline both between segments in one section and between sections, and rejected a different text fingerprint. Chora's existing focused integration and selection tests also passed. These checks do not establish exhaustive navigation correctness or morphology coverage.
+### Confirmed connection
 
-The first configured check found both Dilemma and GLEM disabled. A subsequent comprehensive isolated Dilemma 1.3.10 evaluation exercised all discovered public capabilities and downloaded the optional attestation and citation databases. Provider-specific evaluation belongs to PlatoSI; Chora does not expose Dilemma controls or import Dilemma. GLEM remains disabled.
+A durable reader action connecting evidence, writing, or Signals. This forms the graph beneath the reading experience.
 
-An earlier research measurement in [PlatoSI's morphology manifest](../PlatoSI/docs/morphology-manifest.json) found exact GLEM form overlap for 82,554 of 88,231 tokens (93.6%) in its separately indexed *Republic* source. This is case- and accent-sensitive orthographic overlap, not lemma recall, contextual accuracy, or coverage of Chora's canonical text. The GLEM lists and derived indexes have unresolved commercial and redistribution rights. The [comprehensive Dilemma evaluation](../PlatoSI/docs/dilemma-phase1-evaluation.md) records capability outputs, ambiguity, false-positive risks, artifact gaps, and performance observations. Dilemma's separate artifacts still require rights and provenance review.
+## Foundation Data Model
 
-The local dependency remains a development distribution requiring separately installed Python and corpus setup; it does not bundle morphology resources or models. A sibling checkout, local archive, and a successful lookup on one computer do not establish a packaged end-user installation.
+The names below are provisional, but their separation is required.
 
-### Integration Direction
+### Dream document
 
-The reader has clarified that PlatoSI should supply the text and own linguistic processing, with Chora depending on its capabilities rather than choosing providers itself. Chora starts and stops PlatoSI as a local helper and owns its reader records and presentation. Its Library uses PlatoSI's canonical catalogue and text directly, and persisted selections carry the text fingerprint and section-relative offsets. Word evidence uses PlatoSI's local-process API without an LLM.
+The durable reader-authored document:
 
-The helper does not require a separate remote server. PlatoSI may itself communicate with a locally running model through the model's own interface; that is PlatoSI's responsibility, not Chora's API. Packaging, process lifecycle details, versioning, and failure handling still need implementation decisions. If Chora and PlatoSI use different text representations, their results need verified mapping to the displayed edition. Source-based matching must preserve exact original offsets through any normalization. The model is not a morphology database: proposed analyses or forms can be wrong or incomplete and must not be presented as an exhaustive list.
+- stable identity;
+- work or dialogue scope;
+- title;
+- Markdown or structured editor content;
+- created and modified times;
+- optional origin anchor recording where the thought began;
+- no required owning passage.
 
-The locally configured Dilemma provider uses Morpheus-backed generation and several separately licensed artifacts. Its data provenance, rights, Windows packaging, and coverage remain unresolved for distribution. Chora does not bundle those artifacts or the separate local LSJ dataset.
+### Anchor
 
-In all options, literal form search is not a substitute for lemma-wide evidence, and a model suggestion must remain visibly distinct from source-backed morphology. No verified mapping or morphology coverage should be claimed until it has been measured against curated examples.
+One canonical reference:
 
-Chora's current Word lookup panel sends an exact PlatoSI location, renders the organized deterministic response, and separately searches the displayed canonical text for exact occurrences. It does not use an embedded Logeion web view, ask an LLM, guarantee exhaustive morphology, or bundle the locally configured Dilemma artifact set.
+- stable identity;
+- work and canonical text version;
+- start and end `{ stephanus, offset }` locations;
+- exact selected Greek;
+- reference kind such as word, phrase, passage, or range;
+- enough context to validate and reconstruct the selection.
 
-### Chora-PlatoSI API Direction
+An anchor is reusable. The same anchor may appear in several Dreams and Signals.
 
-The reader should be able to see what they can look up, expressed in terms of Greek words and passages rather than models, providers, prompts, or technical settings. PlatoSI's interface to Chora should make its available capabilities discoverable, including information beyond a single word. Its playground should likewise make those possibilities clear to a reader; its developer-oriented controls are not the reader experience to reproduce in Chora.
+### Word evidence selection
 
-PlatoSI's experimental version 1 local-process API offers canonical text, capability discovery, organized canonical word evidence, lower-level word analyses, form mappings, text and passage lookups, separately requested model-backed inquiries, and provider-owned evaluation operations. See its [README](../PlatoSI/README.md#local-reader-api) for request and result shapes and current limits. Chora currently uses canonical catalogue and work operations plus `linguistics.evidence`; provider-specific evaluation and model inquiry remain outside this reader flow. Playground HTTP routes are separate.
+Word-specific state associated with a word anchor:
 
-**Ownership**
+- exact surface form;
+- unresolved lemma candidates returned by PlatoSI;
+- reader-selected lemma when the reader explicitly chooses one;
+- evidence version or digest needed to detect stale derived data.
 
-- PlatoSI supplies canonical displayed text; Chora's main process owns exact selections, navigation, Dreams, Signals, and reader-authored notes. The renderer reaches the helper only through Chora's existing typed IPC boundary.
-- PlatoSI owns linguistic resources, their attribution and availability, and provider configuration. Chora requests organized evidence, not a particular provider. Any future model inquiry is a separate explicit feature.
-- Opening a word exploration is an explicit request for information about that word. Exactly which results and brief contextual descriptions appear in response, and which broader inquiries require another reader action, remain open. Nothing automatically interprets the reader's notes or links their Dreams.
+Dictionary entries, morphology, and occurrence lists should be retrieved from PlatoSI rather than copied permanently into every Dream.
 
-**Local connection and lifecycle**
+### Dream reference placement
 
-PlatoSI's experimental transport is UTF-8 newline-delimited JSON over standard input and output, without exposing a network port. Standard output is reserved for protocol messages. Each request carries a contract version, a unique request ID, an operation, and its payload; each response echoes the ID and version. Chora manages the process, distinguishes outstanding requests, bounds message sizes, and surfaces connection failures through its existing diagnostics.
+The many-to-many relationship between a Dream and an anchor:
 
-On startup, Chora negotiates a compatible protocol with PlatoSI and owns helper startup, monitoring, and orderly shutdown, including cancelling outstanding work. Unexpected exit or malformed responses fail affected requests rather than appearing as empty results. The reader currently requires PlatoSI; a failed helper prevents startup or affected requests rather than silently switching text. Capability discovery, packaged runtime, resources, configuration, restart policy, and offline behavior require further work; a developer's sibling checkout or Python installation is not a distribution strategy.
+- Dream identity;
+- anchor identity;
+- stable placement identity inside the document;
+- display mode such as inline word, phrase, quotation, or collapsed range;
+- optional reader-authored label;
+- ordering or editor position needed to reopen the Dream at the reference.
 
-**Proposed operations**
+This relationship is what makes reverse discovery possible.
 
-| Operation | Request | Result |
-|---|---|---|
-| `capabilities` | Contract version. | Discoverable kinds of lookup and inquiry and their availability, including actionable reasons when resources or model-backed inquiries are unavailable. New kinds can be added through compatible contract versions without hard-coding model or provider choices into Chora. |
-| `linguistics.evidence` | One exact versioned PlatoSI location selecting a Greek word. | Grouped lemma possibilities, local dictionary entries, normalization and spelling evidence, form and lemma attestation, citations and distributions, compact paradigms, provider notices, and provenance. It does not select contextual meaning. |
-| `word.analyze` | Selected Greek form. | Attributed candidate lemmas and morphology, available lexical entries, evidence, and limitations. Candidates remain alternatives, not contextual facts. The current API does not yet accept Chora's passage context. |
-| `lemma.matchForms` | One reader-selected candidate lemma and a bounded batch of distinct exact forms from Chora's current work. | For each matched input form, attributable candidate mappings to that lemma; indicate missing resources, incomplete coverage, and any truncation. |
-| `text.search` and `text.passage` | Greek text to find, or a work, edition and citation. | Available source passages with citations, attribution, and limitations. PlatoSI's source locations require verification before they can become Chora navigation targets. |
-| `inquiry.ask` | A reader question and a canonical location, Greek text to search, or a PlatoSI edition and citation. | A fallible model-generated response and retrieved evidence, if available. The desired relationship inquiry remains future work; morphology, shared roots, and possible connections in use or meaning must not be collapsed into one relation. |
-| `request.cancel` | The ID of an outstanding request. | Acknowledgement of the cancellation request and, separately, a terminal outcome for the original request. Completion can race cancellation; Chora ignores a late result when the reader has moved on. |
+### Reverse reference index
 
-Responses distinguish successful, partial, unavailable, invalid, failed, and cancelled outcomes. A partial response contains any usable results together with specific warnings; an empty successful result is not used to conceal unavailable resources or a failure. The detailed error codes, batch limits, timeout behavior, and whether model responses stream are open contract decisions.
+A rebuildable accelerator from canonical evidence to Dream placements:
 
-An evidence item must identify its kind (such as primary-text passage, morphology, lexical source, or model suggestion), source attribution and available license information, and limitations. Results identify which evidence supports each claim; a model response remains a suggestion even when it cites valid evidence. Conflicting analyses stay separate. Missing attribution or unavailable license details must be reported rather than invented. Checking that a response has valid evidence references does not prove its interpretation is correct.
+- exact anchor to Dream placements;
+- confirmed lemma to word-anchor placements;
+- unresolved candidate lemma to separately labelled possible matches;
+- confirmed Signal membership to related anchors and Dreams.
 
-**Exact passage navigation**
+The index is not the source of truth. If it is incomplete or stale, Chora must rebuild it or fall back to authoritative Dream-reference records rather than hiding valid reader material.
 
-Chora derives the distinct surface forms and their exact occurrences from its own displayed current work. It may send forms to PlatoSI in batches and join each returned mapping back to the exact input form and Chora-owned occurrences. Internal normalization must not lose the original input form or turn an uncertain mapping into a confirmed analysis. The resulting passages and exact selections come from Chora's text; navigation must not replace the reader's Dream or Signal highlights. Scope is the entire current work, not only the current numbered book.
+## Foundation User Flow
 
-PlatoSI's older search and passage operations may also return evidence from its separately indexed source, which can use a different revision, representation, and offset units from the canonical text Chora displays. Those records are not automatically Chora selections. Even a matching edition or citation does not prove an exact location. Until a mapping is verified, show such a passage as sourced evidence without an exact jump; do not guess an offset or silently substitute a different passage.
+The first implementation should support this complete loop before adding model retrieval.
 
-**Reader data and retention**
+1. The reader creates a Dream without selecting a passage.
+2. The Dream opens as a continuous writing document.
+3. The reader selects a Greek word in the dialogue and drags it into the Dream.
+4. Chora inserts an inline word reference backed by an exact anchor.
+5. Selecting that reference opens Word Lookup for the original occurrence.
+6. The Dream saves its writing and reference placement locally.
+7. Later, the reader selects another occurrence of that word or confirmed lemma.
+8. Word Lookup shows a **Your Dreams** section with the earlier Dream and the reason it matched.
+9. Selecting the result opens the Dream at the earlier reference.
+10. The reader adds the current occurrence to that Dream and continues writing.
 
-The proposed initial requests send only the selected Greek, the necessary bounded text or form batches, and relevant work identifiers. They do not send Dream reflections, Signals, other reader notes, or prior reading history by default. Any future use of those records needs an explicit reader-directed interaction and a separate privacy and retention design. PlatoSI's resource or model configuration might allow external providers, so the final design must disclose the destination and data sent before such use; local process transport alone does not guarantee local model processing. Define cache contents, retention, deletion, and diagnostic redaction before enabling persistence of request data.
+Phrase and passage references use the same flow. Their visual presentation becomes more compact as the selected range grows, but they use the same anchor contract.
 
-**Illustrative flow**
+## Foundation UI Surfaces
 
-1. The reader selects **κατέβην** and opens Word Exploration. Chora sends its exact versioned location to `linguistics.evidence`.
-2. PlatoSI returns organized candidate analyses, dictionary evidence, attestation, and paradigms with attribution and uncertainty. If evidence is unavailable, the panel says so rather than inventing it.
-3. If the reader selects a candidate lemma, Chora compares the returned candidate paradigm forms with its canonical current dialogue. Only exact Chora-owned occurrences become navigation targets.
-4. An explicitly requested broader inquiry may later include a labeled, evidence-linked description. The reader decides what to notice and what, if anything, to write.
+### Dream editor
 
-**Migration and verification**
+- Create and open a Dream without requiring a source selection.
+- Accept dropped words, phrases, and passages.
+- Render short references inline and longer references as compact quotation or range cards.
+- Preserve ordinary Markdown writing around references.
+- Open the source or Word Lookup from a reference.
+- Save failures explicitly without losing the unsaved document.
 
-Further work must resolve source rights, runtime packaging, limits, and privacy, and continue verifying partial and unavailable results. Model-backed inquiry remains a separate future phase. Do not delete stored conversations or Dream Trash contents.
+### Word Lookup: Your Dreams
 
-Use curated examples including **κατέβην** and **πομπή**, ambiguous and missing analyses, multiple text segments sharing a citation, and non-BMP characters. Measure occurrence coverage and demonstrate exact selection mapping; do not infer completeness from a successful example. Obtain approval for new tests and follow the project's targeted validation discipline.
+Present reader history separately from dictionary and morphology evidence:
 
-## Phase 4: Word Exploration
+- **Exact occurrence** — this canonical anchor appears in these Dreams.
+- **Same selected lemma** — the reader explicitly chose the same lemma for these references.
+- **Possible same lemma** — evidence candidates overlap, but the reader has not resolved them.
+- **Connected by you** — a confirmed Signal joins this word to other evidence.
 
-**Status:** Implemented for organized deterministic evidence, reader-selected lemma candidates, exact selected-form occurrences, and exact current-dialogue occurrences of associated paradigm forms. Roots, compounds, and broader relationships remain future work.
+Each result includes the Dream title, cited occurrence, a short surrounding excerpt from the reader's writing when available, and a direct open-at-reference action.
 
-Add a built-in Word Exploration extension. Starting from a reader-selected word in the current room, present:
+### Reader
 
-- The selected Greek form, possible lemma analyses, and relevant forms, with ambiguity visible.
-- Occurrences and exact locations across the whole current work, with Greek passages and explicit navigation.
-- Available lexical information and English assistance without making one English equivalent the final meaning.
-- Separate views or labels for same-lemma forms, related words or roots, and possible connections in use or meaning.
-- Clear empty, incomplete, unavailable, and error states, including source coverage and any truncated results.
+- Preserve the current selection and reading position while opening an earlier Dream.
+- Allow the current selection to be added to the open Dream.
+- Show that a word or passage has reader-authored references without turning every referenced item into visual noise.
 
-The first example should include **κατέβην** in the *Republic*. Evaluate **πομπή** and **πέμπω** as another inquiry, including words that may be related in context without sharing a root. Do not assume an occurrence count or an exhaustive analysis before verifying the source and coverage. Greek normalization, accents, punctuation, elision, and multiple analyses require explicit handling.
+## Foundation Delivery Slices
 
-The panel keeps the reader's selected Dream and writing available. The obsolete embedded Logeion web view has been removed; local LSJ content is now part of the attributed PlatoSI response. Reuse existing Dream and Signal markers where possible so the reader can return to their own earlier observations.
+Each slice should leave the application usable and preserve the old workflow.
 
-**Completion:** The reader can select a supported word, examine attributable Greek evidence across the current work, and jump to a verified passage without losing their Dream or unsaved writing.
+### Slice A: New Dream document contract
 
-## Phase 5: Information on Request
+- Define the writing-first Dream document independently of the current aggregate that owns a source and child Signals.
+- Add local persistence with stable identity, dialogue scope, title, content, timestamps, and optional origin anchor.
+- Add repository and IPC operations without changing existing Dream files.
+- Open, edit, autosave, close, and reopen the new document.
 
-Extend the existing PlatoSI inquiry boundary to answer reader-initiated requests about forms, word relationships, passages, and context; PlatoSI owns model selection and provider integration. This can go beyond simple form matching: for example, the reader may explicitly ask about words related by morphology or use. Supply relevant text and available evidence without replacing the reader's act of making connections or imposing a fixed interpretation.
+**Exit check:** A new Dream survives restart without any source selection.
 
-Distinguish source evidence, scholarly classifications, model-generated possibilities, and reader-authored observations. Make it possible to inspect the passages behind a proposed connection. A source location can be checked without implying that a model's description of it is correct. Missing evidence, uncertainty, conflicting analyses, and model failures should remain visible.
+### Slice B: Exact anchor contract
 
-Explore an appropriate reader-facing control for the breadth of a requested inquiry. Do not assume that a model's numerical temperature alone reliably controls relevance, accuracy, or the kinds of information found. Model interaction, question assistance, and how the reader may retain requested information are open design decisions. Do not initiate model-generated personal connections or automatic links between Dreams.
+- Define one shared versioned selection type for word, phrase, passage, and range references.
+- Validate every anchor against PlatoSI before it is saved.
+- Persist anchors independently from their visual placement.
+- Reconstruct and navigate to an anchor after restart.
 
-**Completion:** The reader can request information, inspect its basis, and continue reading even if the model is unavailable. The model does not act unprompted or make the reader's personal connections; its output is not presented as the reader's own observation or as settled textual fact.
+**Exit check:** A saved anchor either reconstructs exactly or reports an explicit text-version failure.
 
-## Phase 6: Memory Markers and Future Visualization
+### Slice C: Embedded reference placements
 
-Design how reader-chosen markers, observations, and passages can be retained and revisited with their room and source references. These are cues for the reader's own memory and connections, not an automatically generated account of what they remember. Preserve distinctions among word forms, possible lemmas, passages, linguistic relationships, and the reader's own reflections. Allow overlapping, contextual, and uncertain relationships rather than forcing each word into one group or meaning.
+- Extend the editor schema so references are structured nodes rather than pasted HTML or plain Markdown links.
+- Support an inline word presentation first.
+- Add phrase, quotation, and collapsed-range presentations over the same anchor.
+- Preserve surrounding Markdown and stable placement identity through editing and serialization.
 
-The persistence owner, format, sharing across Dreams, deletion and Trash behavior, and how the reader chooses to retain requested information remain to be decided. Preserve existing reader data and avoid a second authoritative copy of Dream or Signal state.
+**Exit check:** Editing text around a reference does not change its source address or identity.
 
-Only after useful evidence and relationships can be collected and revisited should a graph extension be designed. It should use shared feature data rather than depend on the Word Exploration panel's DOM or private state.
+### Slice D: Reader-to-Dream insertion
 
-**Completion:** The reader can return to their chosen markers and observations without losing context or confusing model output with their own work. A visualization can be evaluated against real collected data rather than invented requirements, and must leave the reader to make their own connections.
+- Implement drag and drop from the canonical reader into the Dream editor.
+- Use the existing selection reconstruction boundary rather than trusting drag payload text.
+- Add an accessible non-drag action using the same insertion command.
+- Preserve the reader's current location after insertion.
 
-## Validation and Decisions
+**Exit check:** Dragging and the accessible command create equivalent anchor and placement records.
 
-Before implementation, agree on the evidence sources, integration boundary, offline and packaging requirements, treatment of ambiguous analyses, the role of the dictionary, and what is saved. Establish a small curated set of Greek forms and passages with expected results and coverage criteria; measure retrieval and source mapping against it rather than assuming completeness. Include ambiguous and missing cases as well as successful examples.
+### Slice E: Reference actions
 
-Validate workspace switching, reader navigation, exact citations, Dream and Signal persistence, existing conversation and Trash preservation, model failure, and accessibility. Review the new panels and pop-ups against the existing CSS in both themes, including focus, contrast, resizing, and narrow layouts. Follow the repository's build and test discipline: use targeted checks, and obtain approval before adding new tests or entering an iterative test-and-fix cycle. Update current-experience documentation only as behavior actually changes.
+- Selecting a word reference opens Word Lookup for its original occurrence.
+- Selecting a phrase or passage reference returns to and highlights the source.
+- Provide an explicit command to add the current reader selection to the open Dream.
+- Open a Dream at a stable reference placement.
 
-Dream remains the current product name. Any rename to Room or another term is a separate decision and is not part of this plan's initial implementation.
+**Exit check:** Navigation works in both directions after closing and reopening the application.
+
+### Slice F: Reverse Dream discovery
+
+- Build the rebuildable reverse reference index.
+- Add the **Your Dreams** section to Word Lookup.
+- Return exact occurrence matches first.
+- Add confirmed-lemma matches only when the reader explicitly selected the lemma.
+- Keep unresolved lemma candidates in a separately labelled group.
+
+**Exit check:** Word Lookup returns every authoritative matching Dream even when the accelerator is cleared and rebuilt.
+
+### Slice G: Existing-data bridge
+
+- Read existing Dreams and Signal passages without rewriting them.
+- Decide whether they appear in **Your Dreams** as legacy results before full migration.
+- Keep legacy and new identities distinct.
+- Record any anchor that cannot be reconstructed rather than dropping it.
+
+**Exit check:** Existing reader material remains accessible while new Dreams use the new contracts.
+
+## Engineering Boundaries
+
+- The renderer owns editor interaction and presentation, not filesystem persistence.
+- The main process owns Dream, anchor, placement, and index repositories.
+- Shared contracts carry stable types across IPC.
+- PlatoSI remains authoritative for canonical text validation and linguistic evidence.
+- The reverse index is derived and rebuildable.
+- Editor serialization must not be the only source of anchor identity.
+- No model dependency is permitted in foundation slices A–G.
+- Every operation must distinguish unavailable evidence, invalid anchors, persistence failure, and an empty result.
+
+## Foundation Validation
+
+The foundation is not complete until tests establish:
+
+- a Dream can exist without an origin passage;
+- one Dream can contain many anchors;
+- one anchor can appear in many Dreams;
+- a Dream can contain anchors from distant sections;
+- word, phrase, and passage displays retain the same canonical anchor;
+- exact source navigation survives restart;
+- Word Lookup finds all Dreams containing an exact occurrence;
+- confirmed-lemma matches never include unresolved candidates as facts;
+- clearing the reverse index does not remove authoritative results;
+- opening an earlier Dream does not discard the current reader location;
+- adding a new occurrence does not duplicate or corrupt an existing placement;
+- malformed or stale anchors fail explicitly;
+- legacy files are not changed by the new workflow.
+
+## Phase 0: Preserve the Current System
+
+Keep the current Dream, Signal, Reflections, navigation, Trash, and Markdown stores operational while new work proceeds. Record the current persistence contracts and identities needed for future migration.
+
+**Completion:** New development can proceed without making existing reader material inaccessible or changing its meaning.
+
+## Phase 1: Establish the Writing-First Workspace
+
+Introduce a continuous Markdown writing surface in the middle workspace that can exist without a selected source passage. It should preserve the current reliable editor behavior:
+
+- local persistence;
+- autosave with explicit failure reporting;
+- keyboard access;
+- light and dark themes;
+- shared multiline editor styling;
+- stable layout and resizing;
+- no dependence on a model.
+
+The initial scope is multiple named Dreams per dialogue. A Dream may remember its origin passage, but creation and editing do not require one. Keep the current name provisionally; naming can change without altering the underlying document and anchor contracts.
+
+**Completion:** A reader can open a dialogue, begin writing immediately, close the application, and return to the same writing.
+
+## Phase 2: Insert Exact Text Anchors
+
+Allow the reader to bring selected Greek into the writing surface. Candidate interactions include drag and drop, a selection action, and a keyboard command; the implementation may support more than one, but all must produce the same exact anchor.
+
+An inserted anchor must:
+
+- retain the canonical work and text version;
+- retain start-inclusive and end-exclusive locations;
+- preserve the selected Greek;
+- display a useful citation;
+- navigate back to and highlight the source;
+- fail explicitly if the text version no longer reconstructs.
+
+Define distinct presentations of the same anchor, such as an inline citation, quoted passage, or compact reference block, without creating incompatible data types.
+
+Persist Dream-reference placements separately enough that they can be indexed and reopened without parsing arbitrary rendered HTML.
+
+**Completion:** A reader can cite several distant passages in one continuous account, move reliably between writing and source, and reopen the document at a specific reference.
+
+## Phase 3: Connect Word References, Word Lookup, and Dreams
+
+When an anchor selects a Greek word, preserve the exact occurrence and allow the reader to open Word Lookup from the writing surface. Reuse PlatoSI's evidence pipeline rather than storing a model-generated definition in the writing.
+
+The reference must distinguish:
+
+- exact surface form;
+- candidate lemmas;
+- reader-selected lemma, if any;
+- morphology and dictionary evidence;
+- dialogue-wide occurrences;
+- related evidence and its limitations.
+
+English equivalents must not become the reference identity.
+
+Add the **Your Dreams** Word Lookup surface and the reverse reference index. Query authoritative reference records when the index is missing or stale.
+
+Order and label matches by their evidence:
+
+1. exact canonical occurrence;
+2. same reader-selected lemma;
+3. possible same lemma;
+4. reader-confirmed Signal connection.
+
+Do not include semantic model similarity in this phase.
+
+**Completion:** A Greek word cited in the reader's writing remains connected to its source occurrence and inspectable linguistic evidence. Looking up the same exact occurrence or confirmed lemma later returns the earlier Dream and opens it at the reference.
+
+## Phase 4: Redefine Signals as Growing Relationships
+
+Create the new Signal workflow around reader attention rather than automatic selection.
+
+The reader should be able to:
+
+- begin a Signal from writing and anchored evidence;
+- give the relationship a provisional name;
+- describe a question without resolving it;
+- add evidence from another section later;
+- connect an existing anchor to more than one Signal;
+- inspect the history of the Signal's growth;
+- remove a connection without deleting the underlying writing or passage.
+
+Bringing evidence into writing may create a **Signal seed** or mark it as available to Signals, but it must not manufacture a completed relationship or interpretation.
+
+**Completion:** One Signal can preserve and grow a relationship such as seeing and the divine across distant passages without fragmenting the reader's writing.
+
+## Phase 5: Build the Reader-Confirmed Graph
+
+Persist the relationships created by reader actions. The graph should support:
+
+- writing-to-anchor references;
+- Signal-to-anchor membership;
+- connections among Signals where the reader establishes them;
+- structural-section context;
+- reverse lookup from a passage or word to prior writing;
+- exact provenance for when and how a relationship was confirmed.
+
+Do not require the reader to edit graph nodes or edges directly. A visualization can come later.
+
+**Completion:** Returning to an anchored passage can reveal the reader's earlier writing and confirmed relationships without scanning every document manually.
+
+## Phase 6: Add Deterministic Memory Retrieval
+
+Before introducing semantic model retrieval, surface useful earlier material through inspectable signals:
+
+- the same exact anchor;
+- the same selected lemma;
+- an explicitly related lemma;
+- the same named person or place where evidence supports the identity;
+- reader-assigned terms;
+- membership in an existing confirmed Signal;
+- structural-section relationships.
+
+Every candidate must identify the retrieval reason.
+
+**Completion:** Chora can remind the reader of relevant earlier work using local, explainable evidence without a model.
+
+## Phase 7: Add Optional Local Model Retrieval
+
+Evaluate a local model as an assistant to memory. Its task is to find potentially relevant earlier reader writing, not to interpret Plato on the reader's behalf.
+
+The model may receive a bounded context containing:
+
+- the current exact passage;
+- reader-selected writing or Signal text;
+- candidate earlier local writing;
+- deterministic linguistic evidence retrieved through PlatoSI.
+
+The result must be a small candidate list with:
+
+- the earlier item;
+- its exact source anchors;
+- a concise explanation of possible relevance;
+- the deterministic or semantic reason it was retrieved;
+- clear model attribution and limitations.
+
+The model must not create graph edges, merge Signals, or change reader writing. Reader dismissal should suppress or rank down that suggestion without asserting that no relationship exists.
+
+**Completion:** The reader can receive a reminder such as “You previously wrote about seeing and the divine at Republic 327a” and independently decide what to do.
+
+## Phase 8: Establish the Structural Map
+
+Represent the creator's sections and transitions separately from the reader's writing and Signals. Clearly attribute these divisions as a cultivated structural reading rather than neutral source metadata.
+
+Explore personal reader sections only after the relationship between shared and personal structure is clear. Preserve the continuity of speeches and arguments across section boundaries.
+
+**Completion:** The application can present an authored map of the dialogue while allowing a reader's Signals to cross, ignore, or reinterpret those divisions.
+
+## Phase 9: Migrate and Remove the Old Workflow
+
+Only after the preceding workflow is usable:
+
+1. Decide how each existing Dream, Reflection, source passage, Signal, and Signal component maps to the new concepts.
+2. Provide a preview or reversible migration path.
+3. Preserve original files or an explicit archival export.
+4. Validate exact anchors against the stored PlatoSI text version.
+5. Keep unresolved records visible rather than silently dropping them.
+6. Remove old UI, controllers, stores, and persistence code only after migrated and archived data can be reopened.
+
+**Completion:** The old passage-bound workflow is no longer required, and no reader-authored material has been silently lost or reinterpreted.
+
+## Acceptance Scenario: Seeing and the Divine
+
+1. At the opening of the *Republic*, the reader writes about narration, time, Socrates' descent, seeing the festival, and honoring the goddess.
+2. They bring the exact opening passage into the writing.
+3. They preserve an unresolved Signal concerning seeing and the divine.
+4. Much later, they encounter another passage that may bear on that relationship.
+5. Chora surfaces the earlier thought and explains whether it matched by lemma, confirmed Signal, reader language, or model similarity.
+6. The reader opens both passages and their linguistic evidence.
+7. The reader decides whether to add the new evidence, create another Signal, postpone judgment, dismiss the suggestion, or ignore it.
+8. If confirmed, the connection becomes visible from both passages and from the writing.
+
+The scenario fails if Chora concludes the relationship for the reader, loses the original uncertainty, or reduces the connection to an English keyword match.
+
+## Foundation Acceptance Scenario: Money
+
+This scenario is the minimum useful release and does not use a model.
+
+1. The reader is in Cephalus's speech and creates a Dream titled **Money in Cephalus's speech** without making that speech the Dream's boundary.
+2. The reader writes one paragraph.
+3. They drag a Greek money-related word from the canonical text into the paragraph.
+4. Chora inserts an inline reference whose anchor retains the exact occurrence and text version.
+5. The reader closes the Dream and continues through the dialogue.
+6. In a later discussion involving Thrasymachus, the reader selects another occurrence and opens Word Lookup.
+7. **Your Dreams** shows the earlier Dream under the correct category: exact occurrence, same reader-selected lemma, or possible same lemma.
+8. The result states why it appeared.
+9. The reader opens the Dream at the earlier reference.
+10. The current Thrasymachus selection remains available and can be added to the same Dream.
+11. The reader continues the earlier paragraph instead of creating an isolated replacement.
+12. After restart, both references still navigate to their exact passages and Word Lookup still returns the Dream.
+
+The scenario fails if:
+
+- the Dream is confined to Cephalus's speech;
+- the dragged word is stored only as visible text;
+- a possible lemma is presented as confirmed;
+- the reverse index hides the Dream after becoming stale;
+- opening the Dream loses the current passage;
+- the reader must use a model to rediscover their own exact reference.
+
+## Open Decisions
+
+- Does dragging evidence create a Signal seed automatically, or merely an anchored reference?
+- How are inline, quoted, and block references presented without changing their identity?
+- How are the creator's structural sections distinguished from personal sections?
+- Which relationship labels are useful without imposing a taxonomy?
+- How should dismissal affect future retrieval?
+- What bounded local context may an optional model inspect?
+- How are model candidates cached, invalidated, and kept separate from confirmed connections?
+- How should existing Dreams and Signals be migrated or archived?
+- When, if ever, should a graph visualization become visible?
+
+These decisions require experimentation. The invariants above do not.

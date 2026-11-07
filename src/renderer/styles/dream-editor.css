@@ -84,28 +84,6 @@
 .dream-source-divider {
 	position: relative;
 	min-height: 7px;
-	cursor: row-resize;
-	outline: none;
-	touch-action: none;
-}
-
-.dream-source-divider::after {
-	position: absolute;
-	top: 3px;
-	right: 0;
-	left: 0;
-	height: 1px;
-	background: var(--panel-border);
-	content: "";
-	transition: background-color 130ms ease-out;
-}
-
-.dream-source-divider:hover::after,
-.dream-source-divider:focus-visible::after,
-.dream-source-divider.is-active::after {
-	top: 2px;
-	height: 2px;
-	background: var(--accent);
 }
 
 .dream-source-section summary {
@@ -769,7 +747,6 @@
 .dream-editor .signal-observation .signal-markdown-editor {
 	height: auto;
 	min-height: 180px;
-	border: 0;
 	border-radius: 2px;
 	background: var(--editor-input-background);
 	font-size: 13px;
@@ -804,12 +781,8 @@
 }
 
 .dream-editor .signal-view-body {
-	grid-template-columns: minmax(120px, var(--signal-navigation-width, 39%)) 3px minmax(0, 1fr);
+	grid-template-columns: minmax(120px, var(--signal-navigation-width, 39%)) 5px minmax(0, 1fr);
 	border-radius: 3px;
-}
-
-.signal-view-divider::after {
-	left: 1px;
 }
 
 .signal-list .signal-view-search {

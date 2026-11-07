@@ -22,6 +22,8 @@ export class DocumentPanel
 	private findIndex = 0;
 	// Lowercased query currently highlighted, used to detect repeat searches.
 	private activeFindQuery = "";
+	// Exact canonical ranges belonging to the lemma active in Word Lookup.
+	private wordHighlights: readonly TextSelection[] = [];
 
 	// Wires up DOM and application-event listeners.
 	public constructor(
@@ -42,6 +44,7 @@ export class DocumentPanel
 		this.subscriptions.push(this.events.Subscribe("library.text-opened", this.HandleTextOpened.bind(this)));
 		this.subscriptions.push(this.events.Subscribe("library.jump-requested", this.HandleJumpRequested.bind(this)));
 		this.subscriptions.push(this.events.Subscribe("library.focus-changed", this.HandleFocusChanged.bind(this)));
+		this.subscriptions.push(this.events.Subscribe("word.highlights-changed", this.HandleWordHighlightsChanged.bind(this)));
 		this.RenderWelcome();
 	}
 
@@ -56,8 +59,17 @@ export class DocumentPanel
 	// Routes a text-opened application event to a fresh render.
 	private HandleTextOpened(): void
 	{
+		this.wordHighlights = [];
 		const snapshot = this.library.GetSnapshot();
 		if (snapshot.text !== null) this.Update(snapshot.text, snapshot.sourceNotice);
+	}
+
+	// Replaces persistent lemma decorations without scrolling or creating a browser selection.
+	private HandleWordHighlightsChanged(event: ChoraEvents["word.highlights-changed"]): void
+	{
+		this.wordHighlights = structuredClone(event.selections);
+		this.RenderWordHighlights();
+		ClearBrowserSelection();
 	}
 
 	// Renders the quiet startup state before a text or Dream is opened.
@@ -483,6 +495,7 @@ export class DocumentPanel
 		}
 		if (navigationTarget === "source") this.ClearSourceHighlights();
 		const firstSegment = this.HighlightSelections(selections, navigationTarget);
+		this.RenderWordHighlights();
 		const firstSelection = selections[0];
 		firstSegment?.scrollIntoView({ behavior: "smooth", block: "center" });
 		if (firstSegment !== null && firstSelection !== undefined) this.controller.SetFocusSegment(firstSelection.start.stephanus);
@@ -507,7 +520,7 @@ export class DocumentPanel
 				return candidate.dataset.segmentKey === selection.end.stephanus;
 			});
 
-			if (document !== null && startIndex >= 0 && endIndex >= startIndex)
+			if (document !== null && selection.dialogue === document.id && startIndex >= 0 && endIndex >= startIndex)
 			{
 				const targets = renderedSegments.slice(startIndex, endIndex + 1);
 				firstSegment ??= targets[0] ?? null;
@@ -571,6 +584,13 @@ export class DocumentPanel
 			highlight.replaceWith(...children);
 			parent?.normalize();
 		}
+	}
+
+	// Reapplies all active lemma occurrences after reader DOM or navigation changes.
+	private RenderWordHighlights(): void
+	{
+		this.ClearWordHighlights();
+		this.HighlightSelections(this.wordHighlights, "word");
 	}
 
 	// Wraps only the canonical character range belonging to one selected source segment.
