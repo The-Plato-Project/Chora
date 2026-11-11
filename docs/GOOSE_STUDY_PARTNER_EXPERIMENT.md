@@ -1,4 +1,4 @@
-# Optional Local Study Partner: The Athenian Stranger / Goose Experiment
+# The Athenian Stranger: Optional Local Interlocutor / Goose Experiment
 
 ## Status and purpose
 
@@ -6,7 +6,8 @@ This is the design and acceptance contract for a new experimental PR. No agent
 runtime, dependency, model call, background indexing, or chat UI is enabled by
 this document. The working reading and writing environment remains the baseline.
 
-The reader-facing agent is **The Athenian Stranger**. It follows the reader's
+The agent's role is **interlocutor** and its reader-facing name is
+**The Athenian Stranger**. It follows the reader's
 developing interpretation, retrieves permitted earlier writing, and contributes
 connections, distinctions, challenges, or questions when they serve the present
 inquiry. An accurate and relevant observation can still be an unhelpful
@@ -29,7 +30,7 @@ Socratic interrogation routine or pursuing its own philosophical agenda.
 **The Athenian Stranger is an interlocutor, not an authority.** The text remains
 the primary object of inquiry; the reader remains the principal investigator.
 
-[Study Partner directives](STUDY_PARTNER_DIRECTIVES.md) are Chora's canonical
+[Interlocutor directives](STUDY_PARTNER_DIRECTIVES.md) are Chora's canonical
 behavioral specification. There is no runtime prompt loader yet. Implementation
 must supply these directives through the application-owned backend contract,
 including when starting or restoring a session with another backend. Do not
@@ -127,9 +128,9 @@ validation, and behavioral evaluation must support them.
 The proposed process arrangement is:
 
 ```text
-Optional renderer Study Partner feature
+Optional renderer interlocutor feature
     typed preload API / IPC_CHANNELS
-Main-process Study Partner owner
+Main-process interlocutor owner
     +-- bounded context and evidence-tool service
     |       +-- VisionService
     |       +-- TextAnchorService
