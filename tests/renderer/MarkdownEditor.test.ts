@@ -65,6 +65,35 @@ describe("MarkdownEditor", function MarkdownEditorTests()
 		expect(editor.Root.querySelector("h1,h2,h3,h4")).toBeNull();
 		expect(editor.Root.querySelector("hr")).not.toBeNull();
 		expect(editor.Root.querySelector("p")?.textContent).toContain("Measurement of the Logos");
+
+		// Repeated hard-break paragraphs must not become one section-sized setext heading.
+		const placement: VisionReferencePlacement = {
+			id: "placement:123e4567-e89b-42d3-a456-426614174002",
+			visionId: "123e4567-e89b-42d3-a456-426614174000",
+			anchorId: `anchor:sha256:${"a".repeat(64)}`,
+			presentation: "inline-word",
+			label: "λόγος"
+		};
+		const directive = SerializeVisionReference(placement);
+		const code = "literal\\\n\\\nunchanged";
+		const malformed = `\\\nBefore.\n\n## Scene\n\n\\\n\\\nMeasurement of the Logos\\\n\\\n**Question** ${directive}\\\nSecond line.\\\n\\\n&#x20;  Body after.\n${"-".repeat(120)}\n\n***\n\n\`\`\`text\n${code}\n\`\`\``;
+		const vision = await CreateEditorAsync(malformed, change, true, "full", true);
+		const headings = Array.from(vision.Root.querySelectorAll("h2"), function Heading(node): string | null
+		{
+			return node.textContent;
+		});
+		expect(headings).toEqual(["Scene", "Measurement of the Logos"]);
+		expect(vision.Root.querySelector("strong")?.textContent).toBe("Question");
+		expect(vision.Root.querySelector("h2 [data-vision-reference]")).toBeNull();
+		expect(vision.Root.querySelector("p [data-vision-reference]")?.textContent).toBe("λόγος");
+		expect(vision.Root.querySelector("pre code")?.textContent).toBe(code);
+		expect(vision.GetMarkdown()).toContain("## Measurement of the Logos\n\n**Question**");
+		expect(vision.GetMarkdown()).toContain(directive);
+		expect(vision.GetMarkdown()).not.toContain("&#x20;");
+		expect(change).not.toHaveBeenCalled();
+		const reopened = await CreateEditorAsync(vision.GetMarkdown(), vi.fn(), true, "full", true);
+		expect(reopened.Root.querySelectorAll("h2")).toHaveLength(2);
+		expect(reopened.GetMarkdown()).toBe(vision.GetMarkdown());
 	});
 
 	it("uses the context menu instead of a permanent toolbar for editable Markdown", async function HidesEditableToolbarAsync()
@@ -132,7 +161,11 @@ describe("MarkdownEditor", function MarkdownEditorTests()
 		const markdown = `Before the title\\\n\\\nMeasurement of the Logos\\\n\\\nAfter **the title** ${directive}\\\nStill normal prose.`;
 		editor.SetMarkdown(markdown);
 		const content = editor.Root.querySelector<HTMLElement>("[contenteditable=true]")!;
-		const paragraph = content.querySelector("p")!;
+		const paragraph = Array.from(content.querySelectorAll("p")).find(function FindTitleParagraph(candidate): boolean
+		{
+			const matches = candidate.textContent === "Measurement of the Logos";
+			return matches;
+		})!;
 		const title = Array.from(paragraph.childNodes).find(function FindTitle(node): boolean
 		{
 			const matches = node.nodeType === Node.TEXT_NODE && node.textContent === "Measurement of the Logos";
@@ -160,7 +193,7 @@ describe("MarkdownEditor", function MarkdownEditorTests()
 		expect(reopened.Root.querySelector("p [data-vision-reference]")?.textContent).toBe("λόγος");
 		editor.Root.querySelector<HTMLButtonElement>('[data-markdown-command="undo"]')!.click();
 		expect(editor.Root.querySelector("h2")).toBeNull();
-		expect(editor.Root.querySelectorAll(".ProseMirror > p")).toHaveLength(1);
+		expect(editor.Root.querySelectorAll(".ProseMirror > p")).toHaveLength(3);
 		editor.Root.querySelector<HTMLButtonElement>('[data-markdown-command="redo"]')!.click();
 		expect(editor.Root.querySelector("h2")?.textContent).toBe("Measurement of the Logos");
 	});
@@ -525,7 +558,7 @@ describe("MarkdownEditor", function MarkdownEditorTests()
 	it("preserves Greek text pasted through the clipboard", async function PastesGreekAsync()
 	{
 		const change = vi.fn();
-		const editor = await CreateEditorAsync("Original", change);
+		const editor = await CreateEditorAsync("Original", change, false, "full", true);
 		SelectContent(editor);
 		const clipboard = new DataTransfer();
 		clipboard.setData("text/plain", "κατέβην χθὲς");
@@ -533,5 +566,14 @@ describe("MarkdownEditor", function MarkdownEditorTests()
 		editor.Root.querySelector("[contenteditable=true]")!.dispatchEvent(event);
 		expect(editor.GetMarkdown().trim()).toBe("κατέβην χθὲς");
 		expect(change).toHaveBeenCalled();
+		SelectContent(editor);
+		const richClipboard = new DataTransfer();
+		richClipboard.setData("text/html", "<p>κατέβην<br><br>χθὲς <strong>bold</strong></p>");
+		richClipboard.setData("text/plain", "κατέβην\n\nχθὲς bold");
+		const richPaste = new ClipboardEvent("paste", { clipboardData: richClipboard, bubbles: true, cancelable: true });
+		editor.Root.querySelector<HTMLElement>("[contenteditable=true]")!.dispatchEvent(richPaste);
+		expect(editor.GetMarkdown().trim()).toBe("κατέβην\n\nχθὲς **bold**");
+		expect(editor.Root.querySelectorAll(".ProseMirror > p")).toHaveLength(2);
+		expect(editor.Root.querySelector("strong")?.textContent).toBe("bold");
 	});
 });

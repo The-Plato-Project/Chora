@@ -218,6 +218,15 @@ export class VisionPanel
 		const mode = id as VisionMode;
 		if (this.modeTabs !== null && mode !== this.mode)
 		{
+			// Commit repaired structure on an explicit mode change before the next surface reads it.
+			if (this.editor !== null)
+			{
+				const markdown = this.editor.GetMarkdown();
+				if (markdown !== this.store.GetActive()?.markdown)
+				{
+					this.controller.UpdateMarkdown(markdown);
+				}
+			}
 			this.mode = mode;
 			const vision = this.store.GetActive();
 			if (vision !== null) this.store.SetEditorMode(vision.id, mode);
