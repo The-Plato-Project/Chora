@@ -4,9 +4,33 @@
 
 This is the design and acceptance contract for the experimental PR. The first
 implementation adds an optional sidebar conversation, a replaceable backend
-interface, and five read-only evidence tools. The runtime remains disabled until
+interface, and six read-only evidence tools. The runtime remains disabled until
 the reader sends a message in the current work. Behavioral acceptance is a
 separate reader-led evaluation; implementation alone does not establish it.
+
+### Canonical retrieval follow-up
+
+The exact request “Can you find other areas in the Republic where Plato suggests
+interesting properties of space and time?” was checked through an isolated real
+Electron application, typed preload/IPC, PlatoSI and the installed local model.
+The final run made four tool calls, retrieved only canonical Republic evidence,
+finished without the action limit, and cited 517a, 531a and 432c. A disposable
+Vision about space and time was available but was not retrieved as a substitute.
+No personal writing was used in this check. The build and all 149 tests passed.
+
+Earlier live runs exposed repeated searching and an invented citation. The
+host now budgets retrieval and checks recognizable explicit Stephanus references
+against sections actually retrieved in that turn. A failed check allows one
+correction pass with tool access revoked; the replacement is checked again.
+Repeated failure produces an inline explanation marked incomplete, rather than
+certifying the invented reference. Existing tests cover correction, rejection,
+closed retrieval, and replacing the displayed answer without appending it.
+
+This is citation checking, not semantic verification. Quotations, translations,
+claims about what a passage means and broad philosophical generalizations still
+require reader review. Model-generated reasons for relevance are provisional;
+the reported locations do not establish that those reasons are sound. The
+experiment must not be described as a reliable philosophical authority.
 
 ### Running the Windows experiment
 
@@ -21,8 +45,8 @@ separate reader-led evaluation; implementation alone does not establish it.
    profile using the installed weights; it does not modify the original model.
 4. Open The Agentian Stranger in the activity bar. The open work is already its
    context. Type a message and press Send or Enter. Shift+Enter inserts a newline.
-5. Optionally use Attach Vision to foreground the saved version of the open
-   Vision. Every saved Vision in the work is available through tools when asked;
+5. The open Vision is automatic supporting context at submission; unsaved editor
+   prose is explicitly identified as a draft. Every saved Vision in the work is available through tools when asked;
    no checklist is required to say “read all my Visions so far.”
 6. Inspect Sources for actual retrieved material. Stop interrupts a response.
    The next message continues without a separate launch or context-selection step.
@@ -84,8 +108,9 @@ remain unvalidated and should guide evaluation with the reader.
 The revised interface has no work chooser, Vision checklist, selected-Greek
 attachment, local-start button or model selector. The work label follows the
 Library; sending starts execution lazily. Model choice lives in Chora settings.
-An optional attachment foregrounds the open saved Vision and remains linked in
-the reader's message history. Per-work conversation files preserve history across
+The open same-work Vision is captured automatically on Send, including editor
+prose explicitly marked as a draft when unsaved. It remains linked in the
+reader's message history. Per-work conversation files preserve history across
 navigation, and unsent drafts remain in their work's renderer state.
 
 The full build and 149 tests passed. An isolated real Electron run verified that
@@ -139,12 +164,12 @@ a change. Replacing a backend changes execution, not this identity or role.
 2. The reader sends an ordinary message. Sending starts local execution if needed.
 3. Each message refreshes the saved Visions belonging to that work. The model can
    list, search and read them on request; no per-document access checklist exists.
-4. An optional attached Vision foregrounds a particular saved document without
-   excluding the other Visions. Unsent editor drafts are not shared.
+4. The open same-work Vision supplies automatic supporting context, including
+   the editor snapshot at submission. This does not exclude other saved Visions.
 5. The model completes the specific request with inspectable evidence and stops.
    Opening chat, changing works or restoring history never starts analysis.
 
-The tools support paginated literal Vision search/listing, bounded document and
+The tools support paginated canonical Greek substring search, literal Vision search/listing, bounded document and
 canonical-passage reads, anchor validation and word evidence. Reading “all”
 Visions can require multiple pages/windows and is subject to explicit tool and
 context budgets. Results must disclose partial coverage. Full corpus-wide
@@ -167,7 +192,29 @@ or an instruction to enforce consistency.
 Each submitted message captures the current saved Vision catalogue for that work.
 Newly saved writing becomes available on the next request without a setup step.
 The host does not stream editor drafts or review changes between submissions.
-An attachment is conversational emphasis, not the work's document-access scope.
+The open Vision is supporting context, not the work's document-access scope.
+Its submitted editor snapshot never saves or changes the authoritative file.
+Canonical search belongs to LibraryService, uses its existing PlatoSI document,
+and scans all sections with accent/case/final-sigma normalization. Up to eight
+Greek terms or stems match with OR semantics; results contain six sections per
+page, match reasons, snippet offsets, versions and exact navigation selections.
+Topic requests require choosing Greek search terms and inspecting candidates;
+lexical coverage must not be represented as exhaustive conceptual coverage.
+
+Retrieval is limited to six evidence calls per reader submission. Every result
+reports remaining calls and directs the model to finish when two remain. Once
+closed, the host returns a completion instruction without performing another
+read. The passage-finding prompt requests one or two searches followed by up to
+three verified candidates, preserving space for an answer before Goose's outer
+twelve-turn safety limit. Budget limits require an honest partial-coverage
+statement, not another unsolicited investigation.
+
+The pinned Goose ACP implementation reports only cancellation and output-token
+limits distinctly; its action-limit notice otherwise arrives as `end_turn`
+([pinned response mapping](https://github.com/block/goose/blob/v1.59.0/crates/goose/src/acp/server.rs)).
+The adapter therefore also recognizes the pinned runtime's action-limit notice
+across streamed chunks and treats it as incomplete. This release-specific
+handling must be reviewed when upgrading the verified Goose binary.
 
 Task discipline is the behavioral rule: no unsolicited meaning-making,
 connection-finding, contradiction detection or criticism. A request to retrieve
@@ -243,7 +290,7 @@ registry. The backend interface is justified by the explicit substitution goal.
 
 ## Context and the first evidence tools
 
-Every turn has a captured context scope: current canonical work, optional attached saved Vision, and relevant saved revisions.
+Every turn has a captured context scope: current canonical work, automatic open Vision snapshot, and relevant saved revisions.
 The host validates the scope; a model cannot widen it through tool arguments.
 Changing the active editor tab does not silently retarget an in-flight turn.
 
@@ -251,8 +298,9 @@ The first slice implements these read-only tool contracts:
 
 | Tool | Initial behavior | Existing authority |
 | --- | --- | --- |
+| `search_text` | Search the entire current canonical Greek work for one to eight normalized terms or stems; return six candidate sections per page, match reasons and exact locations | LibraryService and its PlatoSI-backed document |
 | `find_visions` | Literal search of the captured current work's saved snapshots; return bounded excerpts and factual match reasons | VisionService snapshots |
-| `read_vision` | Read a bounded window of one current-work saved Vision, preserving canonical placement metadata | VisionService snapshots |
+| `read_vision` | Read a bounded window of one current-work Vision; identify the submitted open-editor draft separately from saved revisions | VisionService snapshots plus the validated submitted editor context |
 | `resolve_anchor` | Validate an existing anchor and return its exact Greek, versioned range, and source identity | TextAnchorService and LibraryService |
 | `read_passage` | Read a bounded canonical passage in the allowed work | LibraryService and its PlatoSI-backed document |
 | `get_word_evidence` | Return dictionary, morphology candidates, and occurrences for a validated exact word | WordExplorationService and PlatoSiGateway |
@@ -275,7 +323,7 @@ Results must:
 - paginate or report truncation, with bounded tool calls and output per turn;
 - validate exact references before navigation or lookup;
 - fall back to authoritative anchors and Visions when reverse indexes are absent;
-- identify saved revisions and never silently substitute unsent editor drafts;
+- distinguish saved revisions from explicitly identified submitted editor drafts;
 - report unavailable or stale evidence without substituting invented content.
 
 The authoritative Vision directives remain unchanged. A tool may present their

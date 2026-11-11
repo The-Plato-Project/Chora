@@ -125,7 +125,7 @@ export class StudyModule
 			}
 			const session = this.session;
 			if (session === null || generation !== this.generation) throw ApplicationError.Expected("cancelled", "STUDY_STOPPED", "Response stopped.");
-			result = await session.SendAsync(command.text, command.visionId);
+			result = await session.SendAsync(command.text, command.visionId, command.visionDraft);
 		}
 		catch (error)
 		{
@@ -164,7 +164,12 @@ export class StudyModule
 		{
 			throw ApplicationError.Expected("validation", "INVALID_STUDY_MESSAGE", "Enter a message for the current work and choose a supported model in Chora settings.");
 		}
-		const command: StudySendCommand = { workId: value.workId, text: value.text, visionId: value.visionId, model: value.model };
+		if ("visionDraft" in value && (value.visionId === null || typeof value.visionDraft !== "string" || value.visionDraft.length > 500000))
+		{
+			throw ApplicationError.Expected("validation", "INVALID_STUDY_CONTEXT", "The open Vision context is invalid or exceeds 500,000 characters.");
+		}
+		const context = "visionDraft" in value ? { visionDraft: value.visionDraft as string } : {};
+		const command: StudySendCommand = { workId: value.workId, text: value.text, visionId: value.visionId, model: value.model, ...context };
 		return command;
 	}
 

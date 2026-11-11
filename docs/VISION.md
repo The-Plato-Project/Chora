@@ -149,9 +149,11 @@ appeared when asked. It must not:
 
 Reader writing remains local. The open work is always the interlocutor's context.
 Its saved Visions are available when a submitted request calls for them, including
-a request to read all writing so far. An attached Vision adds emphasis; it does
-not restrict access to the others. Saved context is refreshed per request, while
-unsent editor drafts and other works remain outside that request.
+a request to read all writing so far. The open same-work Vision is automatic
+supporting context on Send, including an explicitly identified editor draft.
+Saved context is refreshed per request. Other works remain outside that request;
+no typing is monitored or sent between submissions. Requests about places in
+Plato's text search canonical Greek, keeping reader writing distinct.
 
 ## Product Principles
 

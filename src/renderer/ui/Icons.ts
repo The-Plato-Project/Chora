@@ -1,4 +1,4 @@
-import { createElement, Copy, Ellipsis, Pencil, Plus, Search, ArrowUpRight, ChevronLeft, ChevronRight, FileText, Folder, FolderPlus, Trash2, TextQuote, Paperclip } from "lucide";
+import { createElement, Copy, Ellipsis, Pencil, Plus, Search, ArrowUpRight, ChevronLeft, ChevronRight, FileText, Folder, FolderPlus, Trash2, TextQuote } from "lucide";
 
 export const MoreIcon = createElement(Ellipsis).outerHTML;
 export const EditIcon = createElement(Pencil).outerHTML;
@@ -12,9 +12,6 @@ export const FolderIcon = createElement(Folder).outerHTML;
 export const FolderAddIcon = createElement(FolderPlus).outerHTML;
 export const TextQuoteIcon = createElement(TextQuote).outerHTML;
 export const CopyIcon = createElement(Copy).outerHTML;
-
-// Shared attachment glyph used by the standard chat composer.
-export const AttachIcon = createElement(Paperclip).outerHTML;
 
 // Shared inline SVG icon markup, reused across panels so button glyphs stay consistent.
 

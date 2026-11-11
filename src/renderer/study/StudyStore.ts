@@ -11,8 +11,6 @@ export interface StudyWorkState
 	readonly conversation: StudyConversation | null;
 	// Unsent reader text retained across work navigation.
 	readonly draft: string;
-	// Optional saved Vision to foreground on the next message.
-	readonly attachment: { readonly id: string; readonly title: string } | null;
 	// Prevents duplicate submissions while loading or generating.
 	readonly busy: boolean;
 	// Inline availability or operation feedback.
@@ -22,7 +20,7 @@ export interface StudyWorkState
 // Mutable representation remains private to the state owner.
 type StudyWorkRecord = { -readonly [Key in keyof StudyWorkState]: StudyWorkState[Key] };
 
-// Sole renderer owner of per-work conversation, draft and attachment state.
+// Sole renderer owner of per-work conversation and draft state.
 export class StudyStore
 {
 	// Conversations are keyed by canonical work identity, never by the active DOM.
@@ -33,7 +31,7 @@ export class StudyStore
 	// Selects the open work without losing another work's draft or history.
 	public Select(workId: string, title: string): void
 	{
-		if (!this.works.has(workId)) this.works.set(workId, { workId, title, conversation: null, draft: "", attachment: null, busy: false, status: "" });
+		if (!this.works.has(workId)) this.works.set(workId, { workId, title, conversation: null, draft: "", busy: false, status: "" });
 		this.workId = workId;
 	}
 
@@ -66,13 +64,6 @@ export class StudyStore
 		state.draft = draft;
 	}
 
-	// Retains the optional saved Vision foregrounded for the next submission.
-	public SetAttachment(workId: string, attachment: StudyWorkState["attachment"]): void
-	{
-		const state = this.RequireWork(workId);
-		state.attachment = attachment;
-	}
-
 	// Exposes mutable records only inside this state owner.
 	private RequireWork(workId: string): StudyWorkRecord
 	{
@@ -90,15 +81,14 @@ export class StudyStore
 	}
 
 	// Shows outgoing text immediately while the host lazily opens execution.
-	public BeginTurn(workId: string, text: string, model: string): void
+	public BeginTurn(workId: string, text: string, model: string, visionId: string | null = null): void
 	{
 		const state = this.RequireWork(workId);
 		const conversation = state.conversation ?? { id: "", scope: { workId }, model, messages: [], sources: [] };
-		const attachment = state.attachment === null ? {} : { visionId: state.attachment.id };
+		const attachment = visionId === null ? {} : { visionId };
 		state.conversation = { ...conversation, messages: [...conversation.messages,
 			{ role: "reader", text, status: "complete", ...attachment }, { role: "interlocutor", text: "", status: "partial" }] };
 		state.draft = "";
-		state.attachment = null;
 		state.busy = true;
 		state.status = "Responding…";
 	}
@@ -111,12 +101,12 @@ export class StudyStore
 		if (state !== undefined && state.busy && conversation !== undefined && conversation !== null
 			&& (conversation.id === "" || conversation.id === update.conversationId))
 		{
-			if (update.kind === "text")
+			if (update.kind === "text" || update.kind === "replace")
 			{
 				const messages = [...conversation.messages];
 				const index = messages.length - 1;
 				const last = messages[index];
-				if (last?.role === "interlocutor") messages[index] = { ...last, text: last.text + update.text };
+				if (last?.role === "interlocutor") messages[index] = { ...last, text: update.kind === "replace" ? update.text : last.text + update.text };
 				state.conversation = { ...conversation, id: update.conversationId, messages };
 			}
 			else state.status = update.text;

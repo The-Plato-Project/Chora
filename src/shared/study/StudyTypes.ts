@@ -19,7 +19,7 @@ export interface StudyMessage
 	readonly text: string;
 	// Interrupted generation must never appear as a completed answer.
 	readonly status: "complete" | "partial";
-	// A reader-attached saved Vision remains identifiable in conversation history.
+	// The open Vision at submission remains identifiable in conversation history.
 	readonly visionId?: string;
 }
 
@@ -59,7 +59,7 @@ export interface StudyUpdate
 	// Allows the renderer to discard updates from retired conversations.
 	readonly conversationId: string;
 	// Separates visible response text from transient retrieval activity.
-	readonly kind: "text" | "tool";
+	readonly kind: "text" | "tool" | "replace";
 	// Bounded content; provider secrets and raw diagnostics are excluded.
 	readonly text: string;
 }
@@ -71,8 +71,10 @@ export interface StudySendCommand
 	readonly workId: string;
 	// Current request; earlier conversation remains contextual evidence.
 	readonly text: string;
-	// Optional saved Vision to foreground, without restricting other work Visions.
+	// Open same-work Vision captured automatically at submission.
 	readonly visionId: string | null;
+	// Current editor prose is context only; supplying it never saves or edits a Vision.
+	readonly visionDraft?: string;
 	// Deliberate local choice; no provider or model fallback is permitted.
 	readonly model: StudyModel;
 }

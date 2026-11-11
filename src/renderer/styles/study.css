@@ -63,11 +63,6 @@
 .study-actions [data-study-action="send"] {
 	margin-left: auto;
 }
-.study-attachment {
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
 .study-status {
 	margin: 0;
 }

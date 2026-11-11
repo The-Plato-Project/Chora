@@ -11,6 +11,9 @@ import { ApplicationError } from "../../../shared/diagnostics/OperationResult.js
 // Pinned Windows release whose explicit extension-selection behavior has been inspected.
 const GooseDigest = "5a424ab992d75aaefdc54ccf27719f62c3995e6d9b283d1cca016ec4d4b055ef";
 
+// Pinned Goose 1.59.0 emits this runtime notice with ACP end_turn instead of max_turn_requests.
+const GooseActionLimitNotice = "I've reached the maximum number of actions I can do without user input.";
+
 // Isolates Goose process/configuration and translates ACP into application-owned events.
 export class GooseStudyBackend implements StudyBackend
 {
@@ -30,6 +33,10 @@ export class GooseStudyBackend implements StudyBackend
 	private readonly toolIdentities = new Map<string, string>();
 	// Bounds accumulated response or evidence characters for the current turn.
 	private output = 0;
+	// Retains only enough streamed text to recognize the pinned runtime's split limit notice.
+	private limitTail = "";
+	// Prevents an upstream limit notice from certifying a completed reader answer.
+	private actionLimitReached = false;
 	// A disposed adapter cannot resume launch after an awaited configuration read.
 	private disposed = false;
 	// Reads no configuration and launches no process until OpenAsync.
@@ -164,10 +171,12 @@ export class GooseStudyBackend implements StudyBackend
 	{
 		if (this.connection === null || this.sessionId === null) throw new Error("The local connection closed. Send another message to reconnect.");
 		this.output = 0;
+		this.limitTail = "";
+		this.actionLimitReached = false;
 		this.toolIdentities.clear();
 		const pending = this.connection.agent.request(acp.methods.agent.session.prompt, { sessionId: this.sessionId, prompt: [{ type: "text", text }] });
 		const result = await this.WithDeadlineAsync(pending, 300000);
-		if (result.stopReason !== "end_turn" || this.output === 0) throw new Error("The model stopped before completing a visible response.");
+		if (result.stopReason !== "end_turn" || this.output === 0 || this.actionLimitReached) throw new Error("The model stopped before completing a visible response.");
 	}
 
 	// ACP cancellation is followed by host revocation at the service boundary.
@@ -217,6 +226,9 @@ export class GooseStudyBackend implements StudyBackend
 			const update = context.params.update;
 			if (update.sessionUpdate === "agent_message_chunk" && update.content.type === "text")
 			{
+				const tail = this.limitTail + update.content.text;
+				if (tail.includes(GooseActionLimitNotice)) this.actionLimitReached = true;
+				this.limitTail = tail.slice(-GooseActionLimitNotice.length);
 				this.output += update.content.text.length;
 				if (this.output > 64000) this.Dispose();
 				else this.publish?.({ kind: "text", text: update.content.text });

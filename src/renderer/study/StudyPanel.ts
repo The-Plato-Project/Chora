@@ -4,7 +4,6 @@ import type { ChoraEvents } from "../core/events/ChoraEvents.js";
 import type { ErrorManager } from "../core/diagnostics/RendererErrorManager.js";
 import type { StudyController } from "./StudyController.js";
 import type { StudyStore } from "./StudyStore.js";
-import { AttachIcon } from "../ui/Icons.js";
 
 // Standard chat presentation; the open work and execution lifecycle belong to existing owners.
 export class StudyPanel
@@ -19,10 +18,6 @@ export class StudyPanel
 	private readonly form = document.createElement("form");
 	// Reader text uses the shared square, unchanging-focus input skin.
 	private readonly input = document.createElement("textarea");
-	// Optional document emphasis is separate from access to all work Visions.
-	private readonly attach = this.Button("Attach Vision", "attach");
-	// A compact removable attachment replaces the old context checklist.
-	private readonly attachment = this.Button("", "remove-attachment");
 	// The only execution action needed to begin or continue a conversation.
 	private readonly send = this.Button("Send", "send");
 	// Cancellation is offered only while a response is in progress.
@@ -78,17 +73,11 @@ export class StudyPanel
 		this.form.className = "study-composer";
 		const actions = document.createElement("div");
 		actions.className = "study-actions";
-		this.attach.title = "Attach the saved version of the open Vision";
-		this.attach.className = "control-icon-button button-control";
-		this.attach.setAttribute("aria-label", "Attach Vision");
-		this.attach.innerHTML = AttachIcon;
-		this.attachment.setAttribute("aria-label", "Remove attached Vision");
 		this.send.type = "submit";
-		actions.append(this.attach, this.send, this.stop);
-		this.attachment.classList.add("study-attachment");
+		actions.append(this.send, this.stop);
 		this.status.className = "study-status";
 		this.status.setAttribute("role", "status");
-		this.form.append(this.attachment, this.input, actions, this.status);
+		this.form.append(this.input, actions, this.status);
 		root.append(header, this.empty, this.transcript, this.sourceDetails, this.form);
 		root.addEventListener("click", this.click);
 		this.form.addEventListener("submit", this.submit);
@@ -135,7 +124,7 @@ export class StudyPanel
 		if (!this.send.disabled) void this.controller.SendAsync(this.input.value);
 	}
 
-	// Delegates attachment, cancellation and validated source navigation.
+	// Delegates cancellation and validated source navigation.
 	private HandleClick(event: Event): void
 	{
 		const target = event.target as HTMLElement | null;
@@ -149,12 +138,10 @@ export class StudyPanel
 		try
 		{
 			const action = button.dataset.studyAction;
-			if (action === "attach") this.controller.AttachVision();
-			else if (action === "remove-attachment") this.controller.RemoveAttachment();
-			else if (action === "stop") await this.controller.StopAsync();
+			if (action === "stop") await this.controller.StopAsync();
 			else if (action === "attached-source" && button.dataset.visionId !== undefined)
 			{
-				await this.controller.OpenSourceAsync({ visionId: button.dataset.visionId, selection: null, label: "Attached Vision", excerpt: "" });
+				await this.controller.OpenSourceAsync({ visionId: button.dataset.visionId, selection: null, label: "Vision context", excerpt: "" });
 			}
 			else if (action === "source")
 			{
@@ -187,9 +174,6 @@ export class StudyPanel
 		if (this.input.value !== (state?.draft ?? "")) this.input.value = state?.draft ?? "";
 		this.send.disabled = state === null || state.busy || this.input.value.trim().length === 0;
 		this.stop.hidden = state?.busy !== true;
-		this.attach.disabled = state === null || state.busy || !this.controller.CanAttachVision();
-		this.attachment.hidden = state?.attachment === null || state === null;
-		this.attachment.textContent = state?.attachment === null || state === null ? "" : state.attachment.title + " ×";
 		this.status.textContent = state?.status ?? "";
 		this.status.hidden = this.status.textContent.length === 0;
 		const messages = state?.conversation?.messages ?? [];
@@ -214,7 +198,7 @@ export class StudyPanel
 				article.append(author, body);
 				if (message.visionId !== undefined)
 				{
-					const attachment = this.Button("Attached Vision", "attached-source");
+					const attachment = this.Button("Vision context", "attached-source");
 					attachment.dataset.visionId = message.visionId;
 					article.append(attachment);
 				}

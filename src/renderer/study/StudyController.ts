@@ -77,35 +77,6 @@ export class StudyController
 		if (state !== null) this.store.SetDraft(state.workId, text);
 	}
 
-	// Foregrounds the open Vision as optional context; all saved work Visions remain searchable.
-	public AttachVision(): void
-	{
-		const state = this.store.GetSnapshot();
-		const vision = this.visions.GetActive();
-		if (state !== null && vision !== null && vision.workId === state.workId)
-		{
-			this.store.SetAttachment(state.workId, { id: vision.id, title: vision.title });
-			this.Changed();
-		}
-	}
-
-	// Reports whether a same-work Vision is currently available to attach.
-	public CanAttachVision(): boolean
-	{
-		const vision = this.visions.GetActive();
-		const state = this.store.GetSnapshot();
-		const available = vision !== null && state !== null && vision.workId === state.workId;
-		return available;
-	}
-
-	// Removes optional emphasis without restricting access to the work's saved writing.
-	public RemoveAttachment(): void
-	{
-		const state = this.store.GetSnapshot();
-		if (state !== null) this.store.SetAttachment(state.workId, null);
-		this.Changed();
-	}
-
 	// One normal Send action lazily starts execution and performs exactly the reader's request.
 	public async SendAsync(text: string): Promise<void>
 	{
@@ -113,16 +84,19 @@ export class StudyController
 		if (state !== null && !state.busy && text.trim().length > 0 && !this.disposed)
 		{
 			const workId = state.workId;
-			const visionId = state.attachment?.id ?? null;
+			const active = this.visions.GetActive();
+			const vision = active?.workId === workId ? active : null;
+			const visionId = vision?.id ?? null;
+			const context = vision === null ? {} : { visionDraft: vision.markdown };
 			const generation = this.generation;
 			const model = this.settings.GetModel();
 			this.streamSubscription ??= this.gateway.Subscribe(this.HandleUpdate.bind(this));
 			this.runtimeWorkId = workId;
-			this.store.BeginTurn(workId, text, model);
+			this.store.BeginTurn(workId, text, model, visionId);
 			this.Changed();
 			try
 			{
-				const conversation = await this.gateway.SendAsync({ workId, text, visionId, model });
+				const conversation = await this.gateway.SendAsync({ workId, text, visionId, model, ...context });
 				if (!this.disposed && generation === this.generation)
 				{
 					this.store.SetConversation(workId, conversation);

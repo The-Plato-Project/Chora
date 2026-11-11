@@ -101,12 +101,12 @@ describe("Interlocutor surface", function StudyPanelTests()
 			await vi.waitFor(function Loaded() { expect(store.GetSnapshot()?.busy).toBe(false); });
 			expect(gateway.Command).toBeNull();
 			expect(root.querySelector("fieldset, select, [data-study-action=start], [data-study-action=context]")).toBeNull();
-			root.querySelector<HTMLButtonElement>("[data-study-action=attach]")!.click();
+			expect(root.querySelector("[data-study-action=attach]")).toBeNull();
 			const input = root.querySelector("textarea")!;
 			input.value = "A question";
 			input.dispatchEvent(new Event("input"));
 			root.querySelector<HTMLButtonElement>("[data-study-action=send]")!.click();
-			await vi.waitFor(function Sent() { expect(gateway.Command).toMatchObject({ workId: "republic", visionId: "vision", text: "A question" }); });
+			await vi.waitFor(function Sent() { expect(gateway.Command).toMatchObject({ workId: "republic", visionId: "vision", visionDraft: "My question", text: "A question" }); });
 			input.value = "Unsent thinking";
 			input.dispatchEvent(new Event("input"));
 			gateway.Callback?.({ workId: "absent", conversationId: "stale", kind: "text", text: "wrong" });
@@ -114,6 +114,9 @@ describe("Interlocutor surface", function StudyPanelTests()
 			await events.PublishAsync("study.changed", {});
 			const response = root.querySelector("article:last-child p");
 			expect(response?.textContent).toBe("A possibility");
+			gateway.Callback?.({ workId: "republic", conversationId: "fixture", kind: "replace", text: "Verified possibility" });
+			await events.PublishAsync("study.changed", {});
+			expect(response?.textContent).toBe("Verified possibility");
 			expect(root.querySelector<HTMLButtonElement>("[data-study-action=attached-source]")?.dataset.visionId).toBe("vision");
 			gateway.Callback?.({ workId: "republic", conversationId: "fixture", kind: "text", text: ", still open" });
 			await events.PublishAsync("study.changed", {});
