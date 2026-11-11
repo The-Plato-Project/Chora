@@ -23,7 +23,7 @@ export class GooseStudyBackend implements StudyBackend
 	// Isolates backend configuration and local session files.
 	private profile: string | null = null;
 	// Delivers application-owned visible updates without exposing protocol objects.
-	private publish: ((update: Omit<StudyUpdate, "conversationId">) => void) | null = null;
+	private publish: ((update: Omit<StudyUpdate, "conversationId" | "workId">) => void) | null = null;
 	// Contains the exact verified read-tool names for this conversation.
 	private readonly allowed = new Set<string>();
 	// Permission updates can omit metadata already delivered by the initial tool notification.
@@ -38,7 +38,7 @@ export class GooseStudyBackend implements StudyBackend
 	}
 
 	// Pins the runtime, creates a fresh profile, and verifies the actual effective tool list.
-	public async OpenAsync(model: string, tools: StudyToolEndpoint, publish: (update: Omit<StudyUpdate, "conversationId">) => void): Promise<void>
+	public async OpenAsync(model: string, tools: StudyToolEndpoint, publish: (update: Omit<StudyUpdate, "conversationId" | "workId">) => void): Promise<void>
 	{
 		if (process.platform !== "win32" || !path.isAbsolute(this.executable)) throw ApplicationError.Expected("validation", "GOOSE_RUNTIME_NOT_CONFIGURED", "Run scripts/InstallGoose.ps1, configure CHORA_GOOSE_BINARY in .env.local, and restart Chora. This experiment currently supports Windows x64.");
 		const executableBytes = await fs.readFile(this.executable);
@@ -46,6 +46,7 @@ export class GooseStudyBackend implements StudyBackend
 		hash.update(executableBytes);
 		const digest = hash.digest("hex");
 		if (digest !== GooseDigest) throw ApplicationError.Expected("validation", "GOOSE_RUNTIME_MISMATCH", "The Goose runtime does not match the verified release. Run scripts/InstallGoose.ps1 again.");
+		const executionModel = await this.RequireModelProfileAsync(model);
 		await fs.mkdir(this.root, { recursive: true });
 		this.profile = await fs.mkdtemp(path.join(this.root, "session-"));
 		const config = path.join(this.profile, "config");
@@ -61,7 +62,7 @@ export class GooseStudyBackend implements StudyBackend
 		}
 		env.GOOSE_PATH_ROOT = this.profile;
 		env.GOOSE_PROVIDER = "ollama";
-		env.GOOSE_MODEL = model;
+		env.GOOSE_MODEL = executionModel;
 		env.OLLAMA_HOST = "http://127.0.0.1:11434";
 		env.GOOSE_MODE = "approve";
 		env.GOOSE_DISABLE_SESSION_NAMING = "1";
@@ -93,7 +94,7 @@ export class GooseStudyBackend implements StudyBackend
 			const stream = acp.ndJsonStream(output, input);
 			const connection = client.connect(stream);
 			this.connection = connection;
-			const startup = this.InitializeAsync(connection, tools, model);
+			const startup = this.InitializeAsync(connection, tools, executionModel);
 			await this.WithDeadlineAsync(startup, 30000);
 		}
 		catch
@@ -101,6 +102,33 @@ export class GooseStudyBackend implements StudyBackend
 			this.Dispose();
 			throw ApplicationError.Expected("conflict", "GOOSE_START_FAILED", "Goose could not start with the restricted Chora tools and selected model. Check the verified runtime and local Ollama model; no conversation was sent.");
 		}
+	}
+
+	// Verifies the selected model's separate local profile without modifying the Ollama server.
+	private async RequireModelProfileAsync(model: string): Promise<string>
+	{
+		let profile: string;
+		if (model === "qwen3.5:9b") profile = "chora-qwen3.5:9b-16k";
+		else if (model === "qwen3.5:4b") profile = "chora-qwen3.5:4b-16k";
+		else throw ApplicationError.Expected("validation", "UNSUPPORTED_STUDY_MODEL", "Choose a supported local model in Chora settings.");
+		try
+		{
+			const body = JSON.stringify({ model: profile });
+			const response = await fetch("http://127.0.0.1:11434/api/show", {
+				method: "POST", headers: { "Content-Type": "application/json" }, body, signal: AbortSignal.timeout(5000)
+			});
+			if (!response.ok) throw new Error("The local profile is unavailable.");
+			const serialized = await response.text();
+			if (serialized.length > 262144) throw new Error("The local profile metadata is too large.");
+			const metadata: unknown = JSON.parse(serialized);
+			if (typeof metadata !== "object" || metadata === null || !("parameters" in metadata) || typeof metadata.parameters !== "string"
+				|| !/^num_ctx\s+16384\s*$/mu.test(metadata.parameters) || !/^num_predict\s+4096\s*$/mu.test(metadata.parameters)) throw new Error("The local profile has unexpected inference limits.");
+		}
+		catch
+		{
+			throw ApplicationError.Expected("validation", "OLLAMA_PROFILE_REQUIRED", "Start Ollama and run scripts/ConfigureLocalModel.ps1 -Model " + model + " to prepare this model's local context profile.");
+		}
+		return profile;
 	}
 
 	// Explicit Goose metadata replaces all default, configured and plugin extensions.
@@ -111,7 +139,7 @@ export class GooseStudyBackend implements StudyBackend
 		const session = await connection.agent.request(acp.methods.agent.session.new, {
 			cwd: this.profile!, mcpServers: [],
 			_meta: {
-				sessionTitle: "The Athenian Stranger", enabledExtensions: [
+				sessionTitle: "The Agentian Stranger", enabledExtensions: [
 					{ type: "mcp", server: { type: "http", name: "chora", url: tools.url, headers: [{ name: "Authorization", value: `Bearer ${tools.token}` }] } }
 				]
 			}
@@ -134,7 +162,7 @@ export class GooseStudyBackend implements StudyBackend
 	// Bounds a turn independently of the backend's own provider timeouts.
 	public async PromptAsync(text: string): Promise<void>
 	{
-		if (this.connection === null || this.sessionId === null) throw new Error("Start a new conversation before sending a message.");
+		if (this.connection === null || this.sessionId === null) throw new Error("The local connection closed. Send another message to reconnect.");
 		this.output = 0;
 		this.toolIdentities.clear();
 		const pending = this.connection.agent.request(acp.methods.agent.session.prompt, { sessionId: this.sessionId, prompt: [{ type: "text", text }] });
@@ -234,7 +262,7 @@ export class GooseStudyBackend implements StudyBackend
 			function Expired(): void
 			{
 				backend.Dispose();
-				reject(new Error("The local interlocutor timed out. Start a new conversation to retry."));
+				reject(new Error("The local interlocutor timed out. Send another message when ready to retry."));
 			}
 			timer = setTimeout(Expired, milliseconds);
 		}

@@ -13,7 +13,7 @@ import os from "node:os";
 import path from "node:path";
 
 // Disposable canonical material prevents integration checks from reading personal documents.
-function CreateEvidence(scope: StudyScope): StudyEvidence
+function CreateEvidence(scope: StudyScope, writing = { markdown: "An unresolved possibility.", updatedAt: "2026-01-02" }): StudyEvidence
 {
 	const document = TextDocument.FromSnapshot({ id: "republic", textVersion: `sha256:${"0".repeat(64)}`,
 		urn: null, title: "Republic", titleGreek: null, author: "Plato", language: "grc",
@@ -22,20 +22,21 @@ function CreateEvidence(scope: StudyScope): StudyEvidence
 		segments: [{ key: "327a", citation: null, text: "κατέβην" }] });
 	const vision = { id: "allowed", workId: "republic", folderPath: "", title: "A question", markdown: "An unresolved possibility.", createdAt: "2026-01-01", updatedAt: "2026-01-02" };
 	return new StudyEvidence(
-		{ GetAsync: async function GetAsync() { return document; } },
-		{ ListAsync: async function ListAsync() { return { visions: [vision, { ...vision, id: "private" }], folders: [] }; } },
+		{ GetAsync: async function GetAsync(workId) { if (workId !== "republic") throw new Error("Unknown fixture work."); return document; } },
+		{ ListAsync: async function ListAsync() { return { visions: [{ ...vision, ...writing }, { ...vision, id: "private", workId: "timaeus" }], folders: [] }; } },
 		{ ValidateAsync: async function ValidateAsync() { throw new Error("No such anchor."); } },
 		{ GetEvidenceAsync: async function GetEvidenceAsync() { throw new Error("Not used."); } }, scope);
 }
 
 // Explicit grant used by the isolated fixtures only.
-const Scope: StudyScope = { workId: "republic", visionIds: ["allowed"], selection: null };
+const Scope: StudyScope = { workId: "republic" };
 
 describe("Optional interlocutor integration", function IntegrationTests()
 {
 	it("enforces scope, saved revisions, bounded windows, budgets and revocation", async function ScopeAsync()
 	{
-		const evidence = CreateEvidence(Scope);
+		const writing = { markdown: "An unresolved possibility.", updatedAt: "2026-01-02" };
+		const evidence = CreateEvidence(Scope, writing);
 		await evidence.PrepareAsync();
 		await expect(evidence.CallAsync("read_vision", { visionId: "allowed" })).rejects.toThrow();
 		evidence.BeginTurn();
@@ -48,7 +49,16 @@ describe("Optional interlocutor integration", function IntegrationTests()
 		await expect(evidence.CallAsync("find_visions", { query: "missing" })).rejects.toThrow(/budget/u);
 		evidence.EndTurn();
 		await expect(evidence.CallAsync("read_passage", { stephanus: "327a" })).rejects.toThrow();
-		const invalid = CreateEvidence({ ...Scope, visionIds: ["absent"] });
+		writing.markdown = "A newly saved question about time.";
+		writing.updatedAt = "2026-01-03";
+		await evidence.PrepareAsync();
+		evidence.BeginTurn();
+		const refreshed = await evidence.CallAsync("read_vision", { visionId: "allowed" });
+		expect(JSON.parse(refreshed)).toMatchObject({ markdown: writing.markdown, savedRevision: "2026-01-03" });
+		const listed = await evidence.CallAsync("find_visions", {});
+		expect(JSON.parse(listed)).toMatchObject({ total: 1, items: [{ visionId: "allowed" }] });
+		evidence.EndTurn();
+		const invalid = CreateEvidence({ workId: "absent" });
 		await expect(invalid.PrepareAsync()).rejects.toThrow();
 	});
 
@@ -109,7 +119,7 @@ describe("Optional interlocutor integration", function IntegrationTests()
 		try
 		{
 			await session.StartAsync();
-			const pending = session.SendAsync("Consider this.");
+			const pending = session.SendAsync("Consider this.", "allowed");
 			const failed = expect(pending).rejects.toMatchObject({ failure: { kind: "cancelled" } });
 			await vi.waitFor(function Streamed() { expect(updates).toHaveLength(1); });
 			expect(submittedTask).toContain('Current reader task (JSON):\n{"request":"Consider this."}');
@@ -117,8 +127,14 @@ describe("Optional interlocutor integration", function IntegrationTests()
 			expect(submittedTask).toContain("then stop");
 			await session.CancelAsync();
 			await failed;
-			const restored = await repository.LoadAsync();
+			const restored = await repository.LoadAsync("republic");
 			expect(restored?.messages[1]).toMatchObject({ text: "A possibility", status: "partial" });
+			expect(restored?.messages[0]?.visionId).toBe("allowed");
+			expect(await repository.LoadAsync("timaeus")).toBeNull();
+			const other = { ...restored!, id: "other", scope: { workId: "timaeus" } };
+			await repository.SaveAsync(other);
+			expect((await repository.LoadAsync("republic"))?.id).toBe(restored?.id);
+			expect((await repository.LoadAsync("timaeus"))?.id).toBe("other");
 			expect(dispose).toHaveBeenCalled();
 			await expect(session.SendAsync("Again")).rejects.toThrow();
 		}

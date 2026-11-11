@@ -20,7 +20,7 @@ reports live in this folder.
 - [Renderer UX audit](RENDERER_UX_AUDIT.md)
 - [Typing performance report](TYPING_PERFORMANCE_REPORT.md)
 
-## The Athenian Stranger
+## The Agentian Stranger
 
 - [Optional local Goose experiment](GOOSE_STUDY_PARTNER_EXPERIMENT.md)
 - [Chora-owned behavioral directives](STUDY_PARTNER_DIRECTIVES.md)

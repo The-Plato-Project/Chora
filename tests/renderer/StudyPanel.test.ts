@@ -9,81 +9,128 @@ import type { ChoraEvents } from "../../src/renderer/core/events/ChoraEvents.js"
 import { ErrorManager } from "../../src/renderer/core/diagnostics/RendererErrorManager.js";
 import { LibraryStore } from "../../src/renderer/library/LibraryStore.js";
 import { VisionStore } from "../../src/renderer/visions/VisionStore.js";
-import type { StudyConversation, StudyStartCommand, StudyUpdate } from "../../src/shared/study/StudyTypes.js";
+import { TextDocument } from "../../src/shared/text/TextDocument.js";
+import type { StudyConversation, StudySendCommand, StudyUpdate } from "../../src/shared/study/StudyTypes.js";
 
-// Disposable execution boundary exercises UI state without launching a model.
+// Disposable canonical documents exercise real work navigation.
+function CreateWork(id: string): TextDocument
+{
+	const document = TextDocument.FromSnapshot({ id, textVersion: "sha256:" + "0".repeat(64), urn: null, title: id, titleGreek: null, author: "Plato", language: "grc",
+		edition: { editor: null, title: null, volume: null, publisher: null, publicationPlace: null, publicationDate: null },
+		provenance: { repository: "fixture", commit: "fixture", sourceFile: "fixture", license: "fixture" }, segments: [{ key: "327a", citation: null, text: "κατέβην" }] });
+	return document;
+}
+
+// Disposable host boundary preserves per-work history without invoking a model.
 class FixtureGateway extends StudyGateway
 {
-	// Streaming callback has the same owned lifetime as the production gateway.
+	// Retains the same removable streaming capability as production.
 	public Callback: ((update: StudyUpdate) => void) | null = null;
+	// Holds one response so navigation and Stop can interrupt it.
 	public Reject: ((error: Error) => void) | null = null;
-	public Starts = 0;
-	public readonly Conversation: StudyConversation = { id: "fixture", scope: { workId: "republic", visionIds: [], selection: null }, model: "fixture", messages: [], sources: [] };
-	// Records explicit launch, without performing network or filesystem work.
-	public override async StartAsync(_command: StudyStartCommand): Promise<StudyConversation>
+	// Captures the exact work and optional attachment submitted by the UI.
+	public Command: StudySendCommand | null = null;
+	// Passive history remains separate for each work.
+	public readonly History = new Map<string, StudyConversation>();
+
+	// Starting is implicit in Send; no dedicated launch API exists.
+	public override SendAsync(command: StudySendCommand): Promise<StudyConversation>
 	{
-		this.Starts += 1;
-		return this.Conversation;
-	}
-	// Holds one response so tests can stop it while rendering streamed text.
-	public override SendAsync(_id: string, _text: string): Promise<StudyConversation>
-	{
+		this.Command = command;
 		const fixture = this;
-		function Pending(_resolve: (value: StudyConversation) => void, reject: (error: Error) => void): void { fixture.Reject = reject; }
-		return new Promise<StudyConversation>(Pending);
+		function Pending(_resolve: (value: StudyConversation) => void, reject: (error: Error) => void): void
+		{
+			fixture.Reject = reject;
+		}
+		const result = new Promise<StudyConversation>(Pending);
+		return result;
 	}
-	// Simulates a transport rejection that arrives after the reader stops.
-	public override async StopAsync(): Promise<void>
+
+	// Cancellation records partial output under its captured work.
+	public override async StopAsync(workId: string): Promise<void>
 	{
-		this.Reject?.(new Error("Cancelled fixture"));
+		if (this.Command?.workId === workId)
+		{
+			this.History.set(workId, { id: "fixture", scope: { workId }, model: "fixture",
+				messages: [{ role: "reader", text: this.Command.text, status: "complete" }, { role: "interlocutor", text: "A possibility, still open", status: "partial" }], sources: [] });
+			this.Reject?.(new Error("Cancelled fixture"));
+			this.Command = null;
+		}
 	}
+
+	// Loading a work never starts execution.
+	public override async LoadAsync(workId: string): Promise<StudyConversation | null>
+	{
+		const result = this.History.get(workId) ?? null;
+		return result;
+	}
+
 	// Makes subscription disposal observable.
 	public override Subscribe(callback: (update: StudyUpdate) => void): () => void
 	{
 		this.Callback = callback;
 		const fixture = this;
-		function Unsubscribe(): void { fixture.Callback = null; }
+		function Unsubscribe(): void
+		{
+			fixture.Callback = null;
+		}
 		return Unsubscribe;
 	}
 }
 
 describe("Interlocutor surface", function StudyPanelTests()
 {
-	it("starts disabled, retains input and message nodes during streaming, and ignores late cancellation", async function StreamsAsync()
+	it("sends ordinary chat in the current work, keeps optional context and drafts, and restores separate work histories", async function StreamsAsync()
 	{
 		const events = new ChoraEventBus<ChoraEvents>();
 		const errors = new ErrorManager(events);
 		const report = vi.spyOn(errors, "Report");
 		const store = new StudyStore();
 		const gateway = new FixtureGateway();
-		const controller = new StudyController(events, errors, store, gateway, new LibraryStore(), new VisionStore());
+		const library = new LibraryStore();
+		const visions = new VisionStore();
+		visions.SetCatalogue({ visions: [{ id: "vision", workId: "republic", title: "A question", folderPath: "", markdown: "My question", createdAt: "2026-01-01", updatedAt: "2026-01-01" }], folders: [] });
+		visions.Open("vision");
+		library.Open(CreateWork("republic"), null);
+		const controller = new StudyController(events, errors, store, gateway, library, visions);
 		const root = document.createElement("section");
 		document.body.append(root);
 		const panel = new StudyPanel(root, events, errors, store, controller);
 		try
 		{
-			expect(gateway.Starts).toBe(0);
-			expect(gateway.Callback).toBeNull();
+			await vi.waitFor(function Loaded() { expect(store.GetSnapshot()?.busy).toBe(false); });
+			expect(gateway.Command).toBeNull();
+			expect(root.querySelector("fieldset, select, [data-study-action=start], [data-study-action=context]")).toBeNull();
+			root.querySelector<HTMLButtonElement>("[data-study-action=attach]")!.click();
 			const input = root.querySelector("textarea")!;
+			input.value = "A question";
+			input.dispatchEvent(new Event("input"));
+			root.querySelector<HTMLButtonElement>("[data-study-action=send]")!.click();
+			await vi.waitFor(function Sent() { expect(gateway.Command).toMatchObject({ workId: "republic", visionId: "vision", text: "A question" }); });
 			input.value = "Unsent thinking";
-			await controller.StartAsync(gateway.Conversation.scope, "qwen3.5:9b");
-			const turn = controller.SendAsync("A question");
-			gateway.Callback?.({ conversationId: "stale", kind: "text", text: "wrong" });
-			gateway.Callback?.({ conversationId: "fixture", kind: "text", text: "A possibility" });
+			input.dispatchEvent(new Event("input"));
+			gateway.Callback?.({ workId: "absent", conversationId: "stale", kind: "text", text: "wrong" });
+			gateway.Callback?.({ workId: "republic", conversationId: "fixture", kind: "text", text: "A possibility" });
 			await events.PublishAsync("study.changed", {});
 			const response = root.querySelector("article:last-child p");
 			expect(response?.textContent).toBe("A possibility");
-			gateway.Callback?.({ conversationId: "fixture", kind: "text", text: ", still open" });
+			expect(root.querySelector<HTMLButtonElement>("[data-study-action=attached-source]")?.dataset.visionId).toBe("vision");
+			gateway.Callback?.({ workId: "republic", conversationId: "fixture", kind: "text", text: ", still open" });
 			await events.PublishAsync("study.changed", {});
 			expect(root.querySelector("article:last-child p")).toBe(response);
 			expect(root.querySelector("textarea")).toBe(input);
 			expect(input.value).toBe("Unsent thinking");
 			await controller.StopAsync();
-			await turn;
-			expect(store.GetSnapshot()).toMatchObject({ busy: false, connected: false });
+			expect(store.GetSnapshot()).toMatchObject({ busy: false, status: "Stopped." });
 			expect(report).not.toHaveBeenCalled();
-			expect(gateway.Callback).toBeNull();
 			expect(response?.textContent).toContain("Incomplete response");
+			library.Open(CreateWork("timaeus"), null);
+			await events.PublishAsync("library.text-opened", {});
+			expect(store.GetSnapshot()).toMatchObject({ workId: "timaeus", conversation: null, draft: "" });
+			library.Open(CreateWork("republic"), null);
+			await events.PublishAsync("library.text-opened", {});
+			expect(store.GetSnapshot()?.conversation?.messages[1]?.text).toBe("A possibility, still open");
+			expect(input.value).toBe("Unsent thinking");
 		}
 		finally
 		{
@@ -92,5 +139,6 @@ describe("Interlocutor surface", function StudyPanelTests()
 			root.remove();
 			vi.restoreAllMocks();
 		}
+		expect(gateway.Callback).toBeNull();
 	});
 });

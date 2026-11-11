@@ -4,7 +4,7 @@ import type { StudyUpdate } from "../../shared/study/StudyTypes.js";
 export interface StudyBackend
 {
 	// Opens execution with an explicit model and revocable evidence endpoint.
-	OpenAsync(model: string, tools: StudyToolEndpoint, publish: (update: Omit<StudyUpdate, "conversationId">) => void): Promise<void>;
+	OpenAsync(model: string, tools: StudyToolEndpoint, publish: (update: Omit<StudyUpdate, "conversationId" | "workId">) => void): Promise<void>;
 	// Completes only after the backend reports a completed turn.
 	PromptAsync(text: string): Promise<void>;
 	// Requests cooperative cancellation before disposal terminates the process.

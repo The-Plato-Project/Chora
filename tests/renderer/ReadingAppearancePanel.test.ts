@@ -5,6 +5,7 @@ import type { ChoraEvents } from "../../src/renderer/core/events/ChoraEvents.js"
 import { ErrorManager } from "../../src/renderer/core/diagnostics/RendererErrorManager.js";
 import { ReadingSettingsStore } from "../../src/renderer/core/settings/ReadingSettingsStore.js";
 import { ReadingAppearancePanel } from "../../src/renderer/workspace/ReadingAppearancePanel.js";
+import { StudySettingsStore } from "../../src/renderer/study/StudySettingsStore.js";
 
 afterEach(function Cleanup(): void
 {
@@ -29,11 +30,14 @@ describe("ReadingAppearancePanel", function ReadingAppearancePanelTests()
 		expect(document.documentElement.style.getPropertyValue("--vision-reference-color")).toBe("#b65e3b");
 
 		const input = document.querySelector<HTMLInputElement>("[data-anchor-highlight-color]")!;
+		document.querySelector<HTMLSelectElement>("[data-interlocutor-model]")!.value = "qwen3.5:4b";
 		input.value = "#336699";
 		input.dispatchEvent(new Event("change", { bubbles: true }));
 		expect(settings.GetAnchorHighlightColor()).toBe("#b65e3b");
 		document.querySelector<HTMLButtonElement>("[data-dialog-cancel]")!.click();
 		await events.PublishAsync("workspace.settings-open-requested", {});
+		expect(document.querySelector<HTMLSelectElement>("[data-interlocutor-model]")!.value).toBe("qwen3.5:9b");
+		document.querySelector<HTMLSelectElement>("[data-interlocutor-model]")!.value = "qwen3.5:4b";
 		expect(document.querySelector<HTMLInputElement>("[data-anchor-highlight-color]")!.value).toBe("#b65e3b");
 		document.querySelector<HTMLInputElement>("[data-anchor-highlight-color]")!.value = "#336699";
 		document.querySelector<HTMLSelectElement>("[data-appearance]")!.value = "dark";
@@ -46,6 +50,7 @@ describe("ReadingAppearancePanel", function ReadingAppearancePanelTests()
 		expect(settings.GetAnchorHighlightColor()).toBe("#336699");
 		expect(document.documentElement.style.getPropertyValue("--vision-reference-color")).toBe("#336699");
 		expect(new ReadingSettingsStore().GetAnchorHighlightColor()).toBe("#336699");
+		expect(new StudySettingsStore().GetModel()).toBe("qwen3.5:4b");
 		expect(ApplyAsync).toHaveBeenLastCalledWith("dark");
 		panel.Dispose();
 	});

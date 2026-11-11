@@ -268,31 +268,24 @@ async function ExecuteApplicationMenuCommand(command: ApplicationMenuCommand): P
 	return response as OperationResult<void>;
 }
 
-// Transports optional interlocutor commands through the context-isolated bridge.
-async function StartStudy(command: import("../shared/study/StudyTypes.js").StudyStartCommand): Promise<OperationResult<import("../shared/study/StudyTypes.js").StudyConversation>>
-{
-	const response = await ipcRenderer.invoke(IPC_CHANNELS.studyStart, command);
-	return response;
-}
-
 // Sends one bounded reader contribution to its captured conversation.
-async function SendStudy(id: string, text: string): Promise<OperationResult<import("../shared/study/StudyTypes.js").StudyConversation>>
+async function SendStudy(command: import("../shared/study/StudyTypes.js").StudySendCommand): Promise<OperationResult<import("../shared/study/StudyTypes.js").StudyConversation>>
 {
-	const response = await ipcRenderer.invoke(IPC_CHANNELS.studySend, id, text);
+	const response = await ipcRenderer.invoke(IPC_CHANNELS.studySend, command);
 	return response;
 }
 
 // Revokes the active local runtime explicitly.
-async function StopStudy(): Promise<OperationResult<void>>
+async function StopStudy(workId: string): Promise<OperationResult<void>>
 {
-	const response = await ipcRenderer.invoke(IPC_CHANNELS.studyStop);
+	const response = await ipcRenderer.invoke(IPC_CHANNELS.studyStop, workId);
 	return response;
 }
 
 // Restores display history without restarting execution.
-async function LoadStudyHistory(): Promise<OperationResult<import("../shared/study/StudyTypes.js").StudyConversation | null>>
+async function LoadStudyHistory(workId: string): Promise<OperationResult<import("../shared/study/StudyTypes.js").StudyConversation | null>>
 {
-	const response = await ipcRenderer.invoke(IPC_CHANNELS.studyHistory);
+	const response = await ipcRenderer.invoke(IPC_CHANNELS.studyHistory, workId);
 	return response;
 }
 
@@ -309,7 +302,6 @@ function SubscribeStudy(callback: (update: import("../shared/study/StudyTypes.js
 }
 
 const api: ChoraApi = {
-	StartStudy,
 	SendStudy,
 	StopStudy,
 	LoadStudyHistory,

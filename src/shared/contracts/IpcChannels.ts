@@ -33,7 +33,6 @@ export const IPC_CHANNELS = {
 	createTextAnchor: "chora:create-text-anchor",
 	listTextAnchors: "chora:list-text-anchors",
 	validateTextAnchor: "chora:validate-text-anchor",
-	studyStart: "chora:study-start",
 	studySend: "chora:study-send",
 	studyStop: "chora:study-stop",
 	studyHistory: "chora:study-history",

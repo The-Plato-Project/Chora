@@ -137,7 +137,7 @@ Fix concrete problems discovered through this use before expanding the product.
 ## Optional Local Interlocutor Experiment
 
 The reader has requested a separate, removable Goose experiment with a local
-model. Its reader-facing interlocutor is **The Athenian Stranger**. Chora owns
+model. Its reader-facing interlocutor is **The Agentian Stranger**. Chora owns
 the [behavioral directives](STUDY_PARTNER_DIRECTIVES.md), including discernment
 about when a contribution serves the present inquiry. These remain consistent
 across backends. The experiment's context, read-only evidence tools, backend

@@ -11,7 +11,7 @@ import type { WordEvidenceResult, WordOccurrence } from "../../shared/library/Wo
 // Bounded read-only projections over the existing authoritative feature services.
 export class StudyEvidence
 {
-	// Frozen saved snapshots record exactly what the reader authorized at session start.
+	// Saved work-scoped snapshots are refreshed at each submitted message.
 	private readonly allowed = new Map<string, VisionSnapshot>();
 	// Calls and output are budgeted afresh for each reader turn.
 	private calls = 0;
@@ -31,26 +31,12 @@ export class StudyEvidence
 	// Validates every supplied identity through its owner and captures saved writing only.
 	public async PrepareAsync(): Promise<void>
 	{
-		const document = await this.library.GetAsync(this.scope.workId);
-		if (this.scope.selection !== null)
-		{
-			document.ValidateSelection(this.scope.selection);
-			const text = document.ReconstructText(this.scope.selection);
-			if (text.length > 8000) throw new Error("Attach a passage shorter than 8,000 characters.");
-		}
+		await this.library.GetAsync(this.scope.workId);
 		const catalogue = await this.visions.ListAsync();
-		for (const id of this.scope.visionIds)
+		this.allowed.clear();
+		for (const vision of catalogue.visions)
 		{
-			const vision = catalogue.visions.find(function Matches(item): boolean
-			{
-				const result = item.id === id;
-				return result;
-			});
-			if (vision === undefined || vision.workId !== this.scope.workId)
-			{
-				throw ApplicationError.Expected("validation", "STUDY_SCOPE_INVALID", "Choose existing Visions belonging to the selected work.");
-			}
-			this.allowed.set(id, structuredClone(vision));
+			if (vision.workId === this.scope.workId) this.allowed.set(vision.id, structuredClone(vision));
 		}
 	}
 
@@ -76,14 +62,22 @@ export class StudyEvidence
 	}
 
 	// Returns validated initial context without sending the chosen documents in full.
-	public async DescribeAsync(): Promise<string>
+	public async DescribeAsync(visionId: string | null = null): Promise<string>
 	{
 		const document = await this.library.GetAsync(this.scope.workId);
-		const selection = this.scope.selection;
-		const passage = selection === null ? null : { selection, greek: document.ReconstructText(selection) };
-		const visions = [];
-		for (const vision of this.allowed.values()) visions.push({ id: vision.id, title: vision.title, savedRevision: vision.updatedAt });
-		const description = JSON.stringify({ workId: this.scope.workId, textVersion: document.textVersion, visions, passage });
+		let attachment = null;
+		if (visionId !== null)
+		{
+			const vision = this.allowed.get(visionId);
+			if (vision === undefined) throw ApplicationError.Expected("validation", "STUDY_ATTACHMENT_INVALID", "The attached Vision is unavailable in the current work.");
+			attachment = { visionId: vision.id, title: vision.title, savedRevision: vision.updatedAt,
+				markdown: vision.markdown.slice(0, 6000), nextOffset: vision.markdown.length > 6000 ? 6000 : null };
+			if (this.sources.length < 100) this.sources.push({ label: vision.title + " · saved " + vision.updatedAt,
+				excerpt: vision.markdown.slice(0, 240), visionId: vision.id, selection: null });
+		}
+		const description = JSON.stringify({ workId: this.scope.workId, title: document.title, textVersion: document.textVersion,
+			visionCount: this.allowed.size, attachment,
+			visionAccess: "All saved Visions for this work are available through find_visions and read_vision. An empty query lists them. Follow nextOffset to continue; do not claim to have read more than the returned windows." });
 		return description;
 	}
 
@@ -95,7 +89,11 @@ export class StudyEvidence
 		const sources: StudySource[] = [];
 		if (name === "find_visions")
 		{
-			const query = this.Text(args.query, 120).toLocaleLowerCase();
+			const input = args.query ?? "";
+			if (typeof input !== "string" || input.length > 120) throw new Error("Invalid Vision search query.");
+			const query = input.toLocaleLowerCase();
+			const offset = args.offset ?? 0;
+			if (typeof offset !== "number" || !Number.isSafeInteger(offset) || offset < 0) throw new Error("Invalid Vision list offset.");
 			const matches = [];
 			for (const vision of this.allowed.values())
 			{
@@ -105,11 +103,12 @@ export class StudyEvidence
 					const start = Math.max(0, index - 120);
 					matches.push({
 						visionId: vision.id, title: vision.title, savedRevision: vision.updatedAt,
-						reason: index >= 0 ? "literal prose match" : "literal title match", offset: start, excerpt: vision.markdown.slice(start, start + 500)
+						reason: query.length === 0 ? "current work Vision" : index >= 0 ? "literal prose match" : "literal title match", offset: start, excerpt: vision.markdown.slice(start, start + 500)
 					});
 				}
 			}
-			value = { provenance: "reader-writing", items: matches.slice(0, 10), truncated: matches.length > 10 };
+			value = { provenance: "reader-writing", items: matches.slice(offset, offset + 10), total: matches.length,
+				nextOffset: offset + 10 < matches.length ? offset + 10 : null };
 		}
 		else if (name === "read_vision")
 		{

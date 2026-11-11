@@ -20,3 +20,4 @@ if ($binaryHash -ne '5a424ab992d75aaefdc54ccf27719f62c3995e6d9b283d1cca016ec4d4b
 	throw 'The extracted Goose runtime failed verification.'
 }
 Write-Output "Verified Goose 1.59.0. Set CHORA_GOOSE_BINARY=$executable in .env.local, then restart Chora."
+Write-Output 'With Ollama running and your model installed, run scripts/ConfigureLocalModel.ps1 -Model qwen3.5:9b once to prepare its Chora context profile.'

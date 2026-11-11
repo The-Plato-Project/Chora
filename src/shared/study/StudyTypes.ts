@@ -1,15 +1,14 @@
 import type { TextSelection } from "../text/TextSelection.js";
 
-// Reader-approved evidence scope, captured once for a conversation.
+// Canonical work owning a conversation; its saved Visions are available on request.
 export interface StudyScope
 {
 	// Canonical work whose text and linguistic material may be read.
 	readonly workId: string;
-	// Explicitly selected saved documents; an empty list shares no writing.
-	readonly visionIds: readonly string[];
-	// Optional exact passage attached by the reader at launch.
-	readonly selection: TextSelection | null;
 }
+
+// Local execution preference configured in application settings.
+export type StudyModel = "qwen3.5:9b" | "qwen3.5:4b";
 
 // One attributed contribution, retained independently of Vision prose.
 export interface StudyMessage
@@ -20,6 +19,8 @@ export interface StudyMessage
 	readonly text: string;
 	// Interrupted generation must never appear as a completed answer.
 	readonly status: "complete" | "partial";
+	// A reader-attached saved Vision remains identifiable in conversation history.
+	readonly visionId?: string;
 }
 
 // Application-owned transcript, independent of a backend's native session ID.
@@ -53,6 +54,8 @@ export interface StudySource
 // Narrow streaming facts consumed only by the interlocutor feature.
 export interface StudyUpdate
 {
+	// Routes updates to the originating work during navigation.
+	readonly workId: string;
 	// Allows the renderer to discard updates from retired conversations.
 	readonly conversationId: string;
 	// Separates visible response text from transient retrieval activity.
@@ -61,11 +64,15 @@ export interface StudyUpdate
 	readonly text: string;
 }
 
-// Explicitly selected local execution configuration; never a hosted-provider fallback.
-export interface StudyStartCommand
+// One ordinary chat message, bound to its work and optional saved attachment.
+export interface StudySendCommand
 {
-	// Reader-selected evidence grant, validated in the main process.
-	readonly scope: StudyScope;
+	// Work open when the reader submitted the message, validated by the host.
+	readonly workId: string;
+	// Current request; earlier conversation remains contextual evidence.
+	readonly text: string;
+	// Optional saved Vision to foreground, without restricting other work Visions.
+	readonly visionId: string | null;
 	// Deliberate local choice; no provider or model fallback is permitted.
-	readonly model: "qwen3.5:9b" | "qwen3.5:4b";
+	readonly model: StudyModel;
 }

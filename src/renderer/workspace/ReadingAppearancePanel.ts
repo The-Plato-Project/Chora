@@ -4,6 +4,7 @@ import type { ChoraEventBus, Unsubscribe } from "../core/events/ChoraEventBus.js
 import type { ChoraEvents } from "../core/events/ChoraEvents.js";
 import { DialogControl } from "../ui/controls/DialogControl.js";
 import { ReadingAppearanceGateway } from "./ReadingAppearanceGateway.js";
+import { StudySettingsStore } from "../study/StudySettingsStore.js";
 
 // Owns application settings DOM; the existing settings store remains authoritative.
 export class ReadingAppearancePanel
@@ -14,7 +15,8 @@ export class ReadingAppearancePanel
 
 	// Native menu requests arrive as typed application events.
 	public constructor(private readonly settings: ReadingSettingsStore, events: ChoraEventBus<ChoraEvents>,
-		private readonly errors: ErrorManager, private readonly gateway = new ReadingAppearanceGateway())
+		private readonly errors: ErrorManager, private readonly gateway = new ReadingAppearanceGateway(),
+		private readonly studySettings = new StudySettingsStore())
 	{
 		settings.Apply();
 		this.dialog = new DialogControl(errors);
@@ -27,6 +29,7 @@ export class ReadingAppearancePanel
 	{
 		const font = this.settings.GetFont();
 		const appearance = this.settings.GetAppearance();
+		const model = this.studySettings.GetModel();
 		this.dialog.Open({
 			Title: "Chora settings",
 			Content: `<div class="application-settings-fields">
@@ -34,6 +37,7 @@ export class ReadingAppearancePanel
 				<label class="control-field"><span>Reading font</span><select data-reading-font><option value="serif"${font === "serif" ? " selected" : ""}>Serif</option><option value="sans"${font === "sans" ? " selected" : ""}>Sans</option></select></label>
 				<label class="control-field"><span>Text size</span><input class="control-input" data-reading-size type="number" min="10" max="32" step="1" required value="${this.settings.GetFontSize()}"></label>
 				<label class="control-field"><span>Greek anchor highlight</span><input data-anchor-highlight-color type="color" value="${this.settings.GetAnchorHighlightColor()}"></label>
+				<label class="control-field"><span>The Agentian Stranger · local model</span><select data-interlocutor-model><option value="qwen3.5:9b"${model === "qwen3.5:9b" ? " selected" : ""}>qwen3.5:9b</option><option value="qwen3.5:4b"${model === "qwen3.5:4b" ? " selected" : ""}>qwen3.5:4b</option></select></label>
 			</div>`,
 			CommitAsync: this.Commit.bind(this),
 			InitialFocus: "[data-appearance]"
@@ -47,13 +51,16 @@ export class ReadingAppearancePanel
 		const appearance = this.dialog.Content.querySelector<HTMLSelectElement>("[data-appearance]")!.value;
 		const size = this.dialog.Content.querySelector<HTMLInputElement>("[data-reading-size]")!.valueAsNumber;
 		const color = this.dialog.Content.querySelector<HTMLInputElement>("[data-anchor-highlight-color]")!.value;
+		const model = this.dialog.Content.querySelector<HTMLSelectElement>("[data-interlocutor-model]")!.value;
 		const valid = (font === "serif" || font === "sans") && (appearance === "light" || appearance === "dark")
-			&& Number.isInteger(size) && size >= 10 && size <= 32 && /^#[0-9a-f]{6}$/iu.test(color);
+			&& Number.isInteger(size) && size >= 10 && size <= 32 && /^#[0-9a-f]{6}$/iu.test(color)
+			&& (model === "qwen3.5:9b" || model === "qwen3.5:4b");
 		if (valid)
 		{
 			this.settings.SetFont(font);
 			this.settings.ChangeFontSize(size - this.settings.GetFontSize());
 			this.settings.SetAnchorHighlightColor(color);
+			this.studySettings.SetModel(model);
 			if (this.settings.GetAppearance() !== appearance)
 			{
 				this.settings.ToggleAppearance();

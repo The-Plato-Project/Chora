@@ -121,7 +121,7 @@ A model is not required for the core reading and writing loop. Exact anchors,
 canonical texts, and linguistic material are enough to support reliable return.
 
 The optional interlocutor works on specific tasks given by the reader: finding
-relevant passages, locating information in selected Visions, or addressing a
+relevant passages, locating information in the current work's Visions, or addressing a
 particular question. It must not independently interpret the text, elaborate
 on meaning, review writing, or search for contradictions without that request.
 It returns the requested result and stops.
@@ -147,9 +147,11 @@ appeared when asked. It must not:
 - present semantic similarity as linguistic proof;
 - decide which dictionary sense governs a passage.
 
-Reader writing remains local. Explicit context selection and a submitted task
-determine what the optional local interlocutor may read and why. Unselected
-Visions and unsaved drafts are not shared automatically.
+Reader writing remains local. The open work is always the interlocutor's context.
+Its saved Visions are available when a submitted request calls for them, including
+a request to read all writing so far. An attached Vision adds emphasis; it does
+not restrict access to the others. Saved context is refreshed per request, while
+unsent editor drafts and other works remain outside that request.
 
 ## Product Principles
 

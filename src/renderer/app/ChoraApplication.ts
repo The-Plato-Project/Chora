@@ -21,6 +21,8 @@ import { DocumentIcon, SearchIcon, TextQuoteIcon } from "../ui/Icons.js";
 import { StudyController } from "../study/StudyController.js";
 import { StudyGateway } from "../study/StudyGateway.js";
 import { StudyStore } from "../study/StudyStore.js";
+import { StudySettingsStore } from "../study/StudySettingsStore.js";
+import { ReadingAppearanceGateway } from "../workspace/ReadingAppearanceGateway.js";
 import { StudyPanel } from "../study/StudyPanel.js";
 import { WordSearchPanel } from "../library/words/WordSearchPanel.js";
 import { VisionController } from "../visions/VisionController.js";
@@ -60,8 +62,10 @@ export class ChoraApplication
 	// Optional interlocutor state has no subscriptions to editor typing.
 	private readonly studyStore = new StudyStore();
 	private readonly studyGateway = new StudyGateway();
+	// Application-wide inference preferences are separate from the chat composer.
+	private readonly studySettings = new StudySettingsStore();
 	private readonly study = new StudyController(this.events, this.errors, this.studyStore, this.studyGateway,
-		this.libraryStore, this.visionStore);
+		this.libraryStore, this.visionStore, this.studySettings);
 	private readonly visionReferences = new VisionReferenceController(this.events, this.errors, this.visionStore, this.anchorGateway, this.libraryStore);
 	private readonly wordVisionReferenceStore = new WordVisionReferenceStore();
 	private readonly wordVisionReferences = new WordVisionReferenceController(
@@ -90,7 +94,7 @@ export class ChoraApplication
 			const shell = new WorkspaceShellPanel(this.root, this.events);
 			this.disposables.push(shell);
 			const roots = shell.GetRoots();
-			this.disposables.push(new ReadingAppearancePanel(this.settings, this.events, this.errors));
+			this.disposables.push(new ReadingAppearancePanel(this.settings, this.events, this.errors, new ReadingAppearanceGateway(), this.studySettings));
 			this.disposables.push(new WorkspaceLayoutPanel(this.root, this.events));
 			this.disposables.push(new DocumentPanel(roots.document, this.events, this.libraryStore, this.library));
 			this.disposables.push(new VisionPanel(roots.vision, this.events, this.errors, this.visionStore, this.visions));
@@ -117,7 +121,7 @@ export class ChoraApplication
 			const extensions: readonly WorkspaceSidebarExtension[] = [
 				{ id: "explorer", title: "Explorer", icon: DocumentIcon, Mount: MountExplorer },
 				{ id: "word-search", title: "Word Search", icon: SearchIcon, Mount: MountWordSearch },
-				{ id: "interlocutor", title: "The Athenian Stranger", icon: TextQuoteIcon, Mount: MountStudy }
+				{ id: "interlocutor", title: "The Agentian Stranger", icon: TextQuoteIcon, Mount: MountStudy }
 			];
 			this.disposables.push(new WorkspaceSidebar(roots.sidebarRail, roots.sidebarHost, this.events, extensions));
 			this.disposables.push(new WordExplorationPanel(

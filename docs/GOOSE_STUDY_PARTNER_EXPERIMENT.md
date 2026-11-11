@@ -1,11 +1,11 @@
-# The Athenian Stranger: Optional Local Interlocutor / Goose Experiment
+# The Agentian Stranger: Optional Local Interlocutor / Goose Experiment
 
 ## Status and purpose
 
 This is the design and acceptance contract for the experimental PR. The first
 implementation adds an optional sidebar conversation, a replaceable backend
 interface, and five read-only evidence tools. The runtime remains disabled until
-the reader chooses context and starts it explicitly. Behavioral acceptance is a
+the reader sends a message in the current work. Behavioral acceptance is a
 separate reader-led evaluation; implementation alone does not establish it.
 
 ### Running the Windows experiment
@@ -13,24 +13,30 @@ separate reader-led evaluation; implementation alone does not establish it.
 1. Run `powershell -ExecutionPolicy Bypass -File scripts/InstallGoose.ps1`.
    The installer verifies the official Goose 1.59.0 archive and executable.
 2. Add the printed `CHORA_GOOSE_BINARY` setting to `.env.local` and restart Chora.
-3. Start Ollama with `qwen3.5:9b` installed. The interface also offers an explicit
-   `qwen3.5:4b` choice; it never switches models or providers automatically.
-4. Open The Athenian Stranger in the activity bar. Choose the current work,
-   check the saved Visions to share, and optionally attach the selected Greek.
-   Save writing first: unsaved drafts are excluded.
-5. Start the local conversation. Ask a question and inspect retrieved source
-   cards below the conversation. These cards come from validated host results,
-   rather than interpreting model-generated links as commands.
-6. Stop ends the runtime and revokes evidence access. View last conversation
-   reopens passive history without replaying a turn or launching a model.
+3. Start Ollama with the model selected in Settings → Chora settings installed.
+   The default is qwen3.5:9b; qwen3.5:4b is an explicit alternative.
+   Once per installed model, run
+   `powershell -ExecutionPolicy Bypass -File scripts/ConfigureLocalModel.ps1 -Model qwen3.5:9b`
+   (substitute qwen3.5:4b for the smaller choice). This creates a separate Chora
+   profile using the installed weights; it does not modify the original model.
+4. Open The Agentian Stranger in the activity bar. The open work is already its
+   context. Type a message and press Send or Enter. Shift+Enter inserts a newline.
+5. Optionally use Attach Vision to foreground the saved version of the open
+   Vision. Every saved Vision in the work is available through tools when asked;
+   no checklist is required to say “read all my Visions so far.”
+6. Inspect Sources for actual retrieved material. Stop interrupts a response.
+   The next message continues without a separate launch or context-selection step.
+7. Switching works opens that work's conversation and retains the prior work's
+   history and unsent draft. Returning restores it without executing a task.
 
-The first slice keeps the latest transcript in application data under
-`interlocutor/latest.json`. It records partial responses separately from complete
-ones. Starting another conversation replaces that latest history; a conversation
-archive and native-session reconnection are not implemented. Goose keeps its
-own local session files in isolated application-data profiles under `goose/`.
-These profiles are separate from ordinary Goose configuration. This integration
-restricts exposed tools; it is not an operating-system sandbox.
+Conversations are saved separately per work under the application's interlocutor
+directory, using hashed canonical work identities as filenames. The earlier
+latest.json checkpoint is migrated to its work's record on first load. A work
+change stops prior execution and cannot retarget an in-flight request. Reopening
+a backend supplies earlier attributed messages as context only; it never replays
+old requests. Native ACP-session reconnection is not used. Goose keeps isolated
+local session files under the application's goose directory, separately from
+ordinary Goose configuration. Tool isolation is not an operating-system sandbox.
 
 The initial binary pin is Windows x64 only. Other platforms and Goose versions
 fail closed until their capability behavior and binary are verified. No hosted
@@ -56,8 +62,14 @@ an interlocutor failure and does not prevent reading or writing.
   and no outline. The feature introduces no typing subscription or editor
   refresh path.
 
-The local profile sets a 16,384-token context and a 4,096-token response limit,
-with explicit thinking effort off. Effective model selection is checked before
+The adapter uses a separate local profile with a 16,384-token context and a
+4,096-token response limit, with explicit thinking effort off. Goose's request
+parameters alone did not change Ollama's effective context: the compatibility
+endpoint continued to load 4,096 tokens. ConfigureLocalModel.ps1 therefore creates
+chora-qwen3.5:9b-16k or chora-qwen3.5:4b-16k from the existing selected base model.
+The adapter validates its persisted parameters and effective Goose model choice.
+The original model and ordinary Goose configuration remain unchanged.
+Effective model selection is checked before
 any reader turn. Empty, interrupted and token-limited responses are incomplete,
 not successful answers. There is no automatic model fallback or turn retry.
 
@@ -67,8 +79,27 @@ the wrong speaker. Source cards identify actual retrieved material; they do not
 certify every claim in the response. The contextual acceptance scenarios below
 remain unvalidated and should guide evaluation with the reader.
 
+### Simplified chat validation
+
+The revised interface has no work chooser, Vision checklist, selected-Greek
+attachment, local-start button or model selector. The work label follows the
+Library; sending starts execution lazily. Model choice lives in Chora settings.
+An optional attachment foregrounds the open saved Vision and remains linked in
+the reader's message history. Per-work conversation files preserve history across
+navigation, and unsent drafts remain in their work's renderer state.
+
+The full build and 149 tests passed. An isolated real Electron run verified that
+the first Send started execution and listed both disposable current-work Visions.
+The next request read both saved documents and returned the requested quotations
+without an interpretive detour. A subsequent interrupted turn was saved as partial.
+Ollama's runtime status confirmed chora-qwen3.5:9b-16k loaded with 16,384 context
+tokens. The normal chat surface was rendered separately to verify its new name,
+absence of setup controls, square corners, and unchanged focused-input borders.
+
+This is a narrow behavioral check, not a guarantee of reliable future answers.
+
 The agent's role is **interlocutor** and its reader-facing name is
-**The Athenian Stranger**. It executes specific reader tasks using permitted
+**The Agentian Stranger**. It executes specific reader tasks using permitted
 canonical evidence and reader writing. It does not independently interpret,
 elaborate on meaning, review documents, or continue an inquiry without a request.
 Interpretation or criticism is available only when specifically requested and
@@ -82,13 +113,13 @@ prerequisite for private study.
 ## Identity and application-owned directives
 
 The name refers to the unnamed Athenian participant in Plato's *Laws*. It names
-a relationship, not a historical persona. The Athenian Stranger is a contemporary
+a relationship, not a historical persona. The Agentian Stranger is a contemporary
 interlocutor in the reader's encounter with the text. It does not impersonate
 Plato's character, perform ancient dialogue, or claim philosophical authority.
 It can address a requested interpretation, comparison or criticism without
 adopting a Socratic interrogation routine or pursuing its own agenda.
 
-**The Athenian Stranger is an interlocutor, not an authority.** The text remains
+**The Agentian Stranger is an interlocutor, not an authority.** The text remains
 the primary object of inquiry; the reader remains the principal investigator.
 
 [Interlocutor directives](STUDY_PARTNER_DIRECTIVES.md) are Chora's canonical
@@ -97,31 +128,28 @@ the application-owned backend contract,
 including when starting or restoring a session with another backend. Do not
 maintain a second persona or competing role instructions in Goose configuration.
 
-Use The Athenian Stranger in the experimental interface's name and conversation
+Use The Agentian Stranger in the experimental interface's name and conversation
 attribution when that interface is implemented. Keep `StudyPartner`, the existing
 technical identifiers, and the evidence contracts unless functionality requires
 a change. Replacing a backend changes execution, not this identity or role.
 
 ## Task-driven workflow
 
-1. The reader opens The Athenian Stranger and chooses a work, saved Visions and
-   an optional exact passage. This grants context access, not an analysis task.
-2. They submit a specific task or question. For example: find information about
-   time in the selected Visions, or compare two named passages on a stated issue.
-3. The host enables bounded read tools for that submitted task only. The prompt
-   identifies the current task separately from earlier conversation and sources.
-4. The model returns the requested result with inspectable evidence, then stops.
-   It does not add an unsolicited interpretation or start another investigation.
-5. If the action is unclear, it asks what the reader wants done and waits.
-6. The reader decides whether to give another task, include additional writing,
-   examine a particular interpretation, or leave the matter unresolved.
+1. The open Library work determines the conversation and available canonical text.
+2. The reader sends an ordinary message. Sending starts local execution if needed.
+3. Each message refreshes the saved Visions belonging to that work. The model can
+   list, search and read them on request; no per-document access checklist exists.
+4. An optional attached Vision foregrounds a particular saved document without
+   excluding the other Visions. Unsent editor drafts are not shared.
+5. The model completes the specific request with inspectable evidence and stops.
+   Opening chat, changing works or restoring history never starts analysis.
 
-The current tools support literal search of selected Vision snapshots, bounded
-reads of saved writing and known canonical passages, anchor validation and word
-evidence. A request such as "find discussions of time in Plato" describes an
-intended retrieval task; complete corpus-wide conceptual search is not yet an
-implemented capability. The model must disclose that limitation and must not
-claim an exhaustive search or substitute its memory for retrieved evidence.
+The tools support paginated literal Vision search/listing, bounded document and
+canonical-passage reads, anchor validation and word evidence. Reading “all”
+Visions can require multiple pages/windows and is subject to explicit tool and
+context budgets. Results must disclose partial coverage. Full corpus-wide
+conceptual search remains a separate capability; model memory is not a substitute
+for a completed source search.
 
 ## Task boundaries and growing guidance
 
@@ -136,11 +164,10 @@ not automatic model training, guaranteed factual reliability, or permission for
 independent interpretation. Earlier writing is context, not an irrevocable belief
 or an instruction to enforce consistency.
 
-The first slice captures saved Vision snapshots at explicit session start.
-Later saves do not silently replace that grant or stream drafts to the model.
-Starting a new conversation with the updated selected Visions supplies the new
-writing as guidance. Automatic task-time refresh and a larger retrieval index
-would require a separate explicit context contract.
+Each submitted message captures the current saved Vision catalogue for that work.
+Newly saved writing becomes available on the next request without a setup step.
+The host does not stream editor drafts or review changes between submissions.
+An attachment is conversational emphasis, not the work's document-access scope.
 
 Task discipline is the behavioral rule: no unsolicited meaning-making,
 connection-finding, contradiction detection or criticism. A request to retrieve
@@ -172,7 +199,7 @@ Main-process interlocutor owner
 ```
 
 Chora owns study context, evidence identities, tool contracts, behavioral
-instructions, The Athenian Stranger's reader-facing identity, session metadata,
+instructions, The Agentian Stranger's reader-facing identity, session metadata,
 and the visible conversation. The backend owns
 model execution and its native runtime session. No Goose types or method names
 belong in Vision, anchor, Library, or Word Lookup contracts.
@@ -210,14 +237,13 @@ registry. The backend interface is justified by the explicit substitution goal.
   removes subscriptions, and releases its surface.
 - Removing the module wiring and adapter must leave all Vision, anchor, Library,
   Word Lookup, and autosave behavior intact.
-- A second backend must consume the same context and tool contracts. Native
+- A second backend must consume the same work-scoped context and tool contracts. Native
   session state need not be transferable, but Chora's transcript and evidence
   references must remain readable.
 
 ## Context and the first evidence tools
 
-Every turn has a captured context scope: allowed work and Vision IDs, attached
-selection, optional explicitly shared draft excerpt, and relevant revisions.
+Every turn has a captured context scope: current canonical work, optional attached saved Vision, and relevant saved revisions.
 The host validates the scope; a model cannot widen it through tool arguments.
 Changing the active editor tab does not silently retarget an in-flight turn.
 
@@ -225,8 +251,8 @@ The first slice implements these read-only tool contracts:
 
 | Tool | Initial behavior | Existing authority |
 | --- | --- | --- |
-| `find_visions` | Literal search of the captured permitted saved snapshots; return bounded excerpts and factual match reasons | VisionService snapshots |
-| `read_vision` | Read a bounded window of one allowed saved Vision, preserving canonical placement metadata | VisionService snapshots |
+| `find_visions` | Literal search of the captured current work's saved snapshots; return bounded excerpts and factual match reasons | VisionService snapshots |
+| `read_vision` | Read a bounded window of one current-work saved Vision, preserving canonical placement metadata | VisionService snapshots |
 | `resolve_anchor` | Validate an existing anchor and return its exact Greek, versioned range, and source identity | TextAnchorService and LibraryService |
 | `read_passage` | Read a bounded canonical passage in the allowed work | LibraryService and its PlatoSI-backed document |
 | `get_word_evidence` | Return dictionary, morphology candidates, and occurrences for a validated exact word | WordExplorationService and PlatoSiGateway |
@@ -249,7 +275,7 @@ Results must:
 - paginate or report truncation, with bounded tool calls and output per turn;
 - validate exact references before navigation or lookup;
 - fall back to authoritative anchors and Visions when reverse indexes are absent;
-- identify saved content and explicitly shared unsaved draft content separately;
+- identify saved revisions and never silently substitute unsent editor drafts;
 - report unavailable or stale evidence without substituting invented content.
 
 The authoritative Vision directives remain unchanged. A tool may present their
@@ -336,7 +362,7 @@ Behavioral acceptance must now check the explicit-task contract:
 | The reader asks for passages discussing time across Plato. | Use only actual available search capabilities; disclose incomplete corpus or conceptual coverage rather than claim completeness. |
 | The reader thinks aloud without asking for work. | Ask what action they want; do not launch a review or interpretation. |
 | The reader asks to examine a particular argument. | Address that argument using permitted context; keep analysis provisional and within the request. |
-| More relevant Visions are explicitly included in a later task context. | Use the additional reader guidance faithfully, distinguishing earlier questions, changed positions and current claims. |
+| More Visions are saved before a later request in the same work. | Make the new writing available automatically through tools and use it when the request calls for it, preserving revisions and changed positions. |
 | Earlier Visions appear inconsistent but the current task is retrieval. | Complete retrieval; do not launch unsolicited contradiction analysis. |
 | A requested result is complete. | Stop; no automatic follow-up investigation, monitoring or commentary. |
 
@@ -345,16 +371,18 @@ and reader corrections. A long response or unexpected connection is not a measur
 of success. Additional context should improve fidelity to the reader's request,
 not increase the model's authority to act.
 
-Remaining capabilities include broader canonical retrieval, a conversation
-archive, deliberate native-session reconnection and evaluation of a second
+Remaining capabilities include broader canonical retrieval, a multi-conversation archive within a work, deliberate native-session reconnection and evaluation of a second
 backend. These should preserve the same task boundary and application-owned
 identity. They do not require autonomous monitoring, fine-tuning or a belief
 profile.
 
 ## References
 
+- [Ollama model profiles](https://docs.ollama.com/api/create)
+- [Ollama compatibility API context limits](https://github.com/ollama/ollama/blob/main/docs/api/openai-compatibility.mdx)
+
 - [Chora product direction](VISION.md)
-- [The Athenian Stranger: application-owned behavioral directives](STUDY_PARTNER_DIRECTIVES.md)
+- [The Agentian Stranger: application-owned behavioral directives](STUDY_PARTNER_DIRECTIVES.md)
 - [Goose application integration through ACP](https://github.com/aaif-goose/goose/blob/main/documentation/docs/gdk/acp/index.md)
 - [Goose GDK components](https://github.com/aaif-goose/goose/blob/main/documentation/docs/gdk/index.md)
 - [Buzz harness architecture](https://github.com/block/buzz-app/blob/main/src/features/agent-harness/kit.ts)

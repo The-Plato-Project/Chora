@@ -1,106 +1,106 @@
-import type { StudyScope, StudySource } from "../../shared/study/StudyTypes.js";
-import type { ChoraEventBus } from "../core/events/ChoraEventBus.js";
+import type { StudySource } from "../../shared/study/StudyTypes.js";
+import type { ChoraEventBus, Unsubscribe } from "../core/events/ChoraEventBus.js";
 import type { ChoraEvents } from "../core/events/ChoraEvents.js";
 import type { ErrorManager } from "../core/diagnostics/RendererErrorManager.js";
 import type { StudyController } from "./StudyController.js";
 import type { StudyStore } from "./StudyStore.js";
+import { AttachIcon } from "../ui/Icons.js";
 
-// Persistent, geometry-independent interlocutor surface using the shared control styles.
+// Standard chat presentation; the open work and execution lifecycle belong to existing owners.
 export class StudyPanel
 {
-	// Controls retain their DOM identities throughout streamed responses.
-	private readonly context = document.createElement("fieldset");
-	// Displays the captured work and saved-writing scope.
-	private readonly contextTitle = document.createElement("p");
-	// Hosts explicit opt-in choices for saved Visions.
-	private readonly choices = document.createElement("div");
-	// Controls explicit attachment of the captured Greek selection.
-	private readonly selection = document.createElement("input");
-	// Presents the supported deliberate local-model choices.
-	private readonly model = document.createElement("select");
-	// Launches execution only after the reader chooses context.
-	private readonly start = this.Button("Start local conversation", "start");
-	// Ends the runtime and revokes evidence access.
-	private readonly stop = this.Button("Stop", "stop");
-	// Opens passive saved history without replaying a turn.
-	private readonly history = this.Button("View last conversation", "history");
-	// Communicates execution availability independently of transcript content.
-	private readonly status = document.createElement("p");
-	// Hosts retained attributed message nodes.
+	// The work is a read-only label, never a second context selector.
+	private readonly work = document.createElement("span");
+	// Retained scroll container for attributed conversation messages.
 	private readonly transcript = document.createElement("div");
-	// Hosts navigation cards produced from actual retrieved evidence.
-	private readonly sources = document.createElement("div");
-	// Retains unsent reader text across streaming updates.
+	// An idle invitation never starts retrieval or inference.
+	private readonly empty = document.createElement("p");
+	// Composer elements stay mounted through streaming and work changes.
+	private readonly form = document.createElement("form");
+	// Reader text uses the shared square, unchanging-focus input skin.
 	private readonly input = document.createElement("textarea");
-	// Submits a reader contribution to the captured conversation.
+	// Optional document emphasis is separate from access to all work Visions.
+	private readonly attach = this.Button("Attach Vision", "attach");
+	// A compact removable attachment replaces the old context checklist.
+	private readonly attachment = this.Button("", "remove-attachment");
+	// The only execution action needed to begin or continue a conversation.
 	private readonly send = this.Button("Send", "send");
-	// Keeps existing message DOM stable while new chunks arrive.
+	// Cancellation is offered only while a response is in progress.
+	private readonly stop = this.Button("Stop", "stop");
+	// Inline activity and failure feedback stays outside message text.
+	private readonly status = document.createElement("p");
+	// Retrieved references are inspectable without overwhelming the conversation.
+	private readonly sourceDetails = document.createElement("details");
+	// Actual host-produced citations never come from parsing model commands.
+	private readonly sources = document.createElement("div");
+	// Keyed message bodies preserve their identities as chunks arrive.
 	private readonly messageNodes: HTMLElement[] = [];
-	// Maps delegated navigation actions to host-produced references.
+	// Delegated source actions resolve only known host-produced cards.
 	private readonly sourceCards: StudySource[] = [];
-	// Retains explicitly captured context independently of workspace navigation.
-	private scope: StudyScope | null = null;
-	// Rejects updates belonging to a retired conversation.
-	private conversationId: string | null = null;
-	// Releases the owned feature subscription.
-	private readonly unsubscribe: () => void;
-	// Retains one delegated action listener for the panel lifetime.
+	// Rebuilds source controls only when authoritative reference membership changes.
+	private renderedSources: readonly StudySource[] | null = null;
+	// Work navigation, rather than backend configuration, changes the displayed conversation.
+	private renderedWorkId: string | null = null;
+	// Feature subscriptions are released with the sidebar contribution.
+	private readonly subscriptions: Unsubscribe[] = [];
+	// Retained DOM listeners avoid per-render registration.
 	private readonly click = this.HandleClick.bind(this);
-	// The panel handles presentation; all execution and context access belongs to the controller.
+	private readonly submit = this.HandleSubmit.bind(this);
+	private readonly typing = this.HandleInput.bind(this);
+	private readonly key = this.HandleKey.bind(this);
+
+	// Uses the shared workspace host without taking responsibility for its dimensions.
 	public constructor(private readonly root: HTMLElement, events: ChoraEventBus<ChoraEvents>,
 		private readonly errors: ErrorManager, private readonly store: StudyStore, private readonly controller: StudyController)
 	{
 		root.classList.add("study-panel");
-		const heading = document.createElement("h2");
-		heading.className = "word-column-heading";
-		heading.textContent = "The Athenian Stranger";
-		const description = document.createElement("p");
-		description.textContent = "Give The Athenian Stranger a specific task or question about this work or your selected Visions. Your writing provides guidance; it is not permission for independent interpretation. Your documents remain unchanged.";
-		const legend = document.createElement("legend");
-		legend.textContent = "Conversation context";
-		const choose = this.Button("Choose current work", "context");
-		this.contextTitle.textContent = "No work chosen. Save your writing before choosing Visions.";
-		this.choices.className = "study-context-choices";
-		this.selection.type = "checkbox";
-		this.selection.disabled = true;
-		const selectionLabel = document.createElement("label");
-		selectionLabel.append(this.selection, document.createTextNode(" Attach the selected Greek passage"));
-		const modelLabel = document.createElement("label");
-		modelLabel.className = "control-field";
-		modelLabel.textContent = "Local Ollama model";
-		this.model.className = "control-input";
-		for (const name of ["qwen3.5:9b", "qwen3.5:4b"])
-		{
-			const option = document.createElement("option");
-			option.value = name;
-			option.textContent = name;
-			this.model.append(option);
-		}
-		modelLabel.append(this.model);
-		this.context.append(legend, choose, this.contextTitle, this.choices, selectionLabel, modelLabel, this.start);
-		this.status.setAttribute("role", "status");
-		this.status.className = "study-status";
+		const header = document.createElement("header");
+		header.className = "study-header";
+		const title = document.createElement("h2");
+		title.className = "word-column-heading";
+		title.textContent = "The Agentian Stranger";
+		this.work.className = "study-work";
+		header.append(title, this.work);
 		this.transcript.className = "study-transcript";
 		this.transcript.setAttribute("aria-label", "Conversation");
+		this.empty.className = "study-empty";
+		this.sourceDetails.className = "study-source-details";
+		const summary = document.createElement("summary");
+		summary.textContent = "Sources";
 		this.sources.className = "study-sources";
-		const inputLabel = document.createElement("label");
-		inputLabel.className = "control-field";
-		inputLabel.textContent = "Your task or question";
+		this.sourceDetails.append(summary, this.sources);
+		this.sourceDetails.hidden = true;
 		this.input.className = "control-input";
-		this.input.rows = 4;
+		this.input.rows = 3;
 		this.input.maxLength = 8000;
-		this.input.placeholder = "For example: Find where my selected Visions discuss time, and show the relevant excerpts.";
-		inputLabel.append(this.input);
+		this.input.setAttribute("aria-label", "Message The Agentian Stranger");
+		this.input.placeholder = "Ask about this work or your Visions…";
+		this.form.className = "study-composer";
 		const actions = document.createElement("div");
 		actions.className = "study-actions";
-		actions.append(this.send, this.stop, this.history);
-		root.append(heading, description, this.context, this.status, this.transcript, this.sources, inputLabel, actions);
+		this.attach.title = "Attach the saved version of the open Vision";
+		this.attach.className = "control-icon-button button-control";
+		this.attach.setAttribute("aria-label", "Attach Vision");
+		this.attach.innerHTML = AttachIcon;
+		this.attachment.setAttribute("aria-label", "Remove attached Vision");
+		this.send.type = "submit";
+		actions.append(this.attach, this.send, this.stop);
+		this.attachment.classList.add("study-attachment");
+		this.status.className = "study-status";
+		this.status.setAttribute("role", "status");
+		this.form.append(this.attachment, this.input, actions, this.status);
+		root.append(header, this.empty, this.transcript, this.sourceDetails, this.form);
 		root.addEventListener("click", this.click);
-		this.unsubscribe = events.Subscribe("study.changed", this.Render.bind(this));
+		this.form.addEventListener("submit", this.submit);
+		this.input.addEventListener("input", this.typing);
+		this.input.addEventListener("keydown", this.key);
+		this.subscriptions.push(events.Subscribe("study.changed", this.Render.bind(this)));
+		this.subscriptions.push(events.Subscribe("vision.opened", this.Render.bind(this)));
+		this.subscriptions.push(events.Subscribe("vision.closed", this.Render.bind(this)));
 		this.Render();
 	}
 
-	// Uses the same square application button skin as existing feature panels.
+	// Creates ordinary shared buttons without alternate control styling.
 	private Button(text: string, action: string): HTMLButtonElement
 	{
 		const button = document.createElement("button");
@@ -111,42 +111,51 @@ export class StudyPanel
 		return button;
 	}
 
-	// Delegates user actions once, without new listeners on each chunk.
+	// Draft edits are local state changes and do not publish an application refresh.
+	private HandleInput(): void
+	{
+		this.controller.SetDraft(this.input.value);
+		this.send.disabled = this.store.GetSnapshot()?.busy !== false || this.input.value.trim().length === 0;
+	}
+
+	// Enter sends while Shift+Enter preserves ordinary multiline writing.
+	private HandleKey(event: KeyboardEvent): void
+	{
+		if (event.key === "Enter" && !event.shiftKey && !event.isComposing && !this.send.disabled)
+		{
+			event.preventDefault();
+			this.form.requestSubmit();
+		}
+	}
+
+	// Sending is the sole launch action; no separate preparation or start step exists.
+	private HandleSubmit(event: SubmitEvent): void
+	{
+		event.preventDefault();
+		if (!this.send.disabled) void this.controller.SendAsync(this.input.value);
+	}
+
+	// Delegates attachment, cancellation and validated source navigation.
 	private HandleClick(event: Event): void
 	{
 		const target = event.target as HTMLElement | null;
-		const button = target?.closest<HTMLButtonElement>("button[data-study-action]");
-		if (button !== undefined && button !== null) void this.ActAsync(button);
+		const button = target?.closest<HTMLButtonElement>("[data-study-action]");
+		if (button !== null && button !== undefined) void this.ActAsync(button);
 	}
 
-	// Captures explicit context choices independently of subsequent workspace navigation.
+	// Routes only application-created controls to their workflow owner.
 	private async ActAsync(button: HTMLButtonElement): Promise<void>
 	{
 		try
 		{
 			const action = button.dataset.studyAction;
-			if (action === "context") this.ChooseContext();
-			else if (action === "start" && this.scope !== null)
-			{
-				const ids: string[] = [];
-				const checked = this.choices.querySelectorAll<HTMLInputElement>("input:checked");
-				const choices = Array.from(checked);
-				for (const choice of choices) ids.push(choice.value);
-				const scope = { ...this.scope, visionIds: ids, selection: this.selection.checked ? this.scope.selection : null };
-				const model = this.model.value === "qwen3.5:4b" ? "qwen3.5:4b" : "qwen3.5:9b";
-				await this.controller.StartAsync(scope, model);
-			}
-			else if (action === "send")
-			{
-				const text = this.input.value;
-				if (text.trim().length > 0)
-				{
-					this.input.value = "";
-					await this.controller.SendAsync(text);
-				}
-			}
+			if (action === "attach") this.controller.AttachVision();
+			else if (action === "remove-attachment") this.controller.RemoveAttachment();
 			else if (action === "stop") await this.controller.StopAsync();
-			else if (action === "history") await this.controller.LoadAsync();
+			else if (action === "attached-source" && button.dataset.visionId !== undefined)
+			{
+				await this.controller.OpenSourceAsync({ visionId: button.dataset.visionId, selection: null, label: "Attached Vision", excerpt: "" });
+			}
 			else if (action === "source")
 			{
 				const source = this.sourceCards[Number(button.dataset.sourceIndex)];
@@ -155,50 +164,43 @@ export class StudyPanel
 		}
 		catch (error)
 		{
-			this.errors.Report("Interlocutor.Action", error, "The requested interlocutor action could not be completed.");
+			this.errors.Report("Interlocutor.Action", error, "The chat action could not be completed.");
 		}
 	}
 
-	// Offers saved documents without granting any of them access by default.
-	private ChooseContext(): void
-	{
-		const options = this.controller.CaptureContext();
-		this.scope = options.scope;
-		this.contextTitle.textContent = `${options.title}. Choose saved Visions to share; unchecked Visions and unsaved drafts are excluded.`;
-		this.choices.replaceChildren();
-		for (const vision of options.visions)
-		{
-			const label = document.createElement("label");
-			const checkbox = document.createElement("input");
-			checkbox.type = "checkbox";
-			checkbox.value = vision.id;
-			label.append(checkbox, document.createTextNode(` ${vision.title}`));
-			this.choices.append(label);
-		}
-		this.selection.disabled = options.scope.selection === null;
-		this.selection.checked = false;
-		this.Render();
-	}
-
-	// Updates retained message nodes only; editor, lookup and input DOM remain untouched.
+	// Reconciles only the chat surface, retaining input focus and message nodes.
 	private Render(): void
 	{
 		const state = this.store.GetSnapshot();
-		this.status.textContent = state.status;
-		this.context.disabled = state.busy;
-		this.start.disabled = this.scope === null || state.busy;
-		this.stop.disabled = !state.connected && !state.busy;
-		this.history.disabled = state.connected || state.busy;
-		this.send.disabled = !state.connected || state.busy;
-		if (this.conversationId !== (state.conversation?.id ?? null))
+		const workId = state?.workId ?? null;
+		if (this.renderedWorkId !== workId)
 		{
-			this.conversationId = state.conversation?.id ?? null;
+			this.renderedWorkId = workId;
 			this.transcript.replaceChildren();
 			this.messageNodes.length = 0;
 			this.sources.replaceChildren();
 			this.sourceCards.length = 0;
+			this.renderedSources = null;
 		}
-		const messages = state.conversation?.messages ?? [];
+		this.work.textContent = state?.title ?? "";
+		this.input.disabled = state === null;
+		if (this.input.value !== (state?.draft ?? "")) this.input.value = state?.draft ?? "";
+		this.send.disabled = state === null || state.busy || this.input.value.trim().length === 0;
+		this.stop.hidden = state?.busy !== true;
+		this.attach.disabled = state === null || state.busy || !this.controller.CanAttachVision();
+		this.attachment.hidden = state?.attachment === null || state === null;
+		this.attachment.textContent = state?.attachment === null || state === null ? "" : state.attachment.title + " ×";
+		this.status.textContent = state?.status ?? "";
+		this.status.hidden = this.status.textContent.length === 0;
+		const messages = state?.conversation?.messages ?? [];
+		while (this.messageNodes.length > messages.length)
+		{
+			const body = this.messageNodes.pop();
+			body?.parentElement?.remove();
+		}
+		this.empty.hidden = messages.length > 0;
+		this.empty.textContent = state === null ? "Open a work to begin." : "Ask about " + state.title + " or your Visions.";
+		const atBottom = this.transcript.scrollHeight - this.transcript.scrollTop - this.transcript.clientHeight < 48;
 		for (let index = 0; index < messages.length; index += 1)
 		{
 			const message = messages[index]!;
@@ -207,25 +209,33 @@ export class StudyPanel
 			{
 				const article = document.createElement("article");
 				const author = document.createElement("strong");
-				author.textContent = message.role === "reader" ? "You" : "The Athenian Stranger";
+				author.textContent = message.role === "reader" ? "You" : "The Agentian Stranger";
 				body = document.createElement("p");
 				article.append(author, body);
+				if (message.visionId !== undefined)
+				{
+					const attachment = this.Button("Attached Vision", "attached-source");
+					attachment.dataset.visionId = message.visionId;
+					article.append(attachment);
+				}
 				this.transcript.append(article);
 				this.messageNodes.push(body);
 			}
-			const text = message.text + (message.status === "partial" && !state.busy ? "\n[Incomplete response]" : "");
+			const text = message.text + (message.status === "partial" && !state?.busy ? "\n[Incomplete response]" : "");
 			if (body.textContent !== text) body.textContent = text;
 		}
-		const sources = state.conversation?.sources ?? [];
+		if (atBottom) this.transcript.scrollTop = this.transcript.scrollHeight;
+		const sources = state?.conversation?.sources ?? [];
+		if (this.renderedSources !== sources)
+		{
+			this.sources.replaceChildren();
+			this.sourceCards.length = 0;
+			this.renderedSources = sources;
+		}
+		this.sourceDetails.hidden = sources.length === 0;
 		for (let index = this.sourceCards.length; index < sources.length; index += 1)
 		{
 			const source = sources[index]!;
-			if (index === 0)
-			{
-				const heading = document.createElement("h3");
-				heading.textContent = "Retrieved sources";
-				this.sources.append(heading);
-			}
 			const button = this.Button(source.label, "source");
 			button.dataset.sourceIndex = String(index);
 			const excerpt = document.createElement("p");
@@ -235,11 +245,14 @@ export class StudyPanel
 		}
 	}
 
-	// Releases only the feature surface; host geometry remains owned by the workspace.
+	// Removes only the feature's own DOM and subscriptions.
 	public Dispose(): void
 	{
-		this.unsubscribe();
+		for (const unsubscribe of this.subscriptions) unsubscribe();
 		this.root.removeEventListener("click", this.click);
+		this.form.removeEventListener("submit", this.submit);
+		this.input.removeEventListener("input", this.typing);
+		this.input.removeEventListener("keydown", this.key);
 		this.root.replaceChildren();
 	}
 }
