@@ -91,10 +91,12 @@ describe("Optional interlocutor integration", function IntegrationTests()
 		const updates: StudyUpdate[] = [];
 		let publish: Parameters<StudyBackend["OpenAsync"]>[2] | null = null;
 		let rejectTurn: ((reason: Error) => void) | null = null;
+		let submittedTask = "";
 		const dispose = vi.fn();
 		const backend: StudyBackend = {
 			OpenAsync: async function OpenAsync(_model, _tools, callback) { publish = callback; },
-			PromptAsync: async function PromptAsync() {
+			PromptAsync: async function PromptAsync(text) {
+				submittedTask = text;
 				function Pending(_resolve: () => void, reject: (reason: Error) => void): void { rejectTurn = reject; }
 				if (publish !== null) publish({ kind: "text", text: "A possibility" });
 				await new Promise<void>(Pending);
@@ -110,6 +112,9 @@ describe("Optional interlocutor integration", function IntegrationTests()
 			const pending = session.SendAsync("Consider this.");
 			const failed = expect(pending).rejects.toMatchObject({ failure: { kind: "cancelled" } });
 			await vi.waitFor(function Streamed() { expect(updates).toHaveLength(1); });
+			expect(submittedTask).toContain('Current reader task (JSON):\n{"request":"Consider this."}');
+			expect(submittedTask).toContain("Earlier conversation and Visions provide context, not additional tasks.");
+			expect(submittedTask).toContain("then stop");
 			await session.CancelAsync();
 			await failed;
 			const restored = await repository.LoadAsync();

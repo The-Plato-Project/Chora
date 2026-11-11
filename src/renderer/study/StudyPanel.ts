@@ -55,7 +55,7 @@ export class StudyPanel
 		heading.className = "word-column-heading";
 		heading.textContent = "The Athenian Stranger";
 		const description = document.createElement("p");
-		description.textContent = "An optional local interlocutor. It can read the chosen work and saved Visions you select. It cannot change your writing.";
+		description.textContent = "Give The Athenian Stranger a specific task or question about this work or your selected Visions. Your writing provides guidance; it is not permission for independent interpretation. Your documents remain unchanged.";
 		const legend = document.createElement("legend");
 		legend.textContent = "Conversation context";
 		const choose = this.Button("Choose current work", "context");
@@ -85,10 +85,11 @@ export class StudyPanel
 		this.sources.className = "study-sources";
 		const inputLabel = document.createElement("label");
 		inputLabel.className = "control-field";
-		inputLabel.textContent = "Your message";
+		inputLabel.textContent = "Your task or question";
 		this.input.className = "control-input";
 		this.input.rows = 4;
 		this.input.maxLength = 8000;
+		this.input.placeholder = "For example: Find where my selected Visions discuss time, and show the relevant excerpts.";
 		inputLabel.append(this.input);
 		const actions = document.createElement("div");
 		actions.className = "study-actions";
