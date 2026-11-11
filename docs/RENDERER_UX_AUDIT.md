@@ -8,12 +8,12 @@ The complete `src/renderer/` tree was reviewed for modal dialogs, navigation col
 
 | Element | Shared owner | Current consumers |
 | --- | --- | --- |
-| Modal form, question, and notification | [DialogControl](src/renderer/ui/controls/DialogControl.ts) | Vision deletion, folder deletion, Vision rename, new folder, Add work, diagnostic notifications |
-| Selectable flat collection | [ListViewControl](src/renderer/ui/controls/ListViewControl.ts) | Work picker, Word Lookup occurrence navigation, lemma choice |
-| Hierarchical navigation | [TreeControl](src/renderer/ui/controls/TreeControl.ts) | Explorer works, Visions, nested folders, inline folder actions, Vision drag/drop |
-| Content tabs and persistent panels | [TabControl](src/renderer/ui/controls/TabControl.ts), [TabPanel](src/renderer/ui/controls/TabPanel.ts) | Word Lookup tabs and Vision Write/Markdown/Preview modes |
-| Movable nonmodal research pane | [FloatingPanel](src/renderer/ui/controls/FloatingPanel.ts) | Dictionary, related lexical material, occurrences |
-| Control appearance | [controls.css](src/renderer/styles/controls.css) | Dialog frames, buttons, fields, search boxes, list/tree rows, icons, selection, keyboard focus, light/dark colors |
+| Modal form, question, and notification | [DialogControl](../src/renderer/ui/controls/DialogControl.ts) | Vision deletion, folder deletion, Vision rename, new folder, Add work, diagnostic notifications |
+| Selectable flat collection | [ListViewControl](../src/renderer/ui/controls/ListViewControl.ts) | Work picker, Word Lookup occurrence navigation, lemma choice |
+| Hierarchical navigation | [TreeControl](../src/renderer/ui/controls/TreeControl.ts) | Explorer works, Visions, nested folders, inline folder actions, Vision drag/drop |
+| Content tabs and persistent panels | [TabControl](../src/renderer/ui/controls/TabControl.ts), [TabPanel](../src/renderer/ui/controls/TabPanel.ts) | Word Lookup tabs and Vision Write/Markdown/Preview modes |
+| Movable nonmodal research pane | [FloatingPanel](../src/renderer/ui/controls/FloatingPanel.ts) | Dictionary, related lexical material, occurrences |
+| Control appearance | [controls.css](../src/renderer/styles/controls.css) | Dialog frames, buttons, fields, search boxes, list/tree rows, icons, selection, keyboard focus, light/dark colors |
 
 ### Dialog contract
 

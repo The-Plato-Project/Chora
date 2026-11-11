@@ -22,8 +22,8 @@ add empty layers or generic manager classes.
 
 ## Product Direction
 
-Read `VISION.md` before making product, UX, or architecture decisions. Use this
-question as the design test:
+Read `docs/VISION.md` before making product, UX, or architecture decisions.
+Use this question as the design test:
 
 > Does this deepen the conversation between the reader and the text?
 
@@ -109,6 +109,9 @@ npm run package
 On Windows, use `npm.cmd` when PowerShell blocks `npm.ps1`.
 
 ## Code Conventions
+
+Keep design documents, architecture reports, and behavioral specifications under
+`docs/`, and maintain the index in `docs/README.md`.
 
 Read `CODING_STANDARDS.md` first. Important rules include:
 
