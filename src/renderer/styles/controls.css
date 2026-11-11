@@ -1,0 +1,405 @@
+/* Shared application control styling. Features supply content and layout, not alternate skins. */
+:root {
+	--control-font: var(--ui-font);
+	--control-text-size: 13px;
+	--control-action-size: 12px;
+	--control-row-height: 30px;
+	--control-inset: 12px;
+	--control-selected: var(--accent-soft);
+}
+
+.control-window {
+	box-sizing: border-box;
+	border: 1px solid var(--panel-border);
+	border-radius: 0;
+	background: var(--panel-background);
+	color: var(--app-text);
+	font-family: var(--control-font);
+	font-size: var(--control-text-size);
+	line-height: 1.5;
+	box-shadow: 0 12px 32px #0003;
+}
+
+.control-window-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	min-height: 42px;
+	padding: 6px var(--control-inset);
+	border-bottom: 1px solid var(--panel-border);
+	background: var(--side-panel-background);
+	color: var(--app-text);
+}
+
+.control-window-header h2,
+.control-window-header h3 {
+	margin: 0;
+	color: inherit;
+	font: 500 14px/1.4 var(--control-font);
+}
+
+.control-window-close,
+.control-icon-button {
+	display: inline-grid;
+	flex: 0 0 28px;
+	place-items: center;
+	width: 28px;
+	height: 28px;
+	padding: 5px;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	color: var(--muted-text);
+}
+
+.control-window-close svg,
+.control-icon-button svg,
+.control-tree-icon svg,
+.markdown-editor svg {
+	width: 16px;
+	height: 16px;
+}
+
+.control-window-close svg {
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.7;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.document-tab-icon svg,
+.document-context-menu svg,
+.action-menu-items button svg {
+	width: 15px;
+	height: 15px;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.7;
+}
+
+.control-button {
+	box-sizing: border-box;
+	min-width: 68px;
+	min-height: var(--control-row-height);
+	padding: 5px 14px;
+	border: 1px solid var(--panel-border);
+	border-radius: 0;
+	background: var(--side-panel-background);
+	color: var(--app-text);
+	font-family: var(--control-font);
+	font-size: var(--control-action-size);
+	line-height: 1.4;
+}
+
+.control-button:hover:not(:disabled),
+.control-window-close:hover:not(:disabled),
+.control-icon-button:hover:not(:disabled) {
+	background: var(--control-selected);
+	color: var(--app-text);
+}
+
+.control-button:disabled,
+.control-icon-button:disabled {
+	opacity: 0.5;
+}
+
+.dialog-control {
+	width: min(420px, calc(100vw - 32px));
+	max-height: calc(100vh - 32px);
+	margin: auto;
+	padding: 0;
+	overflow: auto;
+}
+
+.dialog-control[hidden] {
+	display: none;
+}
+
+.dialog-control::backdrop {
+	background: #0004;
+}
+
+.dialog-control form {
+	margin: 0;
+	padding: 0;
+}
+
+.dialog-content {
+	min-width: 0;
+	margin: 0;
+	padding: 14px var(--control-inset) 6px;
+	border: 0;
+	font: inherit;
+}
+
+.dialog-content > p {
+	margin: 0 0 10px;
+}
+
+.dialog-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	padding: 10px var(--control-inset) 14px;
+}
+
+.control-error {
+	margin: 8px var(--control-inset) 0;
+	color: var(--danger);
+}
+
+.control-error[hidden],
+.control-list-detail[hidden],
+.control-tree-toggle[hidden],
+.control-tree-group[hidden] {
+	display: none;
+}
+
+.control-field {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	font: var(--control-text-size)/1.5 var(--control-font);
+}
+
+.control-input,
+.control-field input,
+.control-field select,
+.control-field textarea {
+	box-sizing: border-box;
+	width: 100%;
+	min-height: var(--control-row-height);
+	padding: 5px 8px;
+	border: 1px solid var(--panel-border);
+	border-radius: 0;
+	background: var(--editor-input-background);
+	color: var(--app-text);
+	font: var(--control-text-size)/1.5 var(--control-font);
+}
+
+/* Every field retains the same border and surface when focused. */
+.control-input:focus,
+.control-input:focus-visible,
+.control-field :is(input, select, textarea):focus,
+.control-field :is(input, select, textarea):focus-visible {
+	border-color: var(--panel-border);
+	outline: 0;
+	box-shadow: none;
+}
+
+.application-settings-fields {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.control-search {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	margin: 8px var(--control-inset);
+	padding: 0 8px;
+	border: 1px solid var(--panel-border);
+	border-radius: 0;
+	background: var(--editor-input-background);
+	color: var(--muted-text);
+}
+
+.control-search:focus-within {
+	outline: 0;
+}
+
+.control-search svg {
+	flex: 0 0 14px;
+	width: 14px;
+	height: 14px;
+}
+
+.control-search input {
+	flex: 1;
+	width: 0;
+	min-width: 0;
+	min-height: var(--control-row-height);
+	padding: 4px 0;
+	border: 0;
+	outline: 0;
+	background: transparent;
+	color: var(--app-text);
+	font: var(--control-text-size)/1.4 var(--control-font);
+}
+
+.dialog-content .control-search {
+	margin: 0 0 8px;
+}
+
+.control-list,
+.control-tree {
+	min-width: 0;
+	min-height: 0;
+	color: var(--app-text);
+	font: var(--control-text-size)/1.4 var(--control-font);
+}
+
+.dialog-content .control-list {
+	max-height: 45vh;
+	min-height: 60px;
+	overflow: auto;
+}
+
+.control-list:empty::before {
+	display: block;
+	padding: 8px var(--control-inset);
+	color: var(--muted-text);
+	content: "No matching items.";
+}
+
+.control-list-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 12px;
+	box-sizing: border-box;
+	width: 100%;
+	min-width: 0;
+	min-height: var(--control-row-height);
+	padding: 4px var(--control-inset);
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+}
+
+.control-list-row:hover:not(:disabled),
+.control-tree-row:hover {
+	background: color-mix(in srgb, var(--control-selected) 50%, transparent);
+}
+
+.control-list-row.selected,
+.control-tree-row.selected {
+	background: var(--control-selected);
+}
+
+.control-list-primary {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	min-width: 0;
+}
+
+.control-list-text,
+.control-tree-text {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.control-list-primary[lang="grc"] {
+	font-family: var(--reading-font);
+}
+
+.control-list-detail {
+	color: var(--muted-text);
+	font-size: var(--control-action-size);
+	white-space: nowrap;
+}
+
+.control-tree-row {
+	display: flex;
+	align-items: center;
+	min-width: 0;
+	min-height: var(--control-row-height);
+	padding-left: calc(var(--control-inset) + var(--tree-depth, 0) * 14px);
+}
+
+.control-tree-toggle {
+	flex: 0 0 18px;
+	width: 18px;
+	height: 28px;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: var(--muted-text);
+}
+
+.control-tree-toggle::after {
+	display: inline-block;
+	width: 5px;
+	height: 5px;
+	border-right: 1px solid currentColor;
+	border-bottom: 1px solid currentColor;
+	transform: rotate(-45deg);
+	content: "";
+}
+
+.control-tree-toggle[aria-expanded="true"]::after {
+	transform: rotate(45deg);
+}
+
+.control-tree-label {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	gap: 5px;
+	min-width: 0;
+	min-height: var(--control-row-height);
+	padding: 3px 4px;
+	border: 0;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+}
+
+.control-tree-toggle[hidden] + .control-tree-label {
+	margin-left: 18px;
+}
+
+.control-tree-icon {
+	display: inline-flex;
+	flex: 0 0 auto;
+}
+
+.control-tree-actions {
+	display: flex;
+	flex: 0 0 auto;
+	opacity: 0;
+}
+
+.control-tree-row:hover .control-tree-actions,
+.control-tree-row:focus-within .control-tree-actions,
+.control-tree-row.selected .control-tree-actions {
+	opacity: 1;
+}
+
+.control-tree-node.drop-target > .control-tree-row {
+	background: var(--control-selected);
+}
+
+.control-empty {
+	margin: 0;
+	padding: 6px var(--control-inset);
+	color: var(--muted-text);
+	font: var(--control-text-size)/1.4 var(--control-font);
+}
+
+.workspace-explorer [data-workspace-tree-host] {
+	flex: 1;
+	min-height: 0;
+	overflow: auto;
+	padding-bottom: 12px;
+}
+
+.word-occurrence-navigation .control-list-row {
+	padding-inline: var(--word-content-inline-padding);
+}
+
+.word-occurrence-navigation .control-list-text {
+	font-family: var(--reading-font);
+	font-weight: 700;
+}

@@ -239,8 +239,11 @@ export interface WordEvidenceCoverage
 
 export interface WordEvidenceResult
 {
-	readonly contract: "platosi.dialogue-lexicon.v1";
-	readonly selection: TextSelection;
+	readonly contract: "platosi.dialogue-lexicon.v1" | "platosi.lexical-evidence.v1";
+	readonly selection: TextSelection | null;
+	// Work used for occurrences, independent of the lookup's lexical or passage origin.
+	readonly work: WordWorkScope | null;
+	readonly occurrencesStatus: "indexed" | "unavailable";
 	readonly form: string;
 	readonly context: readonly { readonly stephanus: string; readonly text: string }[];
 	readonly possibilities: readonly WordLemmaPossibility[];
@@ -263,4 +266,20 @@ export interface WordEvidenceResult
 	};
 	readonly warnings: readonly string[];
 	readonly limitations: string;
+}
+
+// Canonical occurrence scope without inventing a passage selection.
+export interface WordWorkScope
+{
+	readonly dialogue: string;
+	readonly text_version: string;
+}
+
+// Bounded headword matches and possible lemmas for a reader-entered Greek word.
+export interface WordLexicalSearchResult
+{
+	readonly query: string;
+	readonly items: readonly { readonly lemma: string }[];
+	readonly possiblyTruncated: boolean;
+	readonly warnings: readonly string[];
 }

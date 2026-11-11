@@ -13,21 +13,21 @@ describe("Text area resize styles", function TextAreaResizeStyleTests()
 		expect(base).toMatch(/button:disabled\s*\{[^}]*cursor:\s*default;/s);
 	});
 
-	it("uses shared handles and multiline editor behavior", function ProvidesResizeHandles(): void
+	it("uses shared handles and Vision editor behavior", function ProvidesResizeHandles(): void
 	{
 		const basePath = resolve(process.cwd(), "src", "renderer", "styles", "base.css");
-		const dreamPath = resolve(process.cwd(), "src", "renderer", "styles", "dream-editor.css");
 		const markdownPath = resolve(process.cwd(), "src", "renderer", "styles", "markdown-editor.css");
+		const visionPath = resolve(process.cwd(), "src", "renderer", "styles", "vision-editor.css");
 		const base = readFileSync(basePath, "utf8");
-		const dream = readFileSync(dreamPath, "utf8");
 		const markdown = readFileSync(markdownPath, "utf8");
+		const vision = readFileSync(visionPath, "utf8");
+		const splits = readFileSync("src/renderer/styles/split-view.css", "utf8");
 
-		expect(base).toMatch(/textarea\.multiline-input,[^{]*\.dream-field textarea\s*\{[^}]*resize:\s*none;/s);
-		expect(base).toMatch(/\.row-resize-handle\s*\{[^}]*cursor:\s*row-resize;/s);
-		expect(dream).toMatch(/\.dream-editor \.dream-source-section\s*\{[^}]*overflow:\s*auto;[^}]*resize:\s*none;/s);
-		expect(dream).toMatch(/\.dream-editor\.document-editor \.dream-source-section\s*\{[^}]*height:\s*9rem;[^}]*max-height:\s*70vh;/s);
-		expect(dream).toMatch(/\.dream-editor \.signal-markdown-editor \.markdown-content\s*\{[^}]*resize:\s*none;/s);
+		expect(base).toMatch(/textarea\.multiline-input\s*\{[^}]*resize:\s*none;/s);
+		expect(splits).toMatch(/\.split-divider\[aria-orientation="horizontal"\]\s*\{[^}]*cursor:\s*row-resize;/s);
 		expect(markdown).toMatch(/textarea::\-webkit-resizer,[^{]*\.markdown-content::\-webkit-resizer/s);
+		expect(base).toMatch(/\.multiline-input:focus,[^{]*:focus-within\s*\{[^}]*border-color:\s*var\(--panel-border\);[^}]*outline:\s*0;/s);
+		expect(vision).not.toContain(".markdown-editor.multiline-input:focus");
 	});
 
 });

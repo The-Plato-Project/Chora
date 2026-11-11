@@ -11,15 +11,11 @@
 	display: none;
 }
 
-.signal-markdown-editor {
-	margin: 0.5rem 0 0.75rem;
-}
-
 .markdown-toolbar {
 	position: sticky;
 	top: 0;
 	z-index: 2;
-	background: var(--dream-background);
+	background: var(--editor-background);
 	display: flex;
 	flex-wrap: wrap;
 	gap: 2px;
@@ -40,10 +36,29 @@
 	height: 28px;
 	padding: 4px;
 	border: 0;
-	border-radius: 3px;
+	border-radius: 0;
 	background: transparent;
 	color: var(--app-text);
 	cursor: pointer;
+}
+
+.markdown-heading-select {
+	flex: 0 0 auto;
+	height: 28px;
+	min-width: 92px;
+	padding: 2px 24px 2px 7px;
+	border: 1px solid var(--panel-border);
+	border-radius: 0;
+	background: var(--editor-background);
+	color: var(--app-text);
+	font: inherit;
+	font-size: 0.78rem;
+	cursor: pointer;
+}
+
+.markdown-heading-select:disabled {
+	opacity: 0.35;
+	cursor: default;
 }
 
 .markdown-toolbar button:disabled {
@@ -54,22 +69,12 @@
 .markdown-toolbar button:hover:not(:disabled),
 .markdown-toolbar button[aria-pressed="true"],
 .markdown-link-form button:hover {
-	background: var(--dream-raised);
+	background: var(--raised-background);
 	color: var(--accent);
 }
 
-.markdown-editor button:focus-visible,
-.markdown-link-form input:focus-visible {
-	outline: 2px solid var(--accent);
-	outline-offset: -2px;
-}
-
-.markdown-editor svg {
-	width: 16px;
-	height: 16px;
-}
-
 .markdown-content {
+	position: relative;
 	box-sizing: border-box;
 	min-height: 5rem;
 	overflow: auto;
@@ -78,14 +83,13 @@
 }
 
 textarea::-webkit-resizer,
-.dream-source-section::-webkit-resizer,
 .markdown-content::-webkit-resizer {
 	background: linear-gradient(135deg,
 		transparent 40%, var(--muted-text) 40% 48%,
 		transparent 48% 60%, var(--muted-text) 60% 68%,
 		transparent 68% 80%, var(--muted-text) 80% 88%,
-		transparent 88%) var(--dream-raised);
-	border: 2px solid var(--dream-raised);
+		transparent 88%) var(--raised-background);
+	border: 2px solid var(--raised-background);
 }
 
 .markdown-content .ProseMirror {
@@ -97,16 +101,42 @@ textarea::-webkit-resizer,
 	color: inherit;
 }
 
-.markdown-content:focus-within {
-	box-shadow: inset 2px 0 var(--accent);
-}
-
 .markdown-content p {
 	margin: 0 0 0.75em;
 }
 
 .markdown-content p:last-child {
 	margin-bottom: 0;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4 {
+	font-family: inherit;
+	font-weight: 650;
+	line-height: 1.2;
+	margin: 1.25em 0 0.5em;
+}
+
+.markdown-content h1 {
+	font-size: 2rem;
+}
+
+.markdown-content h2 {
+	font-size: 1.6rem;
+}
+
+.markdown-content h3 {
+	font-size: 1.3rem;
+}
+
+.markdown-content h4 {
+	font-size: 1.1rem;
+}
+
+.markdown-content :is(h1, h2, h3, h4):first-child {
+	margin-top: 0;
 }
 
 .markdown-content ul,
@@ -119,6 +149,40 @@ textarea::-webkit-resizer,
 	margin: 0.5rem 0;
 	padding-left: 0.75rem;
 	border-left: 2px solid var(--muted-text);
+}
+
+.markdown-content pre {
+	overflow: auto;
+	padding: 0.75rem;
+	border-radius: 0;
+	background: var(--raised-background);
+}
+
+.markdown-content code {
+	font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+}
+
+.markdown-content table {
+	width: 100%;
+	border-collapse: collapse;
+	margin: 0.75rem 0;
+}
+
+.markdown-content th,
+.markdown-content td {
+	padding: 0.4rem 0.55rem;
+	border: 1px solid var(--panel-border);
+	text-align: left;
+}
+
+.markdown-content li[data-checked] {
+	list-style: none;
+}
+
+.markdown-content hr {
+	border: 0;
+	border-top: 1px solid var(--panel-border);
+	margin: 1.25rem 0;
 }
 
 .markdown-content a {
@@ -140,26 +204,14 @@ textarea::-webkit-resizer,
 	min-width: 0;
 	flex: 1;
 	border: 1px solid var(--panel-border);
-	background: var(--dream-raised);
+	background: var(--raised-background);
 	color: var(--app-text);
 	font: inherit;
 }
 
-.dream-reflections-markdown {
-	border: 1px solid var(--panel-border);
-	border-radius: 4px;
-}
-
-.dream-reflections-markdown .markdown-content {
-	min-height: 18rem;
-}
-
-.markdown-content[data-placeholder] .ProseMirror p:first-child:last-child:has(.ProseMirror-trailingBreak)::before {
+.markdown-content[data-placeholder]:has(.ProseMirror > p:only-child > .ProseMirror-trailingBreak:only-child)::before {
+	position: absolute;
 	content: attr(data-placeholder);
 	color: var(--muted-text);
 	pointer-events: none;
-}
-
-:root[data-theme="dark"] .signal-markdown-editor {
-	color: #ffffff;
 }

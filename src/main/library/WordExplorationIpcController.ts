@@ -1,6 +1,6 @@
 import { ipcMain, shell, type IpcMainInvokeEvent } from "electron";
 import { IPC_CHANNELS } from "../../shared/contracts/IpcChannels.js";
-import type { WordEvidenceResult, WordNameNote, WordObservation, WordPersonResearch, WordSearchResult } from "../../shared/library/WordExplorationTypes.js";
+import type { WordEvidenceResult, WordLexicalSearchResult, WordNameNote, WordObservation, WordPersonResearch, WordSearchResult } from "../../shared/library/WordExplorationTypes.js";
 import { IpcErrorBoundary } from "../diagnostics/IpcErrorBoundary.js";
 import { WordExplorationService } from "./WordExplorationService.js";
 
@@ -32,6 +32,8 @@ export class WordExplorationIpcController
 
 	public Register(): void
 	{
+		IpcErrorBoundary.Register(IPC_CHANNELS.searchLexicon, this.SearchLexiconAsync.bind(this));
+		IpcErrorBoundary.Register(IPC_CHANNELS.getLexicalEvidence, this.GetLexicalEvidenceAsync.bind(this));
 		const search = this.SearchAsync.bind(this);
 		const evidence = this.GetEvidenceAsync.bind(this);
 		const person = this.GetPersonResearchAsync.bind(this);
@@ -52,6 +54,8 @@ export class WordExplorationIpcController
 
 	public Unregister(): void
 	{
+		ipcMain.removeHandler(IPC_CHANNELS.searchLexicon);
+		ipcMain.removeHandler(IPC_CHANNELS.getLexicalEvidence);
 		ipcMain.removeHandler(IPC_CHANNELS.searchWord);
 		ipcMain.removeHandler(IPC_CHANNELS.getWordEvidence);
 		ipcMain.removeHandler(IPC_CHANNELS.getPersonResearch);
@@ -60,6 +64,19 @@ export class WordExplorationIpcController
 		ipcMain.removeHandler(IPC_CHANNELS.openExternalSource);
 		ipcMain.removeHandler(IPC_CHANNELS.getWordObservation);
 		ipcMain.removeHandler(IPC_CHANNELS.saveWordObservation);
+	}
+
+	// Main-process feature owner validates all lexical input.
+	private async SearchLexiconAsync(_event: IpcMainInvokeEvent, query: unknown): Promise<WordLexicalSearchResult>
+	{
+		const result = await this.service.SearchLexiconAsync(query);
+		return result;
+	}
+
+	private async GetLexicalEvidenceAsync(_event: IpcMainInvokeEvent, lemma: unknown, workId: unknown): Promise<WordEvidenceResult>
+	{
+		const result = await this.service.GetLexicalEvidenceAsync(lemma, workId);
+		return result;
 	}
 
 	private async GetNameNoteAsync(

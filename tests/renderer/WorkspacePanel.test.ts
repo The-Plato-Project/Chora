@@ -1,24 +1,13 @@
-import { DreamSaveCoordinator } from "../../src/renderer/dreams/DreamSaveCoordinator.js";
-import { DreamCatalogueController } from "../../src/renderer/dreams/DreamCatalogueController.js";
-import { DreamExportController } from "../../src/renderer/dreams/DreamExportController.js";
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DreamTrashPanel } from "../../src/renderer/dreams/DreamTrashPanel.js";
-import { DreamTrashController } from "../../src/renderer/dreams/DreamTrashController.js";
-import { SessionStore } from "../../src/renderer/core/session/SessionStore.js";
-import { DreamController } from "../../src/renderer/dreams/DreamController.js";
-import { DreamGateway } from "../../src/renderer/dreams/DreamGateway.js";
-import { LibraryGateway } from "../../src/renderer/library/LibraryGateway.js";
-import { DreamStore } from "../../src/renderer/dreams/DreamStore.js";
-import { ErrorManager } from "../../src/renderer/core/diagnostics/RendererErrorManager.js";
+import type { TextDocument, LibraryTextSummary } from "../../src/shared/library/LibraryTypes.js";
+import type { VisionSnapshot } from "../../src/shared/visions/VisionTypes.js";
 import { ChoraEventBus } from "../../src/renderer/core/events/ChoraEventBus.js";
 import type { ChoraEvents } from "../../src/renderer/core/events/ChoraEvents.js";
 import { LibraryStore } from "../../src/renderer/library/LibraryStore.js";
+import type { VisionController } from "../../src/renderer/visions/VisionController.js";
+import { VisionStore } from "../../src/renderer/visions/VisionStore.js";
 import { WorkspacePanel } from "../../src/renderer/workspace/WorkspacePanel.js";
-import { DreamTabsPanel } from "../../src/renderer/workspace/DreamTabsPanel.js";
-import { DreamExplorerController } from "../../src/renderer/workspace/DreamExplorerController.js";
-import type { DreamView } from "../../src/renderer/dreams/DreamView.js";
-import type { TextDocument, LibraryTextSummary } from "../../src/shared/library/LibraryTypes.js";
 
 const summary: LibraryTextSummary = {
 	id: "republic",
@@ -31,205 +20,166 @@ const summary: LibraryTextSummary = {
 };
 
 const text: TextDocument = {
-	id: summary.id,
+	...summary,
 	textVersion: `sha256:${"0".repeat(64)}`,
-	urn: summary.urn,
-	title: summary.title,
-	titleGreek: summary.titleGreek,
-	author: summary.author,
-	language: summary.language,
 	edition: { editor: null, title: null, volume: null, publisher: null, publicationPlace: null, publicationDate: null },
 	provenance: { repository: "test", commit: "test", sourceFile: "republic.xml", license: "test" },
-	segments: [{
-		key: "s1",
-		citation: { system: "stephanus", value: "327a" },
-		division: { type: "book", label: "1" },
-		text: "abcdef"
-	}]
+	segments: [{ key: "s1", citation: null, text: "abcdef" }]
 };
 
-function CreateDream(id = "dream-1", title = "Descent"): DreamView
+function CreateVision(id: string, title: string, folderPath = ""): VisionSnapshot
 {
 	return {
 		id,
-		workId: text.id,
-		dialogue: text.title,
+		workId: "republic",
+		folderPath,
 		title,
-		source: {
-			dialogue: text.id, text_version: text.textVersion,
-			start: { stephanus: "s1", offset: 0 },
-			end: { stephanus: "s1", offset: 3 }
-		},
-		signals: [],
-		reflection: "",
-		linkedDreamIds: [],
-		createdAt: "2026-09-08",
-		updatedAt: "2026-09-08"
+		markdown: "",
+		createdAt: "2026-09-08T00:00:00.000Z",
+		updatedAt: "2026-09-08T00:00:00.000Z"
 	};
 }
 
 describe("WorkspacePanel", function WorkspacePanelTests()
 {
-	let explorerRoot: HTMLElement;
-	let tabsRoot: HTMLElement;
+	let root: HTMLElement;
 	let events: ChoraEventBus<ChoraEvents>;
-	let dreamStore: DreamStore;
-	let dreamController: DreamController;
-	let saves: DreamSaveCoordinator;
-	let catalogue: DreamCatalogueController;
-	let explorer: DreamExplorerController;
-	let library: LibraryStore;
+	let store: VisionStore;
 	let panel: WorkspacePanel;
-	let dreamTabs: DreamTabsPanel;
-	// Trash feature composed alongside the Explorer under test.
-	let trashPanel: DreamTrashPanel;
+	let controller: {
+		CreateAsync: ReturnType<typeof vi.fn>;
+		CreateFolderAsync: ReturnType<typeof vi.fn>;
+		DeleteFolderAsync: ReturnType<typeof vi.fn>;
+		MoveAsync: ReturnType<typeof vi.fn>;
+		Open: ReturnType<typeof vi.fn>;
+	};
 
 	beforeEach(function Setup(): void
 	{
 		window.localStorage.clear();
-		window.sessionStorage.clear();
-		explorerRoot = document.createElement("div");
-		tabsRoot = document.createElement("div");
-		document.body.append(explorerRoot, tabsRoot);
+		root = document.createElement("div");
+		document.body.append(root);
 		events = new ChoraEventBus<ChoraEvents>();
-		dreamStore = new DreamStore(new SessionStore());
-		dreamStore.SetCatalogue([CreateDream()], [], [{ dreamId: "dream-1", workId: "republic", folderPath: "" }]);
-		library = new LibraryStore();
-		library.SetLibrary([summary]);
+		const library = new LibraryStore();
+		library.SetLibrary([summary, { ...summary, id: "apology", title: "Apology" }]);
 		library.Open(text, null);
-		const errors = new ErrorManager(events);
-		const gateway = new DreamGateway();
-		const reader = new LibraryGateway();
-		saves = new DreamSaveCoordinator(events, errors, dreamStore, gateway);
-		catalogue = new DreamCatalogueController(events, errors, library, dreamStore, gateway, saves);
-		dreamController = new DreamController(events, errors, library, dreamStore, gateway, reader, saves);
-		explorer = new DreamExplorerController(dreamStore, library, gateway, events, errors, catalogue, { HasUncommittedChanges: function HasUncommittedChanges(): boolean { return false; } });
-		const exporter = new DreamExportController(dreamStore, library, reader);
-		const trashController = new DreamTrashController(gateway, catalogue, errors);
-		trashPanel = new DreamTrashPanel(trashController);
-		panel = new WorkspacePanel(explorerRoot, events, dreamStore, dreamController, library, explorer, trashPanel, saves);
-		dreamTabs = new DreamTabsPanel(tabsRoot, events, dreamStore, dreamController, saves, exporter);
+		store = new VisionStore();
+		store.SetCatalogue({
+			visions: [
+				CreateVision("123e4567-e89b-42d3-a456-426614174000", "At the root"),
+				CreateVision("123e4567-e89b-42d3-a456-426614174001", "Descent", "Book 1/Questions")
+			],
+			folders: [
+				{ workId: "republic", path: "Book 1", name: "Book 1", parentPath: "" },
+				{ workId: "republic", path: "Book 1/Questions", name: "Questions", parentPath: "Book 1" }
+			]
+		});
+		controller = {
+			CreateAsync: vi.fn(async () => undefined),
+			CreateFolderAsync: vi.fn(async () => true),
+			DeleteFolderAsync: vi.fn(async () => true),
+			MoveAsync: vi.fn(async () => undefined),
+			Open: vi.fn()
+		};
+		panel = new WorkspacePanel(root, events, library, store, controller as unknown as VisionController);
 	});
 
 	afterEach(function Cleanup(): void
 	{
 		panel.Dispose();
-		dreamTabs.Dispose();
-		trashPanel.Dispose();
-		explorer.Dispose();
-		catalogue.Dispose();
-		dreamController.Dispose();
-		saves.Dispose();
-		dreamStore.Dispose();
 		document.body.replaceChildren();
 		window.localStorage.clear();
-		window.sessionStorage.clear();
 		vi.restoreAllMocks();
 	});
 
-	it("opens Trash from the Explorer", function OpensTrash(): void
+	it("renders nested Vision folders from the Vision catalogue", function RendersVisionFolders(): void
 	{
-		const open = vi.spyOn(trashPanel, "OpenAsync").mockResolvedValue();
-		const trigger = explorerRoot.querySelector<HTMLButtonElement>("[data-open-dream-trash]");
-		trigger?.click();
-		expect(open).toHaveBeenCalledExactlyOnceWith(trigger);
+		expect(root.textContent).toContain("Visions");
+		expect(root.textContent).toContain("Book 1");
+		expect(root.textContent).toContain("Questions");
+		expect(root.textContent).toContain("Descent");
+		const rootFolder = root.querySelector<HTMLElement>('[data-tree-drop="folder:republic:Book 1"]')?.closest<HTMLElement>(".control-tree-node");
+		const nestedFolder = root.querySelector<HTMLElement>('[data-tree-drop="folder:republic:Book 1/Questions"]')?.closest<HTMLElement>(".control-tree-node");
+		const nestedVision = root.querySelector<HTMLElement>('[data-workspace-vision="123e4567-e89b-42d3-a456-426614174001"]');
+		expect(rootFolder?.style.getPropertyValue("--tree-depth").trim()).toBe("2");
+		expect(nestedFolder?.style.getPropertyValue("--tree-depth").trim()).toBe("3");
+		expect(nestedVision?.closest<HTMLElement>(".control-tree-node")?.style.getPropertyValue("--tree-depth").trim()).toBe("4");
+		expect(nestedVision?.getAttribute("aria-level")).toBe("5");
+		expect(nestedVision?.textContent).toContain("Descent");
+		const requests = vi.fn();
+		events.Subscribe("library.text-open-requested", requests);
+		root.querySelector<HTMLButtonElement>("[data-add-work]")?.click();
+		const chooser = document.querySelector<HTMLDialogElement>("dialog[open]")!;
+		chooser.querySelector<HTMLButtonElement>('[data-list-id="apology"]')?.click();
+		expect(requests).not.toHaveBeenCalled();
+		expect(chooser.querySelector<HTMLButtonElement>("[data-dialog-ok]")?.disabled).toBe(false);
+		chooser.querySelector<HTMLButtonElement>("[data-dialog-cancel]")?.click();
+		expect(requests).not.toHaveBeenCalled();
+		expect(chooser.open).toBe(false);
 	});
 
-	it("renders a Dream-only Explorer", function RendersDreamOnlyExplorer(): void
+	it("creates a Vision in the selected folder", function CreatesVisionInFolder(): void
 	{
-		expect(explorerRoot.textContent).toContain("Dreams");
-		expect(explorerRoot.textContent).toContain("Descent");
+		const folder = root.querySelector<HTMLButtonElement>('[data-tree-id="folder:republic:Book 1/Questions"]')!;
+		folder.focus();
+		folder.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
+		expect(folder.getAttribute("aria-expanded")).toBe("false");
+		folder.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }));
+		expect(folder.getAttribute("aria-expanded")).toBe("true");
+		expect(controller.CreateAsync).not.toHaveBeenCalled();
+		root.querySelector<HTMLButtonElement>('[data-tree-drop="folder:republic:Book 1/Questions"] > .control-tree-row [data-tree-action="new-vision"]')?.click();
+		expect(controller.CreateAsync).toHaveBeenCalledWith("republic", "Book 1/Questions");
 	});
 
-	it("opens a Dream from the Explorer and renders its tab", async function OpensDreamAsync(): Promise<void>
+	it("creates a nested Vision folder", async function CreatesFolderAsync(): Promise<void>
 	{
-		const open = vi.spyOn(dreamController, "Open");
-		explorerRoot.querySelector<HTMLButtonElement>('[data-workspace-dream="dream-1"]')?.click();
-
-		expect(open).toHaveBeenCalledWith("dream-1");
-		await events.PublishAsync("dream.opened", {});
-		expect(tabsRoot.querySelector('[data-workspace-tab="dream-1"]')?.textContent).toContain("Descent");
-	});
-
-	it("offers Dream actions from the tab context menu", async function OpensDreamActionsAsync(): Promise<void>
-	{
-		dreamController.Open("dream-1");
-		await events.PublishAsync("dream.opened", {});
-		const tab = tabsRoot.querySelector<HTMLElement>('[data-workspace-tab="dream-1"]')!;
-		tab.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
-		await vi.waitFor(function ContextMenuOpened(): void
+		root.querySelector<HTMLButtonElement>('[data-tree-drop="folder:republic:Book 1"] > .control-tree-row [data-tree-action="new-folder"]')?.click();
+		const input = document.querySelector<HTMLInputElement>('dialog[open] [data-folder-name]')!;
+		input.value = "Notes";
+		input.closest("form")?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+		await vi.waitFor(() =>
 		{
-			expect(tabsRoot.querySelector<HTMLElement>(".dream-context-menu")?.hidden).toBe(false);
+			expect(controller.CreateFolderAsync).toHaveBeenCalledWith("republic", "Book 1", "Notes");
 		});
-		const menu = tabsRoot.querySelector<HTMLElement>(".dream-context-menu")!;
-		const labels = Array.from(menu.querySelectorAll<HTMLButtonElement>("button"), (button) => button.textContent?.trim());
-
-		expect(labels).toEqual(["Rename Dream", "Save Dream", "Copy as Markdown", "Delete Dream"]);
-		expect(explorerRoot.querySelector("[data-rename-workspace-dream]")).toBeNull();
 	});
 
-	it("filters Dreams without changing the Library text", function FiltersDreams(): void
+	it("keeps the folder form open when creation fails", async function KeepsFailedFolderFormAsync(): Promise<void>
 	{
-		const input = explorerRoot.querySelector<HTMLInputElement>("[data-workspace-search]")!;
-		input.value = "missing";
-		input.dispatchEvent(new Event("input", { bubbles: true }));
+		controller.CreateFolderAsync.mockResolvedValueOnce(false);
+		root.querySelector<HTMLButtonElement>('[data-tree-drop="folder:republic:Book 1"] > .control-tree-row [data-tree-action="new-folder"]')?.click();
+		const input = document.querySelector<HTMLInputElement>('dialog[open] [data-folder-name]')!;
+		input.value = "Notes";
+		input.closest("form")?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
 
-		expect(explorerRoot.textContent).toContain("No matching Dreams.");
-		expect(library.GetText()?.id).toBe(text.id);
+		await vi.waitFor(() =>
+		{
+			expect(controller.CreateFolderAsync).toHaveBeenCalled();
+		});
+		expect(input.closest(".dialog-control")?.hasAttribute("hidden")).toBe(false);
+		expect(input.value).toBe("Notes");
 	});
 
-	it("renders nested filesystem folders and Dreams in their assigned folder", async function RendersFoldersAsync(): Promise<void>
+	it("moves a Vision by dropping it into a folder", async function MovesVisionAsync(): Promise<void>
 	{
-		const dream = CreateDream();
-		dreamStore.SetCatalogue(
-			[dream],
-			[
-				{ workId: "republic", path: "Themes", name: "Themes", parentPath: "" },
-				{ workId: "republic", path: "Themes/Justice", name: "Justice", parentPath: "Themes" }
-			],
-			[{ dreamId: dream.id, workId: dream.workId, folderPath: "Themes/Justice" }]);
-
-		await events.PublishAsync("dream.catalogue-changed", { count: 1 });
-
-		const justice = explorerRoot.querySelector<HTMLElement>('[data-dream-folder="Themes/Justice"]');
-		expect(justice?.textContent).toContain("Justice");
-		expect(justice?.parentElement?.querySelector('[data-workspace-dream="dream-1"]')).not.toBeNull();
-		expect(justice?.querySelector<HTMLButtonElement>("[data-delete-dream-folder]")?.disabled).toBe(true);
-	});
-
-	it("selects a Shift-click range and moves the selected Dreams together", async function MovesSelectedDreamsByDropAsync(): Promise<void>
-	{
-		const first = CreateDream();
-		const second = CreateDream("dream-2", "Justice");
-		dreamStore.SetCatalogue(
-			[first, second],
-			[{ workId: "republic", path: "Themes", name: "Themes", parentPath: "" }],
-			[
-				{ dreamId: first.id, workId: first.workId, folderPath: "" },
-				{ dreamId: second.id, workId: second.workId, folderPath: "" }
-			]);
-		await events.PublishAsync("dream.catalogue-changed", { count: 2 });
-		const move = vi.spyOn(explorer, "MoveDreamsAsync").mockResolvedValue(true);
+		const row = root.querySelector<HTMLElement>('[data-workspace-vision="123e4567-e89b-42d3-a456-426614174000"]')!;
+		const folder = root.querySelector<HTMLElement>('[data-tree-drop="folder:republic:Book 1"]')!;
 		const transfer = new DataTransfer();
-		const firstButton = explorerRoot.querySelector<HTMLElement>('[data-workspace-dream="dream-1"]');
-		firstButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-		const secondButton = explorerRoot.querySelector<HTMLElement>('[data-workspace-dream="dream-2"]');
-		secondButton?.dispatchEvent(new MouseEvent("click", { bubbles: true, shiftKey: true }));
-		const item = explorerRoot.querySelector<HTMLElement>('[data-workspace-drag-dream="dream-2"]');
-		const folder = explorerRoot.querySelector<HTMLElement>('[data-dream-folder="Themes"]');
-		const dragStart = new DragEvent("dragstart", { bubbles: true });
-		const drop = new DragEvent("drop", { bubbles: true, cancelable: true });
-		Object.defineProperty(dragStart, "dataTransfer", { value: transfer });
+		const start = new DragEvent("dragstart", { bubbles: true });
+		Object.defineProperty(start, "dataTransfer", { value: transfer });
+		row.dispatchEvent(start);
+		const drop = new DragEvent("drop", { bubbles: true });
 		Object.defineProperty(drop, "dataTransfer", { value: transfer });
+		folder.dispatchEvent(drop);
 
-		expect(explorerRoot.querySelector('[data-workspace-dream="dream-1"]')?.getAttribute("aria-selected")).toBe("true");
-		expect(explorerRoot.querySelector('[data-workspace-dream="dream-2"]')?.getAttribute("aria-selected")).toBe("true");
-		item?.dispatchEvent(dragStart);
-		folder?.dispatchEvent(drop);
-
-		await vi.waitFor(function DreamsMoved(): void
+		await vi.waitFor(() =>
 		{
-			expect(move).toHaveBeenCalledWith(expect.arrayContaining(["dream-1", "dream-2"]), "Themes");
+			expect(controller.MoveAsync).toHaveBeenCalledWith("123e4567-e89b-42d3-a456-426614174000", "Book 1");
 		});
+	});
+
+	it("opens a Vision from its Explorer row", function OpensVision(): void
+	{
+		root.querySelector<HTMLButtonElement>('[data-workspace-vision="123e4567-e89b-42d3-a456-426614174001"]')?.click();
+		expect(controller.Open).toHaveBeenCalledWith("123e4567-e89b-42d3-a456-426614174001");
 	});
 });

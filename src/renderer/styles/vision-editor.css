@@ -1,0 +1,163 @@
+.vision-panel {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	background: var(--editor-background);
+	color: var(--app-text);
+}
+
+.vision-mode-control {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+}
+
+.vision-save-notice {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	gap: 12px;
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--panel-border);
+	background: var(--side-panel-background);
+	color: var(--app-text);
+	font: 12px/1.4 var(--control-font);
+}
+
+.vision-save-notice > span {
+	flex: 1;
+}
+
+.vision-save-notice[hidden] {
+	display: none;
+}
+
+.vision-mode-control > .tab-list {
+	flex: 0 0 auto;
+	padding: 6px 12px 0;
+}
+
+.vision-mode-control > .tab-panel {
+	flex: 1;
+	min-height: 0;
+	padding: 0;
+}
+
+.vision-document {
+	min-height: 0;
+	overflow: hidden;
+}
+
+.vision-document > .markdown-editor {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+}
+
+.vision-document .markdown-content {
+	flex: 1;
+	min-height: 0;
+	resize: none;
+	padding: 18px 22px 40px;
+}
+
+.vision-document .markdown-content .ProseMirror {
+	min-height: 100%;
+}
+
+.vision-word-reference {
+	display: inline-block;
+	padding: 0 0.25em;
+	border: 0;
+	border-radius: 0;
+	background: var(--vision-reference-background);
+	color: var(--vision-reference-foreground);
+	font-family: "Noto Serif", "Palatino Linotype", Georgia, serif;
+	cursor: pointer;
+}
+
+.vision-range-reference {
+	display: inline;
+	padding: 0 0.2em;
+	border: 0;
+	background: var(--vision-range-reference-background);
+	color: var(--vision-reference-foreground);
+	font-family: "Noto Serif", "Palatino Linotype", Georgia, serif;
+	white-space: pre-wrap;
+	cursor: default;
+}
+
+.vision-range-reference [data-vision-range-word] {
+	border-radius: 0;
+	cursor: pointer;
+}
+
+.vision-range-reference [data-vision-range-word]:hover {
+	background: var(--vision-reference-hover-background);
+}
+
+.vision-word-reference.ProseMirror-selectednode,
+.vision-range-reference.ProseMirror-selectednode {
+	outline: 0;
+	box-shadow: none;
+	text-decoration: underline;
+	text-decoration-color: var(--vision-reference-tint);
+	text-decoration-thickness: 2px;
+	text-underline-offset: 3px;
+}
+
+.vision-markdown-source {
+	box-sizing: border-box;
+	display: block;
+	width: 100%;
+	height: 100%;
+	min-height: 0;
+	border: 0;
+	border-radius: 0;
+	outline: 0;
+	background: var(--editor-background);
+	color: var(--app-text);
+	overflow: hidden;
+}
+
+.vision-markdown-source .cm-editor {
+	height: 100%;
+	background: var(--editor-background);
+	color: var(--app-text);
+}
+
+.vision-markdown-source .cm-scroller {
+	padding: 18px 22px 40px;
+	overflow: auto;
+	font: 13px/1.6 "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+	tab-size: 4;
+}
+
+.vision-markdown-source .cm-content {
+	min-height: 100%;
+	padding: 0;
+	caret-color: var(--app-text);
+}
+
+.vision-markdown-source .cm-line {
+	padding: 0;
+}
+
+.vision-markdown-source .cm-editor.cm-focused {
+	outline: 0;
+	box-shadow: none;
+}
+
+.vision-markdown-word-reference,
+.vision-markdown-range-reference {
+	display: inline-block;
+	padding: 0 0.2em;
+	border-radius: 0;
+	background: var(--vision-reference-background);
+	color: var(--vision-reference-tint);
+	font-family: var(--reading-font);
+	font-weight: 700;
+}

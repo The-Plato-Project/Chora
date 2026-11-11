@@ -12,8 +12,8 @@ This repository uses a strict, architecture-first C#-style discipline, applied t
 
 ## Object-Oriented Architecture
 
-- Model real domain concepts as classes. Chora's literary hierarchy is `Library -> Text -> Segment`; its reader-owned record hierarchy is `DreamLibrary -> Dream -> Signal`.
-- Put behavior on the object that owns the data and persistence affected by that behavior. A `DreamLibrary` owns Dream identity, validation, persistence location, and origin; a `Dream` owns its signals and reflection.
+- Model real domain concepts as classes. Chora's literary hierarchy is `Library -> Text -> Segment`; its reader-owned records are `Vision` documents and exact `TextAnchor` records.
+- Put behavior on the object that owns the data and persistence affected by that behavior. `VisionService` owns Vision catalogue mutations, `VisionRepository` owns Vision files, and `TextAnchorService` owns exact anchor validation and persistence.
 - Do not create generic `Manager`, `Helper`, `Utility`, or `Service` classes merely to hold unrelated operations. A collaboration boundary is justified only when it owns a concrete external responsibility, such as an IPC gateway, model provider, repository, or prompt loader.
 - Prefer an explicit domain method over a free function that accepts the domain object as its first parameter. A method communicates ownership; a wrapper function obscures it.
 - Keep orchestration at the boundary. Renderer controllers select workflows and invoke domain operations; domain records do not understand DOM events, Electron IPC, or model-provider implementation details they do not own.
@@ -32,7 +32,7 @@ This repository uses a strict, architecture-first C#-style discipline, applied t
 
 ### Renderer And Main-Process Boundaries
 
-- Renderer features separate `Panel`, `Controller`, `Store`, and `Gateway` responsibilities. Panels own DOM rendering and browser events only. Controllers coordinate workflows and typed application events. Stores are the sole renderer-side owners of feature state. Gateways are stateless typed IPC clients. Related features may share an existing owning store; Signal editing uses `DreamStore` rather than a separate Signal state registry. Do not introduce empty layers merely to satisfy a folder template.
+- Renderer features separate `Panel`, `Controller`, `Store`, and `Gateway` responsibilities. Panels own DOM rendering and browser events only. Controllers coordinate workflows and typed application events. Stores are the sole renderer-side owners of feature state. Gateways are stateless typed IPC clients. Related features may share an existing owning store when they project the same authoritative state. Do not introduce empty layers merely to satisfy a folder template.
 - Main-process features contain an `IpcController`, concrete external-boundary collaborator, and `Repository` where canonical data access or persistence is required.
 - Publish typed application events through `ChoraEventBus` for cross-component communication. Event names describe completed facts in past tense or requests with a `requested` suffix.
 - Panels own persistent DOM roots and register delegated DOM events once. Do not rebuild the entire application DOM in response to state changes.
@@ -129,9 +129,8 @@ For small, localized changes, proceed directly while following the same architec
 
 ## Renderer Workflow Ownership
 
-- Keep `DreamController` focused on editing commands, source extension, and editor-tab lifecycle. Save scheduling, catalogue operations, Explorer organization, exports, and model requests belong to their respective owners.
-- `DreamSaveCoordinator` owns autosave timing, persistence ordering, revision checks, and suspension for deletion. Close and delete must drain the relevant active save before proceeding. Save outcomes apply to the captured Dream identity, even if the active tab changes.
-- `DreamCatalogueController` owns catalogue reads, explicit reconciliation, filtering, and grouped projections. `DreamExplorerController` owns creation, folders, moves, and Explorer selection; it invokes the gateway for its actual mutations rather than forwarding them back to the editing controller.
-- `DreamExportController` owns export commands and uses the existing `DreamMarkdownExport` formatter. Retained conversation state belongs to generic Chat and must not be duplicated in `DreamStore`.
-- `WorkspaceShellPanel` owns shell DOM and shortcut event translation; `WorkspaceLayoutPanel` owns resizing and Explorer collapse; `ReadingAppearancePanel` owns preference-control DOM. Durable values remain in the existing settings stores. `WorkspaceController` coordinates activation and typed workspace requests without owning DOM.
+- `VisionController` owns editing commands, document lifecycle, autosave timing, persistence ordering, revision checks, folder mutations, and suspension for deletion. Close, move, and delete must drain the relevant active save before proceeding. Save outcomes apply to the captured Vision identity even if the active tab changes.
+- `VisionStore` is the authoritative renderer owner of Vision snapshots, exact reference projections, revisions, persistence state, open tabs, and folder snapshots. Derived indexes must not become alternative authorities.
+- `VisionPanel` owns the active editor surface. `VisionTabsPanel` owns document-tab DOM and actions. `WorkspacePanel` owns Explorer rendering, work selection, Vision folder controls, and drag-to-move interaction.
+- `WorkspaceShellPanel` owns shell DOM and shortcut event translation; `WorkspaceLayoutPanel` owns resizing and Explorer collapse; `ReadingAppearancePanel` owns preference-control DOM. Durable values remain in the existing settings stores.
 - `ChoraApplication` is the composition root: construct collaborators, mount feature owners, start them in dependency order, and dispose them in reverse order. Do not implement layout gestures, feature workflows, or notification presentation there.

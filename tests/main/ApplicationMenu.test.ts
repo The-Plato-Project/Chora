@@ -1,16 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
-import { Menu, type BrowserWindow, type ContextMenuParams, type MenuItemConstructorOptions } from "electron";
+import { Menu, BrowserWindow, type ContextMenuParams, type MenuItemConstructorOptions } from "electron";
+import { IPC_CHANNELS } from "../../src/shared/contracts/IpcChannels.js";
 import { ChoraApplication } from "../../src/main/bootstrap/ChoraApplication.js";
 import { CreateApplicationMenu } from "../../src/main/shell/ApplicationMenu.js";
-import { ShowEditContextMenu, ShowFormattingContextMenu } from "../../src/main/shell/ContextMenu.js";
+import { ShowEditContextMenu, ShowFormattingContextMenu, ShowSelectionContextMenu } from "../../src/main/shell/ContextMenu.js";
 
 const applicationMocks = vi.hoisted(function CreateApplicationMocks()
 {
 	return {
 		libraryStart: vi.fn(),
 		libraryStop: vi.fn(),
-		dreamsStart: vi.fn(),
-		dreamsStop: vi.fn(),
+		visionsStart: vi.fn(),
+		visionsStop: vi.fn(),
 		windowOpen: vi.fn(),
 		platosiStart: vi.fn(),
 		platosiStop: vi.fn()
@@ -19,7 +20,9 @@ const applicationMocks = vi.hoisted(function CreateApplicationMocks()
 
 vi.mock("electron", function MockElectron()
 {
-	return { Menu: { buildFromTemplate: vi.fn(), setApplicationMenu: vi.fn() }, ipcMain: { handle: vi.fn(), removeHandler: vi.fn() } };
+	return { Menu: { buildFromTemplate: vi.fn(), setApplicationMenu: vi.fn() },
+		BrowserWindow: { getFocusedWindow: vi.fn() }, nativeTheme: { themeSource: "system" },
+		ipcMain: { handle: vi.fn(), removeHandler: vi.fn() } };
 });
 
 vi.mock("../../src/main/bootstrap/Environment.js", function MockEnvironment()
@@ -61,26 +64,16 @@ vi.mock("../../src/main/library/LibraryModule.js", function MockLibraryModule()
 	};
 });
 
-vi.mock("../../src/main/dreams/DreamModule.js", function MockDreamModule()
+vi.mock("../../src/main/visions/VisionModule.js", function MockVisionModule()
 {
 	return {
-		DreamModule: vi.fn(function DreamModule()
+		VisionModule: vi.fn(function VisionModule()
 		{
-			function GetService(): object
-			{
-				const service = {};
-
-				return service;
-			}
-
-			const module = {
-				GetService,
+			return {
 				PrepareAsync: vi.fn(),
-				Start: applicationMocks.dreamsStart,
-				Stop: applicationMocks.dreamsStop
+				Start: applicationMocks.visionsStart,
+				Stop: applicationMocks.visionsStop
 			};
-
-			return module;
 		})
 	};
 });
@@ -140,6 +133,34 @@ describe("Application menu", function ApplicationMenuTests(): void
 		expect(action).toBe(expected);
 	});
 
+	it.each([
+		["Copy anchor", "copy-anchor"],
+		["Copy text only", "copy-text-only"]
+	])("returns the reader selection choice %s", async function SelectionChoiceAsync(choice, expected): Promise<void>
+	{
+		let template: MenuItemConstructorOptions[] = [];
+		const popup = vi.fn(function Open(options): void
+		{
+			const command = template.find(function Matches(item): boolean { return item.label === choice; });
+			command?.click?.({} as never, {} as BrowserWindow, {} as never);
+			options.callback();
+		});
+		vi.mocked(Menu.buildFromTemplate).mockImplementationOnce(function Build(items): ReturnType<typeof Menu.buildFromTemplate>
+		{
+			template = items;
+			return { popup } as unknown as ReturnType<typeof Menu.buildFromTemplate>;
+		});
+
+		const action = await ShowSelectionContextMenu(true);
+
+		expect(action).toBe(expected);
+		expect(template.map(function Label(item): string | undefined { return item.label; })).toEqual([
+			"Copy anchor",
+			"Copy text only",
+			"Open word"
+		]);
+	});
+
 	it.each(["spelling", "Add to dictionary", "dismiss"])("offers spelling suggestions and handles %s", async function SpellingChoiceAsync(choice): Promise<void>
 	{
 		const session = { addWordToSpellCheckerDictionary: vi.fn() };
@@ -190,11 +211,19 @@ describe("Application menu", function ApplicationMenuTests(): void
 		const file = template.find(function FindFile(item): boolean { return item.label === "File"; });
 		const commands = file?.submenu as MenuItemConstructorOptions[];
 		expect(commands).toEqual([{ role: "quit" }]);
+		const settings = template.find(function FindSettings(item): boolean { return item.label === "Settings"; });
+		const settingsCommands = settings?.submenu as MenuItemConstructorOptions[];
+		expect(settingsCommands[0]?.label).toBe("Chora settings");
+		const send = vi.fn();
+		vi.mocked(BrowserWindow.getFocusedWindow).mockReturnValue({ isDestroyed: function IsDestroyed(): boolean { return false; },
+			webContents: { send } } as unknown as BrowserWindow);
+		settingsCommands[0]!.click!({} as never, {} as never, {} as never);
+		expect(send).toHaveBeenCalledWith(IPC_CHANNELS.openSettings);
 	});
 
 	it("rolls back a failed start, retries cleanly, and stops the successful run once", async function RollsBackFailedStartAsync(): Promise<void>
 	{
-		vi.mocked(Menu.buildFromTemplate).mockImplementationOnce(function FailMenu(): never
+		vi.mocked(Menu.setApplicationMenu).mockImplementationOnce(function FailMenu(): never
 		{
 			throw new Error("menu failed");
 		});
@@ -203,17 +232,17 @@ describe("Application menu", function ApplicationMenuTests(): void
 
 		await expect(application.StartAsync()).rejects.toThrow("menu failed");
 		expect(applicationMocks.libraryStart).toHaveBeenCalledTimes(1);
-		expect(applicationMocks.dreamsStart).toHaveBeenCalledTimes(1);
-		expect(applicationMocks.dreamsStop).toHaveBeenCalledTimes(1);
+		expect(applicationMocks.visionsStart).toHaveBeenCalledTimes(1);
+		expect(applicationMocks.visionsStop).toHaveBeenCalledTimes(1);
 		expect(applicationMocks.libraryStop).toHaveBeenCalledTimes(1);
 
 		await application.StartAsync();
 		expect(applicationMocks.libraryStart).toHaveBeenCalledTimes(2);
-		expect(applicationMocks.dreamsStart).toHaveBeenCalledTimes(2);
+		expect(applicationMocks.visionsStart).toHaveBeenCalledTimes(2);
 
 		await application.StopAsync();
 		await application.StopAsync();
-		expect(applicationMocks.dreamsStop).toHaveBeenCalledTimes(2);
+		expect(applicationMocks.visionsStop).toHaveBeenCalledTimes(2);
 		expect(applicationMocks.libraryStop).toHaveBeenCalledTimes(2);
 	});
 });

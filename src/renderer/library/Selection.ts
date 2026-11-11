@@ -91,3 +91,5 @@ export function ClearBrowserSelection(): void
 
 	if (selection) selection.removeAllRanges();
 }
+
+// Applies one canonical same- or cross-segment selection to the rendered reader text.

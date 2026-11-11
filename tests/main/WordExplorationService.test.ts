@@ -169,6 +169,26 @@ describe("WordExplorationService", function WordExplorationServiceTests()
 		}]);
 		expect(request).toHaveBeenCalledOnce();
 		expect(request).toHaveBeenCalledWith("linguistics.dialogue-lexicon", { location: selection });
+
+		// A lexical origin uses the same evidence decoder without inventing a source occurrence.
+		const wire = await request.mock.results[0]!.value;
+		const scope = { dialogue: selection.dialogue, text_version: selection.text_version };
+		request.mockResolvedValue({ ...wire, contract: "platosi.lexical-evidence.v1", scope,
+			occurrences_status: "indexed", target: { location: null, text: "καταβαίνω", context: [] } });
+		const lexical = await fixture.service.GetLexicalEvidenceAsync("καταβαίνω", "republic");
+		expect(lexical.selection).toBeNull();
+		expect(lexical.work).toEqual(scope);
+		expect(lexical.lemmas[0].forms[0].occurrences[0].selection).toEqual(selection);
+		expect(request).toHaveBeenLastCalledWith("word.lookup", { lemma: "καταβαίνω", scope });
+		request.mockResolvedValue({ ...wire, contract: "platosi.lexical-evidence.v1", scope: null,
+			occurrences_status: "unavailable", target: { location: null, text: "πρός", context: [] },
+			lemmas: [{ lemma: "πρός", candidates: [], forms: [], related_lemmas: [] }] });
+		const standalone = await fixture.service.GetLexicalEvidenceAsync("πρός", null);
+		expect(standalone.work).toBeNull();
+		expect(standalone.occurrencesStatus).toBe("unavailable");
+		request.mockResolvedValue({ contract: "platosi.word-search.v1", query: "προς",
+			items: [{ lemma: "πρός" }], possibly_truncated: false, warnings: [] });
+		expect((await fixture.service.SearchLexiconAsync("προς")).items).toEqual([{ lemma: "πρός" }]);
 	});
 
 	it("requests person research only for a valid canonical selection", async function RequestsPersonResearchAsync(): Promise<void>

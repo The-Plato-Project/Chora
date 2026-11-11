@@ -1,9 +1,13 @@
-/* Split into topic files under ./styles/. Import order matches the original single-file cascade order exactly - do not reorder these. */
+/* Foundations, theme values, feature surfaces, shared controls, then responsive geometry. */
 @import "./styles/base.css";
-@import "./styles/workspace-theme.css";
+@import "./styles/light-theme.css";
 @import "./styles/left-tab-panels.css";
 @import "./styles/dark-theme.css";
 @import "./styles/tabs.css";
-@import "./styles/dream-editor.css";
 @import "./styles/markdown-editor.css";
+@import "./styles/vision-editor.css";
+@import "./styles/controls.css";
+@import "./styles/menu-bar.css";
+@import "./styles/split-view.css";
+@import "./styles/status-bar.css";
 @import "./styles/responsive.css";

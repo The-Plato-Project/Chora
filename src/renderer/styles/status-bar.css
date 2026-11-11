@@ -1,0 +1,22 @@
+/* Permanent application status surface; content slots remain empty until supplied. */
+.status-bar-control {
+	box-sizing: border-box;
+	display: flex;
+	flex: 0 0 23px;
+	align-items: center;
+	justify-content: space-between;
+	min-width: 0;
+	padding: 0 8px;
+	border-top: 1px solid var(--panel-border);
+	background: var(--side-panel-background);
+	color: var(--muted-text);
+	font: 11px/22px var(--control-font);
+}
+
+.status-bar-start,
+.status-bar-end {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	min-width: 0;
+}

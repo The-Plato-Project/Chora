@@ -1,141 +1,125 @@
+import { TextAnchorGateway } from "../anchors/TextAnchorGateway.js";
 import { ErrorNotificationPanel } from "../core/diagnostics/ErrorNotificationPanel.js";
 import { RendererDiagnosticsController } from "../core/diagnostics/RendererDiagnosticsController.js";
-import { DreamTrashController } from "../dreams/DreamTrashController.js";
-import { DreamTrashPanel } from "../dreams/DreamTrashPanel.js";
-import "../styles.css";
 import { ErrorManager } from "../core/diagnostics/RendererErrorManager.js";
-import { ChoraEventBus } from "../core/events/ChoraEventBus.js";
+import { ChoraEventBus, type EventHandlerFailure } from "../core/events/ChoraEventBus.js";
 import type { ChoraEvents } from "../core/events/ChoraEvents.js";
+import { ReadingSettingsStore } from "../core/settings/ReadingSettingsStore.js";
+import { ApplicationState } from "./ApplicationState.js";
+import { DocumentPanel } from "../library/DocumentPanel.js";
 import { LibraryController } from "../library/LibraryController.js";
 import { LibraryGateway } from "../library/LibraryGateway.js";
 import { LibraryStore } from "../library/LibraryStore.js";
-import { DreamController } from "../dreams/DreamController.js";
-import { DreamGateway } from "../dreams/DreamGateway.js";
-import { DreamStore } from "../dreams/DreamStore.js";
-import { DocumentPanel } from "../library/DocumentPanel.js";
-import { DreamPanel } from "../dreams/DreamPanel.js";
-import { DreamPassagePanel } from "../dreams/DreamPassagePanel.js";
-import { SessionStore } from "../core/session/SessionStore.js";
-import { SignalController } from "../signals/SignalController.js";
-import { SignalGateway } from "../signals/SignalGateway.js";
-import { WorkspacePanel } from "../workspace/WorkspacePanel.js";
-import { WorkspaceSidebar, type WorkspaceSidebarExtension } from "../workspace/WorkspaceSidebar.js";
-import { DreamTabsPanel } from "../workspace/DreamTabsPanel.js";
-import { DocumentIcon } from "../ui/Icons.js";
-import { DreamExplorerController } from "../workspace/DreamExplorerController.js";
-import { WordExplorationStore } from "../library/words/WordExplorationStore.js";
-import { WordExplorationGateway } from "../library/words/WordExplorationGateway.js";
 import { WordExplorationController } from "../library/words/WordExplorationController.js";
+import { WordExplorationGateway } from "../library/words/WordExplorationGateway.js";
 import { WordExplorationPanel } from "../library/words/WordExplorationPanel.js";
-
-import { DreamSaveCoordinator } from "../dreams/DreamSaveCoordinator.js";
-import { DreamCatalogueController } from "../dreams/DreamCatalogueController.js";
-import { DreamExportController } from "../dreams/DreamExportController.js";
-import { WorkspaceController } from "../workspace/WorkspaceController.js";
-import { WorkspaceShellPanel } from "../workspace/WorkspaceShellPanel.js";
-import { WorkspaceLayoutPanel } from "../workspace/WorkspaceLayoutPanel.js";
+import { WordExplorationStore } from "../library/words/WordExplorationStore.js";
+import { WordVisionReferenceController } from "../library/words/WordVisionReferenceController.js";
+import { WordVisionReferenceStore } from "../library/words/WordVisionReferenceStore.js";
+import "../styles.css";
+import { DocumentIcon, SearchIcon } from "../ui/Icons.js";
+import { WordSearchPanel } from "../library/words/WordSearchPanel.js";
+import { VisionController } from "../visions/VisionController.js";
+import { VisionGateway } from "../visions/VisionGateway.js";
+import { VisionPanel } from "../visions/VisionPanel.js";
+import { VisionReferenceController } from "../visions/VisionReferenceController.js";
+import { VisionStore } from "../visions/VisionStore.js";
 import { ReadingAppearancePanel } from "../workspace/ReadingAppearancePanel.js";
-import type { EventHandlerFailure } from "../core/events/ChoraEventBus.js";
-import { ReadingSettingsStore } from "../core/settings/ReadingSettingsStore.js";
+import { VisionTabsPanel } from "../workspace/VisionTabsPanel.js";
+import { WorkspaceLayoutPanel } from "../workspace/WorkspaceLayoutPanel.js";
+import { WorkspacePanel } from "../workspace/WorkspacePanel.js";
+import { WorkspaceShellPanel } from "../workspace/WorkspaceShellPanel.js";
+import { ApplicationMenuController } from "../workspace/ApplicationMenuController.js";
+import { ApplicationMenuGateway } from "../workspace/ApplicationMenuGateway.js";
+import { WorkspaceSidebar, type WorkspaceSidebarExtension } from "../workspace/WorkspaceSidebar.js";
 
-// Composes renderer feature owners and their lifecycles without implementing layout or feature workflows.
 export class ChoraApplication
 {
-	// Owned feature lifetimes, disposed in reverse composition order.
 	private readonly disposables: Array<{ Dispose(): void }> = [];
-	// Guards the application lifecycle against repeated startup.
 	private isStarted = false;
-	// Guards the application lifecycle against repeated disposal.
 	private isDisposed = false;
-	// Shared typed renderer event bus.
 	private readonly events = new ChoraEventBus<ChoraEvents>();
-	// Shared diagnostic reporting authority.
 	private readonly errors = new ErrorManager(this.events);
-	// Session persistence boundary for open Dream drafts.
-	private readonly sessions = new SessionStore();
-	// Sole Dream editing and catalogue state owner.
-	private readonly dreamStore = new DreamStore(this.sessions);
-	// Sole Library reading state owner.
+	private readonly visionStore = new VisionStore();
 	private readonly libraryStore = new LibraryStore();
-	// Library IPC boundary shared by reading and export workflows.
 	private readonly libraryGateway = new LibraryGateway();
-	// Canonical Library workflows.
-	private readonly library = new LibraryController(this.events, this.errors, this.libraryStore, this.libraryGateway, this.dreamStore);
-	// Signal persistence IPC boundary.
-	private readonly signalGateway = new SignalGateway();
-	// Dream-owned Signal editing workflows.
-	private readonly signals = new SignalController(this.errors, this.dreamStore, this.libraryStore, this.signalGateway, this.events);
-	// Dream persistence IPC boundary shared by the feature workflow owners.
-	private readonly dreamGateway = new DreamGateway();
-	// Save timing, persistence ordering, and revision checks.
-	private readonly saves = new DreamSaveCoordinator(this.events, this.errors, this.dreamStore, this.dreamGateway);
-	// Dream editing and tab lifecycle.
-	private readonly dreams = new DreamController(this.events, this.errors, this.libraryStore, this.dreamStore, this.dreamGateway, this.libraryGateway, this.saves);
-	// Catalogue reads, reconciliation, filtering, and grouping.
-	private readonly catalogue = new DreamCatalogueController(this.events, this.errors, this.libraryStore, this.dreamStore, this.dreamGateway, this.saves);
-	// Explorer creation, organization, and folder workflows.
-	private readonly explorer = new DreamExplorerController(this.dreamStore, this.libraryStore, this.dreamGateway, this.events, this.errors, this.catalogue, this.signals);
-	// Export commands using the existing Markdown formatter.
-	private readonly exports = new DreamExportController(this.dreamStore, this.libraryStore, this.libraryGateway);
-	// Persisted reading appearance preferences.
+	private readonly visionGateway = new VisionGateway();
+	private readonly visions = new VisionController(this.events, this.errors, this.visionStore, this.visionGateway);
+	private readonly library = new LibraryController(this.events, this.errors, this.libraryStore, this.libraryGateway);
 	private readonly settings = new ReadingSettingsStore();
 	private readonly wordStore = new WordExplorationStore();
 	private readonly wordGateway = new WordExplorationGateway();
 	private readonly words = new WordExplorationController(this.events, this.errors, this.libraryStore, this.library, this.wordStore, this.wordGateway);
+	private readonly state = new ApplicationState(this.events, this.errors, this.libraryStore, this.library,
+		this.visionStore, this.visions, this.wordStore, this.words);
+	private readonly anchorGateway = new TextAnchorGateway();
+	private readonly visionReferences = new VisionReferenceController(this.events, this.errors, this.visionStore, this.anchorGateway, this.libraryStore);
+	private readonly wordVisionReferenceStore = new WordVisionReferenceStore();
+	private readonly wordVisionReferences = new WordVisionReferenceController(
+		this.events,
+		this.errors,
+		this.wordStore,
+		this.visionStore,
+		this.anchorGateway,
+		this.libraryStore,
+		this.wordVisionReferenceStore);
 
-	// Registers shared error policy and the lifetimes of composed workflow owners.
 	public constructor(private readonly root: HTMLElement)
 	{
 		this.events.SetErrorHandler(this.HandleEventFailure.bind(this));
-		this.disposables.push(this.saves, this.dreams, this.catalogue, this.explorer, this.words);
+		this.disposables.push(this.words, this.visions, this.visionReferences, this.wordVisionReferences, this.state);
 	}
 
-	// Mounts feature-owned DOM surfaces and starts the composed workflows in dependency order.
 	public async StartAsync(): Promise<void>
 	{
 		if (!this.isStarted && !this.isDisposed)
 		{
 			this.isStarted = true;
+			const menuGateway = new ApplicationMenuGateway();
+			const menu = new ApplicationMenuController(this.events, menuGateway);
+			this.disposables.push(menu);
 			const shell = new WorkspaceShellPanel(this.root, this.events);
 			this.disposables.push(shell);
 			const roots = shell.GetRoots();
-			this.disposables.push(new ReadingAppearancePanel(this.root, this.settings));
+			this.disposables.push(new ReadingAppearancePanel(this.settings, this.events, this.errors));
 			this.disposables.push(new WorkspaceLayoutPanel(this.root, this.events));
-			this.disposables.push(new DocumentPanel(roots.document, this.events, this.libraryStore, this.library, this.settings));
-			this.disposables.push(new DreamPassagePanel(roots.document, this.events, this.libraryStore, this.catalogue));
-			this.disposables.push(new DreamPanel(roots.dream, this.events, this.dreamStore, this.dreams, this.libraryStore, "editor", this.catalogue, this.saves, this.exports, this.explorer, this.signals));
-			const trashController = new DreamTrashController(this.dreamGateway, this.catalogue, this.errors);
-			const trashPanel = new DreamTrashPanel(trashController);
-			this.disposables.push(trashPanel);
+			this.disposables.push(new DocumentPanel(roots.document, this.events, this.libraryStore, this.library));
+			this.disposables.push(new VisionPanel(roots.vision, this.events, this.errors, this.visionStore, this.visions));
 			const application = this;
 			function MountExplorer(explorerRoot: HTMLElement): WorkspacePanel
 			{
-				const panel = new WorkspacePanel(explorerRoot, application.events, application.dreamStore, application.dreams, application.libraryStore, application.explorer, trashPanel, application.saves);
-				return panel;
+				return new WorkspacePanel(
+					explorerRoot,
+					application.events,
+					application.libraryStore,
+					application.visionStore,
+					application.visions);
+			}
+			function MountWordSearch(searchRoot: HTMLElement): WordSearchPanel
+			{
+				return new WordSearchPanel(searchRoot, application.events, application.wordStore, application.words);
 			}
 			const extensions: readonly WorkspaceSidebarExtension[] = [
-				{ id: "explorer", title: "Explorer", icon: DocumentIcon, Mount: MountExplorer }
+				{ id: "explorer", title: "Explorer", icon: DocumentIcon, Mount: MountExplorer },
+				{ id: "word-search", title: "Word Search", icon: SearchIcon, Mount: MountWordSearch }
 			];
-			const sidebar = new WorkspaceSidebar(roots.sidebarRail, roots.sidebarHost, this.events, extensions);
-			this.disposables.push(sidebar);
-			this.disposables.push(new WordExplorationPanel(roots.words, this.events, this.wordStore, this.words));
-			const dreamTabs = new DreamTabsPanel(roots.tabs, this.events, this.dreamStore, this.dreams, this.saves, this.exports);
-			this.disposables.push(dreamTabs);
+			this.disposables.push(new WorkspaceSidebar(roots.sidebarRail, roots.sidebarHost, this.events, extensions));
+			this.disposables.push(new WordExplorationPanel(
+				roots.words,
+				this.events,
+				this.wordStore,
+				this.words,
+				this.wordVisionReferenceStore));
+			this.disposables.push(new VisionTabsPanel(roots.tabs, this.events, this.visionStore, this.visions));
 			this.disposables.push(new ErrorNotificationPanel(this.events));
 			const diagnostics = new RendererDiagnosticsController(this.errors);
 			diagnostics.Start();
 			this.disposables.push(diagnostics);
-			const workspace = new WorkspaceController(this.events, this.dreamStore, this.libraryStore, this.library, this.libraryGateway, this.catalogue, this.saves, this.explorer);
-			workspace.Start();
-			this.disposables.push(workspace);
-			const loaded = await this.catalogue.RefreshAsync();
-			if (loaded) await this.dreams.StartAsync();
-			await this.library.StartAsync();
+			await this.state.RestoreAsync();
 			this.errors.Info("ChoraApplication", "Application started.");
 		}
 	}
 
-	// Disposes the composition in reverse order before flushing the remaining Dream session state.
 	public Dispose(): void
 	{
 		if (!this.isDisposed)
@@ -143,25 +127,21 @@ export class ChoraApplication
 			this.isDisposed = true;
 			for (const disposable of [...this.disposables].reverse()) disposable.Dispose();
 			this.disposables.length = 0;
-			this.dreamStore.Dispose();
 		}
 	}
 
-	// Routes failures in application event delivery into the existing shared diagnostic policy.
 	private HandleEventFailure(failure: EventHandlerFailure): void
 	{
 		this.errors.Report("ChoraEventBus", failure.error, `Something went wrong while handling ${String(failure.eventName)}.`);
 	}
 }
 
-// Starts one renderer composition when its DOM host becomes available.
 function StartRenderer(): void
 {
 	const root = document.getElementById("app");
 	if (root !== null)
 	{
 		const application = new ChoraApplication(root);
-		// Disposes the composed renderer once the native page unloads.
 		function DisposeRenderer(): void
 		{
 			application.Dispose();

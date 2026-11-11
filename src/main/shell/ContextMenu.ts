@@ -1,6 +1,6 @@
 import { Menu, type BrowserWindow, type ContextMenuParams, type MenuItemConstructorOptions } from "electron";
 import type { SelectionAction } from "../../shared/text/TextSelection.js";
-import type { FormattingAction } from "../../shared/contracts/ChoraApi.js";
+import type { FormattingAction, VisionReferenceAction } from "../../shared/contracts/ChoraApi.js";
 
 export async function ShowFormattingContextMenu(window: BrowserWindow, params: ContextMenuParams): Promise<FormattingAction>
 {
@@ -63,6 +63,7 @@ export function ShowEditContextMenu(window: BrowserWindow, params: ContextMenuPa
 		{
 			menuTemplate.push({ label: suggestion, click: () => webContents.replaceMisspelling(suggestion) });
 		}
+
 		if (params.dictionarySuggestions.length === 0) menuTemplate.push({ label: "No suggestions", enabled: false });
 		menuTemplate.push({ type: "separator" });
 		menuTemplate.push({ label: "Add to dictionary", click: () => webContents.session.addWordToSpellCheckerDictionary(params.misspelledWord) });
@@ -79,52 +80,42 @@ export function ShowEditContextMenu(window: BrowserWindow, params: ContextMenuPa
 	menu.popup({ window });
 }
 
-export async function ShowSelectionContextMenu(canAddSignal: boolean, canAddToDreamSource: boolean, canAddToCurrentSignal: boolean, canExploreWord: boolean): Promise<SelectionAction>
+export async function ShowVisionReferenceContextMenu(canExploreWord: boolean): Promise<VisionReferenceAction>
+{
+	const result = await new Promise<VisionReferenceAction>((resolve) =>
+	{
+		const menu = Menu.buildFromTemplate([
+			{ label: "Copy", click: () => resolve("copy") },
+			{ label: "Navigate to", click: () => resolve("navigate") },
+			{ label: "Open word", enabled: canExploreWord, click: () => resolve("explore-word") }
+		]);
+		menu.popup({ callback: () => resolve(null) });
+	});
+
+	return result;
+}
+
+export async function ShowSelectionContextMenu(canExploreWord: boolean): Promise<SelectionAction>
 {
 	const result = await new Promise<SelectionAction>((resolve) =>
 	{
 		const menuTemplate: MenuItemConstructorOptions[] = [
 			{
-				label: "Create Dream",
+				label: "Copy anchor",
 				click: () =>
 				{
-					resolve("create-dream");
+					resolve("copy-anchor");
 				}
 			},
 			{
-				label: "Add to Dream Source",
-				enabled: canAddToDreamSource,
+				label: "Copy text only",
 				click: () =>
 				{
-					resolve("add-to-dream");
+					resolve("copy-text-only");
 				}
 			},
 			{
-				label: "Create Signal",
-				enabled: canAddSignal,
-				click: () =>
-				{
-					resolve("add-signal");
-				}
-			},
-			{
-				label: "Add to Selected Signal",
-				enabled: canAddToCurrentSignal,
-				click: () =>
-				{
-					resolve("add-to-selected-signal");
-				}
-			},
-			{ type: "separator" },
-			{
-				label: "Copy",
-				click: () =>
-				{
-					resolve("copy");
-				}
-			},
-			{
-				label: "Explore word",
+				label: "Open word",
 				enabled: canExploreWord,
 				click: function LookUpWord(): void
 				{
@@ -140,28 +131,5 @@ export async function ShowSelectionContextMenu(canAddSignal: boolean, canAddToDr
 			}
 		});
 	});
-	return result;
-}
-
-export async function ShowDreamSourceContextMenu(canAddToSelectedSignal: boolean, canExploreWord: boolean): Promise<SelectionAction>
-{
-	const result = await new Promise<SelectionAction>((resolve) =>
-	{
-		const menu = Menu.buildFromTemplate([
-			{ label: "Copy", click: () => resolve("copy-dream-source") },
-			{ label: "Create Signal", click: () => resolve("add-dream-source-signal") },
-			{ label: "Add to Selected Signal", enabled: canAddToSelectedSignal, click: () => resolve("add-to-selected-signal") },
-			{
-				label: "Explore word",
-				enabled: canExploreWord,
-				click: function LookUpWord(): void
-				{
-					resolve("explore-word");
-				}
-			}
-		]);
-		menu.popup({ callback: () => resolve(null) });
-	});
-
 	return result;
 }

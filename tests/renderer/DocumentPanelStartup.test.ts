@@ -1,21 +1,16 @@
-import type { OperationResult } from "../../src/shared/diagnostics/OperationResult.js";
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { OperationResult } from "../../src/shared/diagnostics/OperationResult.js";
+import type { TextDocument, LibraryTextSummary, SourceNotice } from "../../src/shared/library/LibraryTypes.js";
 import { ChoraEventBus } from "../../src/renderer/core/events/ChoraEventBus.js";
 import type { ChoraEvents } from "../../src/renderer/core/events/ChoraEvents.js";
 import { ErrorManager } from "../../src/renderer/core/diagnostics/RendererErrorManager.js";
-import { ReadingSettingsStore } from "../../src/renderer/core/settings/ReadingSettingsStore.js";
 import { DocumentPanel } from "../../src/renderer/library/DocumentPanel.js";
 import { LibraryController } from "../../src/renderer/library/LibraryController.js";
 import { LibraryGateway } from "../../src/renderer/library/LibraryGateway.js";
 import { LibraryStore } from "../../src/renderer/library/LibraryStore.js";
-import { DreamStore } from "../../src/renderer/dreams/DreamStore.js";
-import { SessionStore } from "../../src/renderer/core/session/SessionStore.js";
-import type { TextDocument, LibraryTextSummary, SourceNotice } from "../../src/shared/library/LibraryTypes.js";
-import type { TextSelection } from "../../src/shared/text/TextSelection.js";
-import type { SignalRecord } from "../../src/shared/signals/SignalTypes.js";
+import { DecodeVisionReferenceClipboardHtml, DecodeVisionReferenceDrag, VisionReferenceDragMime } from "../../src/shared/visions/VisionReferenceTypes.js";
 
-// Library summary available from the empty startup workspace.
 const summary: LibraryTextSummary = {
 	id: "republic",
 	urn: null,
@@ -26,7 +21,6 @@ const summary: LibraryTextSummary = {
 	editor: null
 };
 
-// Full text opened when Dream creation begins.
 const libraryText: TextDocument = {
 	...summary,
 	textVersion: `sha256:${"0".repeat(64)}`,
@@ -47,7 +41,6 @@ const libraryText: TextDocument = {
 	]
 };
 
-// Source attribution returned with the startup text.
 const sourceNotice: SourceNotice = {
 	source: "PerseusDL",
 	editor: null,
@@ -61,53 +54,16 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 	let panel: DocumentPanel;
 	let root: HTMLElement;
 	let events: ChoraEventBus<ChoraEvents>;
-	let controller: LibraryController;
-	let dreamStore: DreamStore;
-
-	// Opens one test Dream and optionally selects one owned Signal.
-	function SetActiveDream(source: TextSelection, signalSelections: readonly TextSelection[] = []): void
-	{
-		if (dreamStore.GetActiveDream() !== null) dreamStore.Close();
-		const signal: SignalRecord | null = signalSelections.length === 0
-			? null
-			: {
-				id: "signal-1",
-				dreamId: "dream-1",
-				workId: "republic",
-				sourceRef: "327a",
-				selections: structuredClone(signalSelections),
-				text: "signal",
-				description: "",
-				createdAt: "2026-01-01",
-				updatedAt: "2026-01-01"
-			};
-		dreamStore.Open({
-			id: "dream-1",
-			workId: "republic",
-			dialogue: "Republic",
-			title: "",
-			source: structuredClone(source),
-			signals: signal === null ? [] : [signal],
-			reflection: "",
-			linkedDreamIds: [],
-			createdAt: "2026-01-01",
-			updatedAt: "2026-01-01"
-		}, false);
-		if (signal !== null) dreamStore.SetSelectedSignal("dream-1", signal.id);
-	}
 
 	beforeEach(async function SetupAsync()
 	{
 		root = document.createElement("div");
 		document.body.append(root);
 		events = new ChoraEventBus<ChoraEvents>();
-		dreamStore = new DreamStore(new SessionStore());
 		const errors = new ErrorManager(events);
 		const store = new LibraryStore();
-		const sessionStorage = window.sessionStorage;
 		vi.stubGlobal("window", {
 			...window,
-			sessionStorage,
 			getSelection: window.getSelection.bind(window),
 			chora: {
 				ListLibraryTexts: vi.fn(async function ListLibraryTexts(): Promise<OperationResult<LibraryTextSummary[]>> { return { ok: true, value: [summary] }; }),
@@ -116,8 +72,8 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 				ShowSelectionContextMenu: vi.fn(async function ShowSelectionContextMenu(): Promise<OperationResult<null>> { return { ok: true, value: null }; })
 			}
 		});
-		controller = new LibraryController(events, errors, store, new LibraryGateway(), dreamStore);
-		panel = new DocumentPanel(root, events, store, controller, new ReadingSettingsStore());
+		const controller = new LibraryController(events, errors, store, new LibraryGateway(), { GetActive: () => null });
+		panel = new DocumentPanel(root, events, store, controller);
 		await controller.StartAsync();
 	});
 
@@ -128,415 +84,104 @@ describe("DocumentPanel startup", function DocumentPanelStartupTests()
 		vi.unstubAllGlobals();
 	});
 
-	it("renders the preferred text after Library startup", function RendersPreferredText()
+	it("renders the preferred text after Library startup", async function RendersPreferredText()
 	{
 		expect(root.querySelector("#readingPane")).not.toBeNull();
 		expect(root.textContent).toContain("κατέβην");
 		expect(root.querySelector(".source-quotation")?.textContent).toBe("πρὸς τὸν Πειραιᾶ");
 		expect(root.querySelector(".source-quotation-text")?.textContent).toBe("πρὸς");
 		expect(root.querySelector(".source-quotation-citation")?.textContent).toBe(" τὸν Πειραιᾶ");
-		expect(root.querySelector("[data-segment-key='s2'] .segment-text")?.textContent).toBe("πρὸς τὸν Πειραιᾶ");
+		expect(root.querySelector(".reader-settings-menu")).toBeNull();
+		expect(root.querySelector("[data-anchor-highlight-color]")).toBeNull();
+		expect(root.querySelector("[data-find-input]")?.classList.contains("control-input")).toBe(true);
+		await events.PublishAsync("library.position-restored", { segmentKey: "s1" });
+		expect(root.querySelector(".source-focus-target")).toBeNull();
 	});
 
-	it("loads a Signal source by its canonical exact range", async function LoadsSignalSourceAsync()
+	it("places the exact dragged reader selection in the Vision transfer payload", function CreatesVisionDragPayload(): void
 	{
-		const segment = root.querySelector<HTMLElement>("[data-segment-key='s1']");
-		const scroll = vi.fn();
+		const target = root.querySelector<HTMLElement>("[data-segment-key='s3'] .segment-text")!;
+		const text = target.firstChild as Text;
+		const range = document.createRange();
+		range.setStart(text, 0);
+		range.setEnd(text, text.data.length);
+		window.getSelection()?.removeAllRanges();
+		window.getSelection()?.addRange(range);
+		const transfer = new DataTransfer();
+		const drag = new DragEvent("dragstart", { bubbles: true });
+		Object.defineProperty(drag, "dataTransfer", { value: transfer });
 
-		if (segment !== null)
-		{
-			segment.scrollIntoView = scroll;
-		}
+		target.dispatchEvent(drag);
+
+		const payload = DecodeVisionReferenceDrag(transfer.getData(VisionReferenceDragMime));
+		expect(payload.anchorKind).toBe("phrase");
+		expect(payload.selection).toMatchObject({
+			start: { stephanus: "s3", offset: 0 },
+			end: { stephanus: "s3", offset: text.data.length }
+		});
+		expect(transfer.getData("text/plain")).toBe("μετὰ Γλαύκωνος");
+	});
+
+	it("copies an exact reader selection as an anchor with plain Greek fallback", function CopiesVisionAnchor(): void
+	{
+		const target = root.querySelector<HTMLElement>("[data-segment-key='s1'] .segment-text")!;
+		const text = target.firstChild as Text;
+		const range = document.createRange();
+		range.setStart(text, 0);
+		range.setEnd(text, text.data.length);
+		window.getSelection()?.removeAllRanges();
+		window.getSelection()?.addRange(range);
+		const clipboard = new DataTransfer();
+		const copy = new ClipboardEvent("copy", { bubbles: true, cancelable: true, clipboardData: clipboard });
+
+		target.dispatchEvent(copy);
+
+		expect(copy.defaultPrevented).toBe(true);
+		const payload = DecodeVisionReferenceDrag(clipboard.getData(VisionReferenceDragMime));
+		expect(payload.anchorKind).toBe("word");
+		expect(DecodeVisionReferenceClipboardHtml(clipboard.getData("text/html"))).toEqual(payload);
+		expect(clipboard.getData("text/plain")).toBe("κατέβην");
+	});
+
+	it("highlights one exact source range and scrolls it into view", async function HighlightsSourceAsync()
+	{
+		const segment = root.querySelector<HTMLElement>("[data-segment-key='s1']")!;
+		segment.scrollIntoView = vi.fn();
 
 		await events.PublishAsync("library.jump-requested", {
 			selection: {
-				dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
+				dialogue: "republic",
+				text_version: libraryText.textVersion,
+				start: { stephanus: "s1", offset: 1 },
+				end: { stephanus: "s1", offset: 5 }
+			},
+			target: "source"
+		});
+
+		expect(segment.querySelector(".source-focus-target")?.textContent).toBe("ατέβ");
+		expect(segment.scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
+	});
+
+	it("keeps persistent word occurrences separate from source navigation", async function PreservesWordHighlightsAsync()
+	{
+		const wordSelection = {
+			dialogue: "republic",
+			text_version: libraryText.textVersion,
+			start: { stephanus: "s3", offset: 5 },
+			end: { stephanus: "s3", offset: 14 }
+		};
+		await events.PublishAsync("word.highlights-changed", { selections: [wordSelection] });
+		await events.PublishAsync("library.jump-requested", {
+			selection: {
+				dialogue: "republic",
+				text_version: libraryText.textVersion,
 				start: { stephanus: "s1", offset: 0 },
 				end: { stephanus: "s1", offset: 7 }
-			}
+			},
+			target: "source"
 		});
 
-		expect(segment?.querySelector(".signal-source-target")?.textContent).toBe("κατέβην");
-		expect(scroll).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
-	});
-
-	it("keeps Dream, Signal, and lemma occurrence highlights independent", async function PreservesHighlightsForWordAsync(): Promise<void>
-	{
-		const nodes = root.querySelectorAll<HTMLElement>("[data-segment-key]");
-		const segments = Array.from(nodes);
-		for (const segment of segments)
-		{
-			segment.scrollIntoView = vi.fn();
-		}
-		const source: TextSelection = {
-			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-			start: { stephanus: "s1", offset: 0 },
-			end: { stephanus: "s1", offset: 7 }
-		};
-		const signal: TextSelection = {
-			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-			start: { stephanus: "s1", offset: 0 },
-			end: { stephanus: "s1", offset: 4 }
-		};
-		const word: TextSelection = {
-			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-			start: { stephanus: "s2", offset: 0 },
-			end: { stephanus: "s2", offset: 4 }
-		};
-		const secondWord: TextSelection = {
-			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-			start: { stephanus: "s3", offset: 0 },
-			end: { stephanus: "s3", offset: 4 }
-		};
-		await events.PublishAsync("word.highlights-changed", { selections: [word, secondWord] });
-		await events.PublishAsync("library.jump-requested", { selection: source });
-		await events.PublishAsync("library.jump-requested", { selection: signal, target: "signal" });
-		const sourceHighlight = root.querySelector<HTMLElement>(".signal-source-target");
-		const signalHighlight = root.querySelector<HTMLElement>(".signal-focus-target");
-		const wordHighlights = Array.from(root.querySelectorAll<HTMLElement>(".word-focus-target"));
-		expect(sourceHighlight?.textContent).toBe("κατέβην");
-		expect(signalHighlight?.textContent).toBe("κατέ");
-		expect(wordHighlights.map(function ReadHighlight(item): string | null { return item.textContent; })).toEqual(["πρὸς", "μετὰ"]);
-	});
-
-	it("highlights every segment covered by a Dream source passage", async function HighlightsCompletePassageAsync()
-	{
-		const first = root.querySelector<HTMLElement>("[data-segment-key='s1']");
-		const scroll = vi.fn();
-		if (first !== null) first.scrollIntoView = scroll;
-
-		await events.PublishAsync("library.jump-requested", {
-			selection: {
-				dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-				start: { stephanus: "s1", offset: 0 },
-				end: { stephanus: "s3", offset: libraryText.segments[2]?.text.length ?? 0 },
-				selectedText: "κατέβην\nπρὸς τὸν Πειραιᾶ\nμετὰ Γλαύκωνος",
-				locatorStart: { scheme: "Stephanus", value: "327a" },
-				locatorEnd: { scheme: "Stephanus", value: "327c" }
-			}
-		});
-
-		const highlighted = Array.from(root.querySelectorAll<HTMLElement>(".signal-source-target"));
-		expect(highlighted.map(function GetText(target): string | null { return target.textContent; })).toEqual([
-			"κατέβην",
-			"πρὸς τὸν Πειραιᾶ",
-			"μετὰ Γλαύκωνος"
-		]);
-		expect(scroll).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
-	});
-
-	it("highlights only the exact partial text at both Dream source boundaries", async function HighlightsExactBoundariesAsync()
-	{
-		const first = root.querySelector<HTMLElement>("[data-segment-key='s1']");
-		const scroll = vi.fn();
-		if (first !== null) first.scrollIntoView = scroll;
-
-		await events.PublishAsync("library.jump-requested", {
-			selection: {
-				dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-				start: { stephanus: "s1", offset: 2 },
-				end: { stephanus: "s3", offset: 4 },
-				selectedText: "τέβην\nπρὸς τὸν Πειραιᾶ\nμετὰ",
-				locatorStart: { scheme: "Stephanus", value: "327a" },
-				locatorEnd: { scheme: "Stephanus", value: "327c" }
-			}
-		});
-
-		const highlighted = Array.from(root.querySelectorAll<HTMLElement>(".signal-source-target"));
-		expect(highlighted.map(function GetText(target): string | null { return target.textContent; })).toEqual([
-			"τέβην",
-			"πρὸς τὸν Πειραιᾶ",
-			"μετὰ"
-		]);
-		expect(root.querySelector("[data-segment-key='s1'] .segment-text")?.textContent).toBe("κατέβην");
-		expect(root.querySelector("[data-segment-key='s3'] .segment-text")?.textContent).toBe("μετὰ Γλαύκωνος");
-		expect(scroll).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
-	});
-
-	it("retains the Dream source highlight when focusing one of its Signals", async function RetainsDreamHighlightAsync()
-	{
-		await events.PublishAsync("library.jump-requested", {
-			selection: {
-				dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-				start: { stephanus: "s1", offset: 0 },
-				end: { stephanus: "s3", offset: libraryText.segments[2]?.text.length ?? 0 },
-				selectedText: "κατέβην\nπρὸς τὸν Πειραιᾶ\nμετὰ Γλαύκωνος",
-				locatorStart: { scheme: "Stephanus", value: "327a" },
-				locatorEnd: { scheme: "Stephanus", value: "327c" }
-			}
-		});
-
-		await events.PublishAsync("library.jump-requested", {
-			target: "signal",
-			selection: {
-				dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-				start: { stephanus: "s2", offset: 5 },
-				end: { stephanus: "s2", offset: 8 },
-				selectedText: "τὸν",
-				locatorStart: { scheme: "Stephanus", value: "327b" },
-				locatorEnd: { scheme: "Stephanus", value: "327b" }
-			}
-		});
-
-		const sourceHighlights = Array.from(root.querySelectorAll<HTMLElement>(".signal-source-target"));
-		expect(sourceHighlights.map(function GetText(target): string | null { return target.textContent; })).toEqual([
-			"κατέβην",
-			"πρὸς τὸν Πειραιᾶ",
-			"μετὰ Γλαύκωνος"
-		]);
-		expect(root.querySelector<HTMLElement>(".signal-focus-target")?.textContent).toBe("τὸν");
-	});
-
-	it("highlights every non-contiguous component of one Signal", async function HighlightsMultipartSignalAsync()
-	{
-		const first = root.querySelector<HTMLElement>("[data-segment-key='s1']");
-		const secondText = libraryText.segments[1]?.text ?? "";
-		const secondStart = secondText.indexOf("Πειραιᾶ");
-		const scroll = vi.fn();
-		if (first !== null) first.scrollIntoView = scroll;
-
-		await events.PublishAsync("library.jump-requested", {
-			target: "signal",
-			selections: [
-				{
-					dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-					start: { stephanus: "s1", offset: 0 },
-					end: { stephanus: "s1", offset: 3 }
-				},
-				{
-					dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-					start: { stephanus: "s2", offset: secondStart },
-					end: { stephanus: "s2", offset: secondStart + "Πειραιᾶ".length }
-				}
-			]
-		});
-
-		const highlighted = Array.from(root.querySelectorAll<HTMLElement>(".signal-focus-target"));
-		expect(highlighted.map((target) => target.textContent)).toEqual(["κατ", "Πειραιᾶ"]);
-		expect(scroll).toHaveBeenCalledOnce();
-	});
-
-	it("removes a deleted Signal passage highlight while retaining the remaining passage", async function ReconcilesRemovedPassageHighlightAsync()
-	{
-		const secondText = libraryText.segments[1]?.text ?? "";
-		const secondStart = secondText.indexOf("Πειραιᾶ");
-		const first = {
-			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-			start: { stephanus: "s1", offset: 0 },
-			end: { stephanus: "s1", offset: 3 }
-		};
-		const second = {
-			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-			start: { stephanus: "s2", offset: secondStart },
-			end: { stephanus: "s2", offset: secondStart + "Πειραιᾶ".length }
-		};
-
-		await events.PublishAsync("library.jump-requested", {
-			target: "signal",
-			selections: [first, second]
-		});
-		await events.PublishAsync("library.jump-requested", {
-			target: "signal",
-			selections: [second]
-		});
-
-		const highlighted = Array.from(root.querySelectorAll<HTMLElement>(".signal-focus-target"));
-		expect(highlighted.map(function GetText(target): string | null { return target.textContent; })).toEqual(["Πειραιᾶ"]);
-		expect(root.querySelector("[data-segment-key='s1'] .signal-focus-target")).toBeNull();
-	});
-
-	it("adds selected text to the active Signal through the reader menu", async function AddsToCurrentSignalAsync()
-	{
-		const selection = {
-			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-			start: { stephanus: "s2", offset: 0 },
-			end: { stephanus: "s2", offset: 4 }
-		};
-		const menu = vi.mocked(window.chora.ShowSelectionContextMenu);
-		menu.mockResolvedValue({ ok: true, value: "add-to-selected-signal" });
-		let request: ChoraEvents["signal.selection-add-requested"] | null = null;
-		events.Subscribe("signal.selection-add-requested", function CaptureRequest(event): void
-		{
-			request = event;
-		});
-		SetActiveDream({
-			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-			start: { stephanus: "s1", offset: 0 },
-			end: { stephanus: "s1", offset: 3 }
-		}, [{
-				dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-				start: { stephanus: "s1", offset: 0 },
-				end: { stephanus: "s1", offset: 3 }
-		}]);
-
-		await controller.HandleSelectionActionAsync(selection);
-
-		expect(menu).toHaveBeenCalledWith(false, false, true, true);
-		expect(request).toEqual({ signalId: "signal-1", selection });
-	});
-
-	it("creates a Signal directly in the active Dream from formatted reader text", async function CreatesSignalInActiveDreamAsync()
-	{
-		SetActiveDream({
-			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-			start: { stephanus: "s1", offset: 0 },
-			end: { stephanus: "s3", offset: libraryText.segments[2]?.text.length ?? 0 }
-		});
-		const menu = vi.mocked(window.chora.ShowSelectionContextMenu);
-		menu.mockResolvedValue({ ok: true, value: "add-signal" });
-		let request: ChoraEvents["dream.signal-add-requested"] | null = null;
-		events.Subscribe("dream.signal-add-requested", function CaptureRequest(event): void
-		{
-			request = event;
-		});
-		const quotation = root.querySelector<HTMLElement>("[data-segment-key='s2'] .source-quotation-text");
-		const textNode = quotation?.firstChild ?? null;
-
-		if (textNode === null)
-		{
-			throw new Error("Formatted reader quotation was not rendered.");
-		}
-
-		const range = document.createRange();
-		range.setStart(textNode, 0);
-		range.setEnd(textNode, textNode.textContent?.length ?? 0);
-		const browserSelection = window.getSelection();
-		browserSelection?.removeAllRanges();
-		browserSelection?.addRange(range);
-		quotation?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
-
-		await vi.waitFor(function SignalRequested(): void
-		{
-			expect(request).not.toBeNull();
-		});
-		expect(menu).toHaveBeenCalledWith(true, false, false, true);
-		expect(request).toEqual({
-			selection: {
-				dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-				start: { stephanus: "s2", offset: 0 },
-				end: { stephanus: "s2", offset: 4 }
-			}
-		});
-	});
-
-	it("retains an automatically selected Signal when its Dream becomes active", async function RetainsAutoSelectedSignalAsync()
-	{
-		const selection = {
-			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-			start: { stephanus: "s2", offset: 0 },
-			end: { stephanus: "s2", offset: 4 }
-		};
-		const menu = vi.mocked(window.chora.ShowSelectionContextMenu);
-		menu.mockResolvedValue({ ok: true, value: "add-to-selected-signal" });
-		let request: ChoraEvents["signal.selection-add-requested"] | null = null;
-		events.Subscribe("signal.selection-add-requested", function CaptureRequest(event): void
-		{
-			request = event;
-		});
-
-		SetActiveDream({
-			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-			start: { stephanus: "s1", offset: 0 },
-			end: { stephanus: "s2", offset: 4 }
-		}, [{
-				dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-				start: { stephanus: "s1", offset: 0 },
-				end: { stephanus: "s1", offset: 3 }
-		}]);
-
-		await controller.HandleSelectionActionAsync(selection);
-
-		expect(menu).toHaveBeenCalledWith(true, false, true, true);
-		expect(request).toEqual({ signalId: "signal-1", selection });
-	});
-
-	it("adds an external passage to the active Signal without enabling new Signal creation", async function AddsExternalSignalPassageAsync()
-	{
-		const selection = {
-			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-			start: { stephanus: "s2", offset: 0 },
-			end: { stephanus: "s2", offset: 4 }
-		};
-		const menu = vi.mocked(window.chora.ShowSelectionContextMenu);
-		menu.mockResolvedValue({ ok: true, value: "add-to-selected-signal" });
-		let request: ChoraEvents["signal.selection-add-requested"] | null = null;
-		events.Subscribe("signal.selection-add-requested", function CaptureRequest(event): void
-		{
-			request = event;
-		});
-		SetActiveDream({
-			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-			start: { stephanus: "s1", offset: 0 },
-			end: { stephanus: "s1", offset: 3 }
-		}, [{
-				dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-				start: { stephanus: "s1", offset: 0 },
-				end: { stephanus: "s1", offset: 2 }
-		}]);
-
-		await controller.HandleSelectionActionAsync(selection);
-
-		expect(menu).toHaveBeenCalledWith(false, false, true, true);
-		expect(request).toEqual({ signalId: "signal-1", selection });
-	});
-
-	it("disables adding text already contained by the selected Signal", async function RejectsDuplicateComponentAsync()
-	{
-		const selection = {
-			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-			start: { stephanus: "s1", offset: 1 },
-			end: { stephanus: "s1", offset: 2 }
-		};
-		const menu = vi.mocked(window.chora.ShowSelectionContextMenu);
-		SetActiveDream({
-			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-			start: { stephanus: "s2", offset: 0 },
-			end: { stephanus: "s2", offset: 4 }
-		}, [{
-				dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-				start: { stephanus: "s1", offset: 0 },
-				end: { stephanus: "s1", offset: 3 }
-		}]);
-
-		await controller.HandleSelectionActionAsync(selection);
-
-		expect(menu).toHaveBeenCalledWith(false, false, false, true);
-	});
-
-	it("enables Dream source extension only for an adjacent selection", async function ChecksDreamSourceAdjacencyAsync()
-	{
-		SetActiveDream({
-			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-			start: { stephanus: "s1", offset: 1 },
-			end: { stephanus: "s1", offset: 3 }
-		});
-		const adjacent = {
-			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-			start: { stephanus: "s1", offset: 3 },
-			end: { stephanus: "s1", offset: 5 }
-		};
-		const separated = {
-			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-			start: { stephanus: "s3", offset: 0 },
-			end: { stephanus: "s3", offset: 2 }
-		};
-		const segmentBoundary = {
-			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-			start: { stephanus: "s2", offset: 0 },
-			end: { stephanus: "s2", offset: 2 }
-		};
-		const menu = vi.mocked(window.chora.ShowSelectionContextMenu);
-		await controller.HandleSelectionActionAsync(adjacent);
-		await controller.HandleSelectionActionAsync(separated);
-		SetActiveDream({
-			dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`,
-			start: { stephanus: "s1", offset: 1 },
-			end: { stephanus: "s1", offset: libraryText.segments[0]?.text.length ?? 0 }
-		});
-		await controller.HandleSelectionActionAsync(segmentBoundary);
-
-		expect(menu).toHaveBeenNthCalledWith(1, false, true, false, true);
-		expect(menu).toHaveBeenNthCalledWith(2, false, false, false, true);
-		expect(menu).toHaveBeenNthCalledWith(3, false, true, false, true);
+		expect(root.querySelector(".word-focus-target")?.textContent).toBe("Γλαύκωνος");
+		expect(root.querySelector(".source-focus-target")?.textContent).toBe("κατέβην");
 	});
 });

@@ -9,6 +9,8 @@ import type {
 	WordEvidenceCandidate,
 	WordEvidenceCoverage,
 	WordEvidenceResult,
+	WordLexicalSearchResult,
+	WordWorkScope,
 	WordEvidenceSource,
 	WordEvidenceValue,
 	WordLemmaEvidence,
@@ -63,6 +65,8 @@ export interface PlatoSiApi
 	GetCanonicalCatalogueAsync(): Promise<readonly CanonicalEntry[]>;
 	GetCanonicalWorkAsync(dialogue: string, textVersion: string): Promise<CanonicalWork>;
 	GetDialogueLexiconAsync(location: TextSelection): Promise<WordEvidenceResult>;
+	SearchLexiconAsync(query: string): Promise<WordLexicalSearchResult>;
+	GetLexicalEvidenceAsync(lemma: string, scope: WordWorkScope | null): Promise<WordEvidenceResult>;
 	GetPersonResearchAsync(location: TextSelection, lemma: string): Promise<WordPersonResearch>;
 }
 
@@ -92,6 +96,41 @@ export class PlatoSiGateway implements PlatoSiApi
 	{
 		const response = await this.client.RequestAsync("linguistics.dialogue-lexicon", { location });
 		return DecodeDialogueLexicon(response, location);
+	}
+
+	// Validates bounded lexical results before they cross into renderer state.
+	public async SearchLexiconAsync(query: string): Promise<WordLexicalSearchResult>
+	{
+		const response = await this.client.RequestAsync("word.search", { query });
+		if (!IsRecord(response) || response.contract !== "platosi.word-search.v1" || response.query !== query
+			|| !Array.isArray(response.items) || response.items.length > 50 || !Array.isArray(response.warnings)
+			|| typeof response.possibly_truncated !== "boolean")
+		{
+			throw new Error("PlatoSI returned invalid word search results.");
+		}
+		const items: Array<{ lemma: string }> = [];
+		const seen = new Set<string>();
+		for (const item of response.items)
+		{
+			if (!IsRecord(item) || typeof item.lemma !== "string" || item.lemma.length === 0 || item.lemma.length > 200)
+			{
+				throw new Error("PlatoSI returned an invalid headword.");
+			}
+			if (!seen.has(item.lemma)) items.push({ lemma: item.lemma });
+			seen.add(item.lemma);
+		}
+		const warnings = DecodeStrings(response.warnings, "word search warning");
+		const result: WordLexicalSearchResult = { query, items, possiblyTruncated: response.possibly_truncated, warnings };
+		return result;
+	}
+
+	// Dictionary-only origin shares evidence decoding with exact-occurrence lookup.
+	public async GetLexicalEvidenceAsync(lemma: string, scope: WordWorkScope | null): Promise<WordEvidenceResult>
+	{
+		const response = await this.client.RequestAsync("word.lookup", { lemma, scope });
+		const result = DecodeDialogueLexicon(response, null, scope);
+		if (result.form !== lemma) throw new Error("PlatoSI returned a different lexical headword.");
+		return result;
 	}
 
 	public async GetPersonResearchAsync(location: TextSelection, lemma: string): Promise<WordPersonResearch>
@@ -301,21 +340,28 @@ function DecodeSegment(value: unknown): CanonicalSegment
 	return { text: value.text, annotations };
 }
 
-function DecodeDialogueLexicon(value: unknown, requested: TextSelection): WordEvidenceResult
+function DecodeDialogueLexicon(value: unknown, requested: TextSelection | null, scope: WordWorkScope | null = null): WordEvidenceResult
 {
-	if (!IsRecord(value) || value.contract !== "platosi.dialogue-lexicon.v1"
+	const contract = requested === null ? "platosi.lexical-evidence.v1" : "platosi.dialogue-lexicon.v1";
+	if (!IsRecord(value) || value.contract !== contract
 		|| !IsRecord(value.target) || !Array.isArray(value.lemmas)
 		|| !IsRecord(value.dictionary) || !IsRecord(value.morphology)
 		|| !Array.isArray(value.warnings) || typeof value.limitations !== "string")
 	{
 		throw new Error("PlatoSI returned an invalid dialogue lexicon.");
 	}
-	const selection = DecodeTextSelection(value.target.location);
+	const selection = value.target.location === null ? null : DecodeTextSelection(value.target.location);
 	if (JSON.stringify(selection) !== JSON.stringify(requested)
 		|| typeof value.target.text !== "string" || !Array.isArray(value.target.context))
 	{
 		throw new Error("PlatoSI returned linguistic evidence for a different selection.");
 	}
+	if (requested === null && (JSON.stringify(value.scope) !== JSON.stringify(scope)
+		|| !["indexed", "unavailable"].includes(String(value.occurrences_status))))
+	{
+		throw new Error("PlatoSI returned lexical evidence for a different work.");
+	}
+	const work = selection === null ? scope : { dialogue: selection.dialogue, text_version: selection.text_version };
 	const context = value.target.context.map(function DecodeContext(item): { stephanus: string; text: string }
 	{
 		if (!IsRecord(item) || typeof item.stephanus !== "string" || typeof item.text !== "string")
@@ -332,12 +378,14 @@ function DecodeDialogueLexicon(value: unknown, requested: TextSelection): WordEv
 	}
 	const coverage = DecodeCoverage(value.coverage);
 	const result: WordEvidenceResult = {
-		contract: "platosi.dialogue-lexicon.v1",
+		contract,
 		selection,
+		work,
+		occurrencesStatus: requested === null && value.occurrences_status === "unavailable" ? "unavailable" : "indexed",
 		form: value.target.text,
 		context,
 		possibilities: value.lemmas.map(DecodePossibility),
-		lemmas: value.lemmas.map((lemma) => DecodeDialogueLemma(lemma, requested)),
+		lemmas: value.lemmas.map((lemma) => DecodeDialogueLemma(lemma, work)),
 		coverage,
 		dictionary: {
 			status: value.dictionary.status,
@@ -510,7 +558,7 @@ function DecodeFeatures(value: unknown): Readonly<Record<string, string>> | null
 	return result;
 }
 
-function DecodeDialogueLemma(value: unknown, requested: TextSelection): WordDialogueLemma
+function DecodeDialogueLemma(value: unknown, requested: WordWorkScope | null): WordDialogueLemma
 {
 	if (!IsRecord(value) || typeof value.lemma !== "string" || !Array.isArray(value.candidates)
 		|| !Array.isArray(value.forms) || !Array.isArray(value.related_lemmas))
@@ -525,7 +573,7 @@ function DecodeDialogueLemma(value: unknown, requested: TextSelection): WordDial
 	};
 }
 
-function DecodeDialogueForm(value: unknown, requested: TextSelection): WordDialogueForm
+function DecodeDialogueForm(value: unknown, requested: WordWorkScope | null): WordDialogueForm
 {
 	if (!IsRecord(value) || typeof value.form !== "string"
 		|| !Number.isSafeInteger(value.count) || typeof value.count !== "number" || value.count < 0
@@ -540,7 +588,7 @@ function DecodeDialogueForm(value: unknown, requested: TextSelection): WordDialo
 			throw new Error("PlatoSI returned an invalid dialogue occurrence.");
 		}
 		const selection = DecodeTextSelection(item.location);
-		if (selection.dialogue !== requested.dialogue || selection.text_version !== requested.text_version)
+		if (requested === null || selection.dialogue !== requested.dialogue || selection.text_version !== requested.text_version)
 		{
 			throw new Error("PlatoSI returned a dialogue occurrence for a different work.");
 		}
@@ -563,7 +611,7 @@ function DecodeDialogueForm(value: unknown, requested: TextSelection): WordDialo
 	};
 }
 
-function DecodeRelatedLemma(value: unknown, requested: TextSelection): WordRelatedLemma
+function DecodeRelatedLemma(value: unknown, requested: WordWorkScope | null): WordRelatedLemma
 {
 	if (!IsRecord(value) || typeof value.lemma !== "string"
 		|| typeof value.relation_type !== "string" || typeof value.direction !== "string"

@@ -1,18 +1,42 @@
 import type { OperationResult } from "../diagnostics/OperationResult.js";
 import type { ErrorRecord } from "../diagnostics/DiagnosticManager.js";
-import type { DreamTrashSnapshot } from "../dreams/DreamTrashTypes.js";
 import type { TextDocumentSnapshot, LibraryTextSummary, SourceNotice } from "../library/LibraryTypes.js";
 import type { SelectionAction, TextSelection } from "../text/TextSelection.js";
-import type { CreateDreamCommand, CreateDreamFolderCommand, DeleteDreamFolderCommand, DreamCatalogueSnapshot, DreamFolderSnapshot, DreamLocationSnapshot, DreamSnapshot, MoveDreamCommand, UpdateDreamCommand } from "../dreams/DreamTypes.js";
-import type { CreateSignalCommand, DeleteSignalCommand, SignalRecord, UpdateSignalCommand } from "../signals/SignalTypes.js";
-import type { WordEvidenceResult, WordNameNote, WordNameNoteKey, WordObservation, WordObservationKey, WordPersonResearch, WordSearchResult } from "../library/WordExplorationTypes.js";
+import type { WordEvidenceResult, WordLexicalSearchResult, WordNameNote, WordNameNoteKey, WordObservation, WordObservationKey, WordPersonResearch, WordSearchResult } from "../library/WordExplorationTypes.js";
+import type {
+	CreateVisionCommand,
+	CreateVisionFolderCommand,
+	DeleteVisionFolderCommand,
+	MoveVisionCommand,
+	UpdateVisionCommand,
+	VisionCatalogueSnapshot,
+	VisionFolderSnapshot,
+	VisionSnapshot
+} from "../visions/VisionTypes.js";
+import type { CreateTextAnchorCommand, TextAnchorSnapshot } from "../anchors/TextAnchorTypes.js";
+import type { VisionReferenceDragPayload } from "../visions/VisionReferenceTypes.js";
 
 export type ApiSubscription = () => void;
 
 export type FormattingAction = "bold" | "italic" | "bullet_list" | "ordered_list" | "blockquote" | "link" | null;
+export type VisionReferenceAction = "copy" | "navigate" | "explore-word" | null;
+
+// Explicit application commands available to the shared top menu.
+export type ApplicationMenuCommand = "quit" | "settings" | "logs";
 
 export interface ChoraApi
 {
+	// macOS retains its operating-system application menu.
+	readonly UsesNativeMenu: boolean;
+	// Privileged menu actions are validated by the application's main-process boundary.
+	ExecuteApplicationMenuCommand(command: ApplicationMenuCommand): Promise<OperationResult<void>>;
+	// The privileged host synchronizes native chrome with the renderer's application preference.
+	SetAppearance(appearance: "light" | "dark", selectionColor: string): Promise<OperationResult<void>>;
+	// Native menu requests are translated into renderer application events.
+	SubscribeSettingsRequested(callback: () => void): ApiSubscription;
+	// Word search and dictionary lookup are independent of passage selections.
+	SearchLexicon(query: string): Promise<OperationResult<WordLexicalSearchResult>>;
+	GetLexicalEvidence(lemma: string, workId: string | null): Promise<OperationResult<WordEvidenceResult>>;
 	// Stores one bounded renderer diagnostic in the main-process log.
 	RecordDiagnostic(record: ErrorRecord): Promise<OperationResult<void>>;
 	// Subscribes to explicitly reported main-process diagnostics.
@@ -20,10 +44,11 @@ export interface ChoraApi
 	ListLibraryTexts(): Promise<OperationResult<LibraryTextSummary[]>>;
 	LoadLibraryText(workId: string): Promise<OperationResult<TextDocumentSnapshot>>;
 	SubscribeLibraryTextSelected(callback: (workId: string) => void): ApiSubscription;
-	ShowSelectionContextMenu(canAddSignal: boolean, canAddToDreamSource: boolean, canAddToCurrentSignal: boolean, canExploreWord: boolean): Promise<OperationResult<SelectionAction>>;
-	ShowDreamSourceContextMenu(canAddToSelectedSignal: boolean, canExploreWord: boolean): Promise<OperationResult<SelectionAction>>;
+	ShowSelectionContextMenu(canExploreWord: boolean): Promise<OperationResult<SelectionAction>>;
 	ShowFormattingContextMenu(): Promise<OperationResult<FormattingAction>>;
+	ShowVisionReferenceContextMenu(canExploreWord: boolean): Promise<OperationResult<VisionReferenceAction>>;
 	CopySelectedText(selectedText: string): Promise<OperationResult<void>>;
+	CopySelectionAnchor(payload: VisionReferenceDragPayload): Promise<OperationResult<void>>;
 	GetSourceNotice(workId: string): Promise<OperationResult<SourceNotice>>;
 	SearchWord(workId: string, form: string): Promise<OperationResult<WordSearchResult>>;
 	GetWordEvidence(selection: TextSelection): Promise<OperationResult<WordEvidenceResult>>;
@@ -33,24 +58,14 @@ export interface ChoraApi
 	OpenExternalSource(url: string): Promise<OperationResult<void>>;
 	GetWordObservation(key: WordObservationKey): Promise<OperationResult<WordObservation>>;
 	SaveWordObservation(observation: WordObservation): Promise<OperationResult<WordObservation>>;
-	CreateSignal(command: CreateSignalCommand): Promise<OperationResult<SignalRecord>>;
-	UpdateSignal(command: UpdateSignalCommand): Promise<OperationResult<SignalRecord>>;
-	DeleteSignal(command: DeleteSignalCommand): Promise<OperationResult<void>>;
-	CreateDream(command: CreateDreamCommand): Promise<OperationResult<DreamSnapshot>>;
-	UpdateDream(command: UpdateDreamCommand): Promise<OperationResult<DreamSnapshot>>;
-	DeleteDream(dreamId: string): Promise<OperationResult<void>>;
-	// ListDreamTrash through the owning main-process library.
-	ListDreamTrash(): Promise<OperationResult<readonly DreamTrashSnapshot[]>>;
-	// RestoreDreamTrash through the owning main-process library.
-	RestoreDreamTrash(id: string): Promise<OperationResult<void>>;
-	// PurgeDreamTrash through the owning main-process library.
-	PurgeDreamTrash(id: string): Promise<OperationResult<void>>;
-	// EmptyDreamTrash through the owning main-process library.
-	EmptyDreamTrash(): Promise<OperationResult<void>>;
-	// Explicitly reconciles the filesystem-backed catalogue.
-	ReloadDreamCatalogue(): Promise<OperationResult<DreamCatalogueSnapshot>>;
-	ListDreamCatalogue(): Promise<OperationResult<DreamCatalogueSnapshot>>;
-	CreateDreamFolder(command: CreateDreamFolderCommand): Promise<OperationResult<DreamFolderSnapshot>>;
-	DeleteDreamFolder(command: DeleteDreamFolderCommand): Promise<OperationResult<void>>;
-	MoveDream(command: MoveDreamCommand): Promise<OperationResult<DreamLocationSnapshot>>;
+	CreateVision(command: CreateVisionCommand): Promise<OperationResult<VisionSnapshot>>;
+	UpdateVision(command: UpdateVisionCommand): Promise<OperationResult<VisionSnapshot>>;
+	DeleteVision(visionId: string): Promise<OperationResult<void>>;
+	ListVisions(): Promise<OperationResult<VisionCatalogueSnapshot>>;
+	CreateVisionFolder(command: CreateVisionFolderCommand): Promise<OperationResult<VisionFolderSnapshot>>;
+	DeleteVisionFolder(command: DeleteVisionFolderCommand): Promise<OperationResult<void>>;
+	MoveVision(command: MoveVisionCommand): Promise<OperationResult<VisionSnapshot>>;
+	CreateTextAnchor(command: CreateTextAnchorCommand): Promise<OperationResult<TextAnchorSnapshot>>;
+	ListTextAnchors(workId: string): Promise<OperationResult<readonly TextAnchorSnapshot[]>>;
+	ValidateTextAnchor(anchorId: string): Promise<OperationResult<TextAnchorSnapshot>>;
 }

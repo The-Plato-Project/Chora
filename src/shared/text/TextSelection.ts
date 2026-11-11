@@ -15,7 +15,7 @@ export interface TextSelection
 }
 
 // Identifies the reader action selected from a text-selection context menu.
-export type SelectionAction = "copy" | "explore-word" | "create-dream" | "add-to-dream" | "add-signal" | "add-to-selected-signal" | "copy-dream-source" | "add-dream-source-signal" | null;
+export type SelectionAction = "copy-anchor" | "copy-text-only" | "explore-word" | null;
 
 // Decodes a persisted selection into the canonical exact-range shape.
 export function DecodeTextSelection(value: unknown): TextSelection

@@ -53,21 +53,13 @@ describe("LibraryController", function LibraryControllerTests()
 				ListLibraryTexts: vi.fn(async () => ({ ok: true, value: [summary] })),
 				LoadLibraryText: vi.fn(async () => ({ ok: true, value: document })),
 				GetSourceNotice: vi.fn(async () => ({ ok: true, value: sourceNotice })),
-				ShowSelectionContextMenu: vi.fn(async () => ({ ok: true, value: "explore-word" }))
+				ShowSelectionContextMenu: vi.fn(async () => ({ ok: true, value: "explore-word" })),
+				CopySelectionAnchor: vi.fn(async () => ({ ok: true, value: undefined })),
+				CopySelectedText: vi.fn(async () => ({ ok: true, value: undefined }))
 			}
 		});
 		store = new LibraryStore();
-		const dreams = {
-			GetActiveDream: function GetActiveDream(): null
-			{
-				return null;
-			},
-			GetSelectedSignal: function GetSelectedSignal(): null
-			{
-				return null;
-			}
-		};
-		controller = new LibraryController(events, errors, store, new LibraryGateway(), dreams);
+		controller = new LibraryController(events, errors, store, new LibraryGateway());
 	});
 
 	it("loads the library and opens the preferred text", async function OpensPreferredText()
@@ -143,10 +135,44 @@ describe("LibraryController", function LibraryControllerTests()
 
 		await controller.HandleSelectionActionAsync(selection);
 
-		expect(window.chora.ShowSelectionContextMenu).toHaveBeenCalledWith(false, false, false, true);
+		expect(window.chora.ShowSelectionContextMenu).toHaveBeenCalledWith(true);
 		expect(explored).not.toBeNull();
 		const text = store.GetText();
 		expect(explored === null || text === null ? "" : text.ReconstructText(explored)).toBe("κατέβην");
+	});
+
+	it("copies anchor metadata by default from the reader menu", async function CopiesAnchor(): Promise<void>
+	{
+		await controller.StartAsync();
+		vi.mocked(window.chora.ShowSelectionContextMenu).mockResolvedValue({ ok: true, value: "copy-anchor" });
+		const selection = {
+			dialogue: "republic",
+			text_version: `sha256:${"0".repeat(64)}`,
+			start: { stephanus: "s3", offset: 2 },
+			end: { stephanus: "s3", offset: 9 }
+		};
+
+		await controller.HandleSelectionActionAsync(selection);
+
+		expect(window.chora.CopySelectionAnchor).toHaveBeenCalledWith({ selection, anchorKind: "word" });
+		expect(window.chora.CopySelectedText).not.toHaveBeenCalled();
+	});
+
+	it("copies only Greek text when requested from the reader menu", async function CopiesTextOnly(): Promise<void>
+	{
+		await controller.StartAsync();
+		vi.mocked(window.chora.ShowSelectionContextMenu).mockResolvedValue({ ok: true, value: "copy-text-only" });
+		const selection = {
+			dialogue: "republic",
+			text_version: `sha256:${"0".repeat(64)}`,
+			start: { stephanus: "s3", offset: 2 },
+			end: { stephanus: "s3", offset: 9 }
+		};
+
+		await controller.HandleSelectionActionAsync(selection);
+
+		expect(window.chora.CopySelectedText).toHaveBeenCalledWith("κατέβην");
+		expect(window.chora.CopySelectionAnchor).not.toHaveBeenCalled();
 	});
 
 	it("tracks the visible passage as chat context when no text is selected", async function TracksReadingFocus()

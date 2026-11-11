@@ -1,150 +1,37 @@
-/* Part of styles.css, split by topic. Import order in ../styles.css matches this file's original position — do not reorder relative to the other split files. */
-/* Dark theme override, activated via :root[data-theme="dark"]; wins over the plain-class rules above by specificity regardless of import order. */
+/* Dark theme overrides for the active reader, Explorer, and Vision surfaces. */
 
 :root[data-theme="dark"] {
 	color-scheme: dark;
 	--app-background: #101010;
 	--panel-background: #191919;
 	--side-panel-background: #202020;
-	--signal-observation-background: #191919;
-	--signal-toolbar-background: #262626;
 	--editor-input-background: #303030;
-	--dream-background: #191919;
-	--dream-raised: #262626;
-	--dream-divider: #444444;
-	--dream-muted: #aaaaaa;
-	--dream-accent: #cccccc;
-	--dream-selection: #414141;
+	--editor-background: #191919;
+	--raised-background: #262626;
+	--selection-background: #414141;
 	--panel-border: #444444;
 	--app-text: #e8e8e8;
 	--muted-text: #aaaaaa;
 	--accent: #cccccc;
 	--accent-soft: #414141;
+	/* Lift even a dark reader-selected color so exact anchors remain visible. */
+	--vision-reference-tint: color-mix(in srgb, var(--vision-reference-color, var(--accent)) 40%, var(--app-text));
+	--vision-reference-foreground: var(--vision-reference-tint);
+	--vision-reference-background: color-mix(in srgb, var(--vision-reference-tint) 24%, var(--editor-background));
+	--vision-range-reference-background: color-mix(in srgb, var(--vision-reference-tint) 24%, var(--editor-background));
+	--vision-reference-hover-background: color-mix(in srgb, var(--vision-reference-tint) 35%, var(--editor-background));
 	--danger: #ff8c8c;
 	--reader-background: #151515;
 	--reader-foreground: #e8e8e8;
+	--reader-surround-background: var(--reader-background);
 }
 
-:root[data-theme="dark"] .shell,
-:root[data-theme="dark"] .center-panel,
-:root[data-theme="dark"] #readingPane {
-	background: var(--dream-background);
+:root[data-theme="dark"] .reader-control select {
+	background: var(--raised-background);
 }
 
-:root[data-theme="dark"] .left-panel,
-:root[data-theme="dark"] .right-panel,
-:root[data-theme="dark"] .workspace-explorer,
-:root[data-theme="dark"] .dream-catalogue,
-:root[data-theme="dark"] .dream-panel,
-:root[data-theme="dark"] .catalogue-group h4,
-:root[data-theme="dark"] .catalogue-group-toggle {
-	background: var(--side-panel-background);
-}
-
-:root[data-theme="dark"] .catalogue-text-toggle {
+/* Selected text stays legible against the dark reading and writing surfaces. */
+:root[data-theme="dark"] ::selection {
+	background: var(--selection-background);
 	color: var(--app-text);
-}
-
-:root[data-theme="dark"] .reader-toolbar {
-	border-bottom-color: var(--panel-border);
-	background: var(--reader-background);
-}
-
-:root[data-theme="dark"] .reader-control,
-:root[data-theme="dark"] .reader-control select,
-:root[data-theme="dark"] .text-body,
-:root[data-theme="dark"] .dream-panel,
-:root[data-theme="dark"] .signal-heading {
-	color: var(--app-text);
-}
-
-:root[data-theme="dark"] .reader-control select,
-:root[data-theme="dark"] .dream-field input {
-	border-color: var(--panel-border);
-	background: var(--dream-raised);
-	color: var(--app-text);
-}
-
-:root[data-theme="dark"] .catalogue-item,
-:root[data-theme="dark"] .catalogue-item strong {
-	color: var(--app-text);
-}
-
-:root[data-theme="dark"] .catalogue-item:hover,
-:root[data-theme="dark"] .catalogue-item:focus-visible,
-:root[data-theme="dark"] .catalogue-item.selected {
-	background: var(--dream-selection);
-	color: #ffffff;
-}
-
-:root[data-theme="dark"] .signal-list,
-:root[data-theme="dark"] .signal-item {
-	border-color: var(--panel-border);
-}
-
-:root[data-theme="dark"] .catalogue-item strong {
-	color: var(--app-text);
-}
-
-:root[data-theme="dark"] .dream-search,
-:root[data-theme="dark"] .catalogue-header-button,
-:root[data-theme="dark"] .left-tab-panel .catalogue-header-button {
-	border-color: var(--panel-border);
-	background: var(--dream-raised);
-	color: var(--app-text);
-}
-
-:root[data-theme="dark"] .dream-search input {
-	color: var(--app-text);
-}
-
-:root[data-theme="dark"] .dream-search input::placeholder {
-	color: var(--dream-muted);
-}
-
-:root[data-theme="dark"] .dream-toolbar-status,
-:root[data-theme="dark"] .dream-section h3,
-:root[data-theme="dark"] .dream-field > span,
-:root[data-theme="dark"] .dream-source-meta,
-:root[data-theme="dark"] .dream-empty,
-:root[data-theme="dark"] .catalogue-location {
-	color: var(--dream-muted);
-}
-
-:root[data-theme="dark"] .catalogue-group-toggle,
-:root[data-theme="dark"] .catalogue-group h4 {
-	color: #ffffff;
-	font-weight: 700;
-}
-
-:root[data-theme="dark"] .signal-row {
-	background: transparent;
-}
-
-/* Keep the Dream canvas, source cards, and writing boxes visibly distinct. */
-:root[data-theme="dark"] .right-panel,
-:root[data-theme="dark"] .dream-panel,
-:root[data-theme="dark"] .dream-document-bar,
-:root[data-theme="dark"] .dream-document-tabs,
-:root[data-theme="dark"] .dream-document-actions {
-	background: var(--panel-background);
-}
-
-:root[data-theme="dark"] .center-panel,
-:root[data-theme="dark"] #readingPane {
-	background: var(--reader-background);
-}
-
-:root[data-theme="dark"] .workspace-explorer .workspace-search {
-	background: var(--editor-input-background);
-}
-
-:root[data-theme="dark"] .signal-list .signal-view-search {
-	background: transparent;
-}
-
-:root[data-theme="dark"] .document-interpretation input:focus-visible,
-:root[data-theme="dark"] .signal-view-search input:focus-visible {
-	outline: 2px solid var(--accent);
-	outline-offset: 1px;
 }

@@ -2,6 +2,7 @@ import { ReadOperationAsync } from "../../../shared/diagnostics/OperationResult.
 import type { TextSelection } from "../../../shared/text/TextSelection.js";
 import type {
 	WordEvidenceResult,
+	WordLexicalSearchResult,
 	WordNameNote,
 	WordNameNoteKey,
 	WordObservation,
@@ -12,6 +13,20 @@ import type {
 
 export class WordExplorationGateway
 {
+	// Shares the existing feature gateway and typed IPC result handling.
+	public async SearchLexiconAsync(query: string): Promise<WordLexicalSearchResult>
+	{
+		const operation = window.chora.SearchLexicon(query);
+		const result = await ReadOperationAsync(operation);
+		return result;
+	}
+
+	public async GetLexicalEvidenceAsync(lemma: string, workId: string | null): Promise<WordEvidenceResult>
+	{
+		const operation = window.chora.GetLexicalEvidence(lemma, workId);
+		const result = await ReadOperationAsync(operation);
+		return result;
+	}
 	public async SearchAsync(workId: string, form: string): Promise<WordSearchResult>
 	{
 		const operation = window.chora.SearchWord(workId, form);

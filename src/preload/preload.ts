@@ -1,13 +1,22 @@
 import type { OperationResult } from "../shared/diagnostics/OperationResult.js";
 import type { ErrorRecord } from "../shared/diagnostics/DiagnosticManager.js";
-import type { DreamTrashSnapshot } from "../shared/dreams/DreamTrashTypes.js";
+import type { WordLexicalSearchResult } from "../shared/library/WordExplorationTypes.js";
 import { contextBridge, ipcRenderer } from "electron";
 import type { SelectionAction, TextSelection } from "../shared/text/TextSelection.js";
 import type { TextDocument, LibraryTextSummary, SourceNotice } from "../shared/library/LibraryTypes.js";
-import type { CreateDreamCommand, CreateDreamFolderCommand, DeleteDreamFolderCommand, DreamCatalogueSnapshot, DreamFolderSnapshot, DreamLocationSnapshot, DreamSnapshot, MoveDreamCommand, UpdateDreamCommand } from "../shared/dreams/DreamTypes.js";
-import type { CreateSignalCommand, DeleteSignalCommand, SignalRecord, UpdateSignalCommand } from "../shared/signals/SignalTypes.js";
+import type {
+	CreateVisionCommand,
+	CreateVisionFolderCommand,
+	DeleteVisionFolderCommand,
+	MoveVisionCommand,
+	UpdateVisionCommand,
+	VisionCatalogueSnapshot,
+	VisionFolderSnapshot,
+	VisionSnapshot
+} from "../shared/visions/VisionTypes.js";
+import type { CreateTextAnchorCommand, TextAnchorSnapshot } from "../shared/anchors/TextAnchorTypes.js";
 import { IPC_CHANNELS } from "../shared/contracts/IpcChannels.js";
-import type { ApiSubscription, ChoraApi, FormattingAction } from "../shared/contracts/ChoraApi.js";
+import type { ApiSubscription, ApplicationMenuCommand, ChoraApi, FormattingAction, VisionReferenceAction } from "../shared/contracts/ChoraApi.js";
 import type {
 	WordEvidenceResult,
 	WordNameNote,
@@ -17,6 +26,7 @@ import type {
 	WordPersonResearch,
 	WordSearchResult
 } from "../shared/library/WordExplorationTypes.js";
+import type { VisionReferenceDragPayload } from "../shared/visions/VisionReferenceTypes.js";
 
 async function SearchWord(workId: string, form: string): Promise<OperationResult<WordSearchResult>>
 {
@@ -90,15 +100,9 @@ function SubscribeLibraryTextSelected(callback: (workId: string) => void): ApiSu
 	return () => ipcRenderer.removeListener(IPC_CHANNELS.selectLibraryText, listener);
 }
 
-async function ShowSelectionContextMenu(canAddSignal: boolean, canAddToDreamSource: boolean, canAddToCurrentSignal: boolean, canExploreWord: boolean): Promise<OperationResult<SelectionAction>>
+async function ShowSelectionContextMenu(canExploreWord: boolean): Promise<OperationResult<SelectionAction>>
 {
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.showSelectionContextMenu, canAddSignal, canAddToDreamSource, canAddToCurrentSignal, canExploreWord);
-	return result as OperationResult<SelectionAction>;
-}
-
-async function ShowDreamSourceContextMenu(canAddToSelectedSignal: boolean, canExploreWord: boolean): Promise<OperationResult<SelectionAction>>
-{
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.showDreamSourceContextMenu, canAddToSelectedSignal, canExploreWord);
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.showSelectionContextMenu, canExploreWord);
 	return result as OperationResult<SelectionAction>;
 }
 
@@ -114,9 +118,21 @@ async function ShowFormattingContextMenu(): Promise<OperationResult<FormattingAc
 	return result;
 }
 
+async function ShowVisionReferenceContextMenu(canExploreWord: boolean): Promise<OperationResult<VisionReferenceAction>>
+{
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.showVisionReferenceContextMenu, canExploreWord);
+	return result as OperationResult<VisionReferenceAction>;
+}
+
 async function CopySelectedText(selectedText: string): Promise<OperationResult<void>>
 {
 	const response = await ipcRenderer.invoke(IPC_CHANNELS.copySelectedText, selectedText);
+	return response as OperationResult<void>;
+}
+
+async function CopySelectionAnchor(payload: VisionReferenceDragPayload): Promise<OperationResult<void>>
+{
+	const response = await ipcRenderer.invoke(IPC_CHANNELS.copySelectionAnchor, payload);
 	return response as OperationResult<void>;
 }
 
@@ -126,110 +142,64 @@ async function GetSourceNotice(workId: string): Promise<OperationResult<SourceNo
 	return result as OperationResult<SourceNotice>;
 }
 
-async function CreateSignal(command: CreateSignalCommand): Promise<OperationResult<SignalRecord>>
+async function CreateVision(command: CreateVisionCommand): Promise<OperationResult<VisionSnapshot>>
 {
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.createSignal, command);
-
-	return result as OperationResult<SignalRecord>;
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.createVision, command);
+	return result as OperationResult<VisionSnapshot>;
 }
 
-async function UpdateSignal(command: UpdateSignalCommand): Promise<OperationResult<SignalRecord>>
+async function UpdateVision(command: UpdateVisionCommand): Promise<OperationResult<VisionSnapshot>>
 {
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.updateSignal, command);
-
-	return result as OperationResult<SignalRecord>;
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.updateVision, command);
+	return result as OperationResult<VisionSnapshot>;
 }
 
-async function DeleteSignal(command: DeleteSignalCommand): Promise<OperationResult<void>>
+async function DeleteVision(visionId: string): Promise<OperationResult<void>>
 {
-	const response = await ipcRenderer.invoke(IPC_CHANNELS.deleteSignal, command);
-	return response as OperationResult<void>;
-}
-
-async function CreateDream(command: CreateDreamCommand): Promise<OperationResult<DreamSnapshot>>
-{
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.createDream, command);
-
-	return result as OperationResult<DreamSnapshot>;
-}
-
-async function UpdateDream(command: UpdateDreamCommand): Promise<OperationResult<DreamSnapshot>>
-{
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.updateDream, command);
-
-	return result as OperationResult<DreamSnapshot>;
-}
-
-// Requests an explicit main-process filesystem reconciliation.
-async function ReloadDreamCatalogue(): Promise<OperationResult<DreamCatalogueSnapshot>>
-{
-	const snapshot = await ipcRenderer.invoke(IPC_CHANNELS.reloadDreamCatalogue);
-
-	return snapshot as OperationResult<DreamCatalogueSnapshot>;
-}
-
-async function ListDreamCatalogue(): Promise<OperationResult<DreamCatalogueSnapshot>>
-{
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.listDreamCatalogue);
-
-	return result as OperationResult<DreamCatalogueSnapshot>;
-}
-
-async function DeleteDream(dreamId: string): Promise<OperationResult<void>>
-{
-	const response = await ipcRenderer.invoke(IPC_CHANNELS.deleteDream, dreamId);
-	return response as OperationResult<void>;
-}
-
-// Creates one filesystem-backed Dream folder.
-async function CreateDreamFolder(command: CreateDreamFolderCommand): Promise<OperationResult<DreamFolderSnapshot>>
-{
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.createDreamFolder, command);
-
-	return result as OperationResult<DreamFolderSnapshot>;
-}
-
-// Deletes one empty filesystem-backed Dream folder.
-async function DeleteDreamFolder(command: DeleteDreamFolderCommand): Promise<OperationResult<void>>
-{
-	const response = await ipcRenderer.invoke(IPC_CHANNELS.deleteDreamFolder, command);
-	return response as OperationResult<void>;
-}
-
-// Moves one Dream to a folder within its work.
-async function MoveDream(command: MoveDreamCommand): Promise<OperationResult<DreamLocationSnapshot>>
-{
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.moveDream, command);
-
-	return result as OperationResult<DreamLocationSnapshot>;
-}
-
-// Invokes the narrow ListDreamTrash command.
-async function ListDreamTrash(): Promise<OperationResult<readonly DreamTrashSnapshot[]>>
-{
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.listDreamTrash);
-	return result as OperationResult<readonly DreamTrashSnapshot[]>;
-}
-
-// Invokes the narrow RestoreDreamTrash command.
-async function RestoreDreamTrash(id: string): Promise<OperationResult<void>>
-{
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.restoreDreamTrash, id);
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.deleteVision, visionId);
 	return result as OperationResult<void>;
 }
 
-// Invokes the narrow PurgeDreamTrash command.
-async function PurgeDreamTrash(id: string): Promise<OperationResult<void>>
+async function ListVisions(): Promise<OperationResult<VisionCatalogueSnapshot>>
 {
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.purgeDreamTrash, id);
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.listVisions);
+	return result as OperationResult<VisionCatalogueSnapshot>;
+}
+
+async function CreateVisionFolder(command: CreateVisionFolderCommand): Promise<OperationResult<VisionFolderSnapshot>>
+{
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.createVisionFolder, command);
+	return result as OperationResult<VisionFolderSnapshot>;
+}
+
+async function DeleteVisionFolder(command: DeleteVisionFolderCommand): Promise<OperationResult<void>>
+{
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.deleteVisionFolder, command);
 	return result as OperationResult<void>;
 }
 
-// Invokes the narrow EmptyDreamTrash command.
-async function EmptyDreamTrash(): Promise<OperationResult<void>>
+async function MoveVision(command: MoveVisionCommand): Promise<OperationResult<VisionSnapshot>>
 {
-	const result = await ipcRenderer.invoke(IPC_CHANNELS.emptyDreamTrash);
-	return result as OperationResult<void>;
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.moveVision, command);
+	return result as OperationResult<VisionSnapshot>;
+}
+
+async function CreateTextAnchor(command: CreateTextAnchorCommand): Promise<OperationResult<TextAnchorSnapshot>>
+{
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.createTextAnchor, command);
+	return result as OperationResult<TextAnchorSnapshot>;
+}
+
+async function ListTextAnchors(workId: string): Promise<OperationResult<readonly TextAnchorSnapshot[]>>
+{
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.listTextAnchors, workId);
+	return result as OperationResult<readonly TextAnchorSnapshot[]>;
+}
+
+async function ValidateTextAnchor(anchorId: string): Promise<OperationResult<TextAnchorSnapshot>>
+{
+	const result = await ipcRenderer.invoke(IPC_CHANNELS.validateTextAnchor, anchorId);
+	return result as OperationResult<TextAnchorSnapshot>;
 }
 
 // Stores renderer diagnostics through a dedicated, validated endpoint.
@@ -255,16 +225,66 @@ function SubscribeDiagnostics(callback: (record: ErrorRecord) => void): ApiSubsc
 	return Unsubscribe;
 }
 
+// Forwards bounded lexical requests without granting the renderer provider access.
+async function SearchLexicon(query: string): Promise<OperationResult<WordLexicalSearchResult>>
+{
+	const response = await ipcRenderer.invoke(IPC_CHANNELS.searchLexicon, query);
+	return response as OperationResult<WordLexicalSearchResult>;
+}
+
+// A lexical tab can optionally display occurrences in an owner-resolved work.
+async function GetLexicalEvidence(lemma: string, workId: string | null): Promise<OperationResult<WordEvidenceResult>>
+{
+	const response = await ipcRenderer.invoke(IPC_CHANNELS.getLexicalEvidence, lemma, workId);
+	return response as OperationResult<WordEvidenceResult>;
+}
+
+// Delivers native settings commands through the deliberately narrow preload bridge.
+function SubscribeSettingsRequested(callback: () => void): ApiSubscription
+{
+	function Receive(): void
+	{
+		callback();
+	}
+	function Unsubscribe(): void
+	{
+		ipcRenderer.removeListener(IPC_CHANNELS.openSettings, Receive);
+	}
+	ipcRenderer.on(IPC_CHANNELS.openSettings, Receive);
+	return Unsubscribe;
+}
+
+// Passes only the explicit application theme across the isolated bridge.
+async function SetAppearance(appearance: "light" | "dark", selectionColor: string): Promise<OperationResult<void>>
+{
+	const response = await ipcRenderer.invoke(IPC_CHANNELS.setAppearance, appearance, selectionColor);
+	return response as OperationResult<void>;
+}
+
+// Forwards only named menu actions through the isolated application boundary.
+async function ExecuteApplicationMenuCommand(command: ApplicationMenuCommand): Promise<OperationResult<void>>
+{
+	const response = await ipcRenderer.invoke(IPC_CHANNELS.applicationMenuCommand, command);
+	return response as OperationResult<void>;
+}
+
 const api: ChoraApi = {
+	UsesNativeMenu: process.platform === "darwin",
+	ExecuteApplicationMenuCommand,
+	SetAppearance,
+	SubscribeSettingsRequested,
+	SearchLexicon,
+	GetLexicalEvidence,
 	RecordDiagnostic,
 	SubscribeDiagnostics,
 	ListLibraryTexts,
 	LoadLibraryText,
 	SubscribeLibraryTextSelected,
 	ShowSelectionContextMenu,
-	ShowDreamSourceContextMenu,
 	ShowFormattingContextMenu,
+	ShowVisionReferenceContextMenu,
 	CopySelectedText,
+	CopySelectionAnchor,
 	GetSourceNotice,
 	SearchWord,
 	GetWordEvidence,
@@ -274,21 +294,16 @@ const api: ChoraApi = {
 	OpenExternalSource,
 	GetWordObservation,
 	SaveWordObservation,
-	CreateSignal,
-	UpdateSignal,
-	DeleteSignal,
-	CreateDream,
-	UpdateDream,
-	DeleteDream,
-	ListDreamTrash,
-	RestoreDreamTrash,
-	PurgeDreamTrash,
-	EmptyDreamTrash,
-	ReloadDreamCatalogue,
-	ListDreamCatalogue,
-	CreateDreamFolder,
-	DeleteDreamFolder,
-	MoveDream
+	CreateVision,
+	UpdateVision,
+	DeleteVision,
+	ListVisions,
+	CreateVisionFolder,
+	DeleteVisionFolder,
+	MoveVision,
+	CreateTextAnchor,
+	ListTextAnchors,
+	ValidateTextAnchor
 };
 
 contextBridge.exposeInMainWorld("chora", api);

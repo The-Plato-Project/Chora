@@ -5,42 +5,29 @@ import { ChoraEventBus } from "../core/events/ChoraEventBus.js";
 import type { ChoraEvents, ReaderHighlightKind } from "../core/events/ChoraEvents.js";
 import { LibraryGateway } from "./LibraryGateway.js";
 import { LibraryStore } from "./LibraryStore.js";
-import type { DreamView } from "../dreams/DreamView.js";
-
-// Read-only Dream state required to evaluate reader selection actions.
-export interface LibraryDreamContext
-{
-	// Returns the active Dream editing snapshot.
-	GetActiveDream(): DreamView | null;
-	// Returns the Signal selected in one Dream editing session.
-	GetSelectedSignal(dreamId: string): string | null;
-}
+import { CreateVisionReferencePayload } from "../../shared/visions/VisionReferenceTypes.js";
 
 // Coordinates Library workflows between the catalogue, the active text, and the main process.
 export class LibraryController
 {
-	// Local storage key for the reader's last-opened work.
-	private static readonly LastWorkKey = "chora:last-work";
-
 	// Creates the controller and subscribes to the application events it coordinates.
 	public constructor(
 		private readonly events: ChoraEventBus<ChoraEvents>,
 		private readonly errors: ErrorManager,
 		private readonly store: LibraryStore,
-		private readonly gateway: LibraryGateway,
-		private readonly dreams: LibraryDreamContext)
+		private readonly gateway: LibraryGateway)
 	{
 		this.events.Subscribe("library.text-open-requested", this.HandleTextOpenRequested.bind(this));
 	}
 
 	// Loads the Library catalogue and opens the reader's preferred work.
-	public async StartAsync(): Promise<void>
+	public async StartAsync(preferredWorkId: string | null = null): Promise<void>
 	{
 		try
 		{
 			const texts = await this.gateway.ListAsync();
 			this.store.SetLibrary(texts);
-			const preferredId = this.ResolvePreferredWorkId(texts);
+			const preferredId = this.ResolvePreferredWorkId(texts, preferredWorkId);
 			if (preferredId !== null) await this.OpenAsync(preferredId);
 		}
 		catch (error)
@@ -49,7 +36,7 @@ export class LibraryController
 		}
 	}
 
-	// Opens the remembered or default Library text so the reader can select a Dream source.
+	// Opens the remembered or default Library text.
 	public async OpenPreferredAsync(): Promise<void>
 	{
 		const texts = this.store.GetSnapshot().texts;
@@ -67,7 +54,6 @@ export class LibraryController
 			const text = await this.gateway.LoadAsync(textId);
 			const notice = await this.gateway.GetSourceNoticeAsync(textId);
 			this.store.Open(text, notice);
-			this.SaveLastWorkId(textId);
 			this.SetFocusSegment(text.segments[0]?.key ?? "");
 			await this.events.PublishAsync("library.text-opened", {});
 		}
@@ -102,7 +88,7 @@ export class LibraryController
 		}
 	}
 
-	// Sets the focus segment used as a selection fallback for Dream creation.
+	// Sets the focus segment used as a selection fallback.
 	public SetFocusSegment(segmentKey: string): void
 	{
 		const text = this.store.GetSnapshot().text;
@@ -145,27 +131,6 @@ export class LibraryController
 	public async HandleSelectionActionAsync(selection: TextSelection): Promise<void>
 	{
 		const document = this.store.GetText();
-		const activeDream = this.dreams.GetActiveDream();
-		const activeDreamSource = activeDream?.source ?? null;
-		const activeSignalId = activeDream === null ? null : this.dreams.GetSelectedSignal(activeDream.id);
-		const activeSignal = activeSignalId === null
-			? null
-			: activeDream?.signals.find(function MatchesSignal(signal): boolean
-			{
-				return signal.id === activeSignalId;
-			}) ?? null;
-		const canAddToDreamSource = document !== null
-			&& activeDreamSource !== null
-			&& selection.dialogue === activeDreamSource.dialogue
-			&& document.AreSelectionsAdjacent(selection, activeDreamSource);
-		const canAddSignal = activeDream !== null
-			&& document !== null
-			&& activeDreamSource !== null
-			&& document.Contains(selection, activeDreamSource);
-		const canAddToSelectedSignal = activeSignal !== null
-			&& document !== null
-			&& activeSignal.selections.some((candidate) => candidate.dialogue === selection.dialogue)
-			&& !activeSignal.selections.some((candidate) => document.Contains(selection, candidate));
 		const selectedText = document?.id === selection.dialogue
 			? document.ReconstructText(selection)
 			: "";
@@ -173,20 +138,14 @@ export class LibraryController
 			? document.GetSingleGreekWordSelection(selection)
 			: null;
 		const canExploreWord = wordSelection !== null;
-		const action = await this.gateway.ShowSelectionContextMenuAsync(canAddSignal, canAddToDreamSource, canAddToSelectedSignal, canExploreWord);
+		const action = await this.gateway.ShowSelectionContextMenuAsync(canExploreWord);
 		if (action === "explore-word" && wordSelection !== null)
 		{
 			this.SetSelection(null);
 			await this.events.PublishAsync("word.exploration-requested", { selection: wordSelection });
 		}
-		if (action === "create-dream") await this.events.PublishAsync("dream.create-requested", { selection });
-		if (action === "add-to-dream" && canAddToDreamSource) await this.events.PublishAsync("dream.source-extend-requested", { selection });
-		if (action === "add-signal" && canAddSignal) await this.events.PublishAsync("dream.signal-add-requested", { selection });
-		if (action === "add-to-selected-signal" && activeSignalId !== null && canAddToSelectedSignal)
-		{
-			await this.events.PublishAsync("signal.selection-add-requested", { signalId: activeSignalId, selection });
-		}
-		if (action === "copy") await this.gateway.CopyAsync(selectedText);
+		if (action === "copy-anchor") await this.gateway.CopyAnchorAsync(CreateVisionReferencePayload(selection, wordSelection));
+		if (action === "copy-text-only") await this.gateway.CopyAsync(selectedText);
 	}
 
 	// Routes a text-open-requested application event to the open workflow.
@@ -196,9 +155,9 @@ export class LibraryController
 	}
 
 	// Prefers the last-opened work, then Republic, then the first available work.
-	private ResolvePreferredWorkId(texts: readonly LibraryTextSummary[]): string | null
+	private ResolvePreferredWorkId(texts: readonly LibraryTextSummary[], preferredWorkId: string | null = null): string | null
 	{
-		const savedId = this.LoadLastWorkId();
+		const savedId = preferredWorkId ?? this.store.GetText()?.id ?? null;
 		let preferred: string | null = null;
 
 		if (savedId !== null && texts.some((text) => text.id === savedId)) preferred = savedId;
@@ -206,36 +165,6 @@ export class LibraryController
 		else preferred = texts[0]?.id ?? null;
 
 		return preferred;
-	}
-
-	// Reads the last-opened work id from persistent storage, tolerating unavailable storage.
-	private LoadLastWorkId(): string | null
-	{
-		let workId: string | null = null;
-
-		try
-		{
-			workId = window.localStorage.getItem(LibraryController.LastWorkKey);
-		}
-		catch
-		{
-			workId = null;
-		}
-
-		return workId;
-	}
-
-	// Remembers the opened work id for the next application run, tolerating unavailable storage.
-	private SaveLastWorkId(textId: string): void
-	{
-		try
-		{
-			window.localStorage.setItem(LibraryController.LastWorkKey, textId);
-		}
-		catch
-		{
-			// The last-opened work is remembered only when storage is available.
-		}
 	}
 
 	// Returns whether two selections refer to the same span.

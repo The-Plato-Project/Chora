@@ -2,6 +2,7 @@ import { ReadOperationAsync } from "../../shared/diagnostics/OperationResult.js"
 import { TextDocument, type LibraryTextSummary, type SourceNotice } from "../../shared/library/LibraryTypes.js";
 import type { SelectionAction } from "../../shared/text/TextSelection.js";
 import type { ApiSubscription } from "../../shared/contracts/ChoraApi.js";
+import type { VisionReferenceDragPayload } from "../../shared/visions/VisionReferenceTypes.js";
 
 // Stateless IPC client for the Library use cases exposed by the main process.
 export class LibraryGateway
@@ -28,9 +29,9 @@ export class LibraryGateway
 	}
 
 	// Shows the native context menu for a passage selection.
-	public ShowSelectionContextMenuAsync(canAddSignal: boolean, canAddToDreamSource: boolean, canAddToCurrentSignal: boolean, canExploreWord: boolean): Promise<SelectionAction>
+	public ShowSelectionContextMenuAsync(canExploreWord: boolean): Promise<SelectionAction>
 	{
-		const operation = window.chora.ShowSelectionContextMenu(canAddSignal, canAddToDreamSource, canAddToCurrentSignal, canExploreWord);
+		const operation = window.chora.ShowSelectionContextMenu(canExploreWord);
 		const result = ReadOperationAsync(operation);
 		return result;
 	}
@@ -39,6 +40,12 @@ export class LibraryGateway
 	public CopyAsync(text: string): Promise<void>
 	{
 		return ReadOperationAsync(window.chora.CopySelectedText(text));
+	}
+
+	// Copies an exact canonical selection with both anchor metadata and plain Greek text.
+	public CopyAnchorAsync(payload: VisionReferenceDragPayload): Promise<void>
+	{
+		return ReadOperationAsync(window.chora.CopySelectionAnchor(payload));
 	}
 
 	// Subscribes to the main process requesting a specific Library text be opened.

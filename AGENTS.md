@@ -2,111 +2,137 @@
 
 ## Project Identity
 
-Chora is an Electron research reading environment. Its top-level source folders represent real Electron runtime boundaries:
+Chora is an Electron environment for sustained reading and writing about Plato.
+PlatoSI supplies the canonical text and linguistic material. Chora owns the
+reader's workspace, Visions, exact text anchors, notes, and settings.
 
-- `src/main/` — privileged Electron host code, organized into Library, Dreams, Signals, models, prompts, shell, bootstrap, and diagnostics, with IPC controllers at feature boundaries
-- `src/preload/` — the deliberately small, context-isolated IPC bridge
-- `src/renderer/` — the browser UI, organized into Library, Dreams, Signals, workspace, application composition, shared UI, and renderer infrastructure under `core/`
-- `src/shared/` — pure cross-process contracts, types, and deterministic domain logic
+The top-level source folders are real Electron runtime boundaries:
 
-Within a process, organize primarily by product feature. Renderer panels own DOM behavior, controllers coordinate workflows, stores own state, and gateways own IPC. Related features share an existing owning store where appropriate: Signal editing uses `DreamStore`. Main-process IPC controllers expose use cases; domain owners, services, and repositories separate domain behavior, external responsibilities, and persistence. `DreamLibrary` owns the `Dream` aggregates and their child Signals. Do not add empty layers or generic manager classes. Use `core/` only for mechanisms shared across multiple renderer features, such as events, diagnostics, and session persistence.
+- `src/main/` — privileged host code for Library, Visions, anchors, PlatoSI,
+  shell integration, bootstrap, and diagnostics.
+- `src/preload/` — the small context-isolated IPC bridge.
+- `src/renderer/` — Library, Vision, Word Lookup, workspace, shared UI, and
+  renderer infrastructure.
+- `src/shared/` — pure cross-process contracts, types, and deterministic logic.
 
-PlatoSI supplies the canonical Plato catalogue and text used by Chora, including *Republic*.
+Within a process, organize by product feature. Panels own DOM behavior,
+controllers coordinate workflows, stores own renderer state, and gateways own
+IPC. Main-process services own use cases; repositories own persistence. Do not
+add empty layers or generic manager classes.
 
-## Product Vision
+## Product Direction
 
-Read `VISION.md` in full before making product, UX, architecture, or implementation decisions. Treat it as Chora's design compass, not as optional background material.
+Read `VISION.md` before making product, UX, or architecture decisions. Use this
+question as the design test:
 
-Evaluate every proposed feature against its guiding question:
+> Does this deepen the conversation between the reader and the text?
 
-> **Does this feature deepen the conversation between the reader and the text?**
+The permanent workflow is writing-first:
 
-Keep the reader-text relationship at the center. The model should support attention, memory, and continuing inquiry without replacing the reader's judgment or presenting itself as the authority.
+- A reader can create a Vision without first selecting a passage.
+- A Vision is an authoritative Markdown document associated with one work.
+- Exact Greek words, phrases, and passages can be placed inside Vision prose.
+- Those placements remain connected to exact, versioned source locations.
+- The reader's prose expresses relationships. Chora must not decide what a
+  passage means or establish a connection for the reader.
+- Linguistic material and reader writing remain distinct.
+- Uncertainty is valuable and must not be rewritten as a conclusion.
+- Any future retrieval system may resurface candidates with reasons, but only
+  the reader can make a relationship part of their writing.
 
-The target workflow is writing-first:
+## Storage Invariants
 
-- The reader can write continuously without first creating a passage-bound Dream.
-- Exact Greek words and passages become anchored evidence inside the writing, not mandatory containers for it.
-- A Signal is a reader-authored relationship among evidence and may grow across sections and distant passages.
-- A selection or note is not automatically a Signal.
-- The graph emerges from reader-confirmed connections; do not make the reader maintain graph data directly.
-- Retrieval and models may surface earlier reader-authored material with an explicit reason, but only the reader can make a connection permanent.
-- Preserve uncertainty. Do not rewrite an unresolved perception as a conclusion.
-- The creator's structural sections are an attributed cultivated reading, not neutral divisions silently assigned to Plato.
+- Visions are local Markdown files under
+  `Documents/Chora/<work name>/Visions/`.
+- Nested Vision folders are real directories. Empty folders are part of the
+  catalogue and must be retained.
+- Exact anchors are work-scoped JSON records under
+  `Documents/Chora/<work name>/Anchors/`.
+- Anchor identity is deterministic from its kind and canonical versioned range.
+- An anchor is independent of every Vision placement that uses it.
+- Word placements are serialized as `chora-word` directives and larger
+  selections as `chora-range` directives.
+- Placements retain stable anchor, placement, and Vision identities.
+- Markdown mode and clipboard output may conceal directive metadata behind an
+  atomic `[[selected Greek]]` token, but canonical storage must remain intact.
+- A reverse index is only an accelerator. If it is absent or stale, Chora must
+  fall back to authoritative anchors and Vision documents rather than hide a
+  valid result.
 
-The currently implemented Dream-owned workflow is transitional. Build its replacement alongside it and preserve existing reader data. Do not remove old UI or persistence code until the replacement works and migration or archival behavior is explicit.
+## Active User Experience
 
-## Build and Development
-
-Prerequisites: Node.js 24+, npm
-
-```bash
-npm install
-npm start               # builds and starts Chora with PlatoSI
-```
-
-Other essential commands:
-
-```bash
-npm run typecheck       # TypeScript only, no emit
-npm test                # vitest
-npm run build           # main + preload + renderer
-npm run package         # electron-forge package
-```
-
-## Code Conventions
-
-Read `CODING_STANDARDS.md` first. This project uses the C#-style rules described there, applied to TypeScript:
-
-- PascalCase for exported functions, types, classes, interfaces, and public members.
-- camelCase for local variables, parameters, and private fields.
-- Tabs for indentation.
-- Opening braces on the next line (Allman style).
-- One operation per line; no combined statements.
-- Single `return` at the end of a function; avoid early returns.
-- Explicit types when clarity matters.
-- Async methods named with an `Async` suffix where applicable.
-- Import with `.js` extensions for cross-module TypeScript imports (NodeNext module resolution).
-- Prefer `const` / `readonly`; mutable `let` only when necessary.
-- Keep main-process responsibilities out of the renderer; use `IPC_CHANNELS` for all cross-layer communication.
-- Panels own DOM and local user interaction; controllers coordinate workflows; stores own renderer state; gateways own IPC.
-- Components communicate through the typed `ChoraEventBus`; do not call other panels directly.
-- Use `ErrorManager` for application logs, diagnostics, and user-facing errors; do not scatter raw `console` calls through application code.
-- Reader inquiries use the owning feature gateway, typed preload API, and main-process PlatoSI client.
+- The Explorer lists Library works, Visions, and Vision folders.
+- Each open Vision has a document tab. Its editor provides **Write**,
+  **Markdown**, and **Preview** modes over one authoritative document.
+- The reader can drag an exact selection into a Vision or copy and paste it as
+  an anchor.
+- Each Greek word inside a range placement remains independently clickable for
+  Word Lookup.
+- Word and range references use the configured light highlight without a bold
+  border or focus outline.
+- Greek anchor highlight color is a persisted reading setting. The default is
+  `#b65e3b`.
+- Word Lookup has Dictionary and Occurrences as its primary columns.
+- Multiple lemma candidates remain separate; Chora must not silently decide
+  which one is contextually correct.
+- Occurrence detail shows the passage, exact-occurrence morphology, and linked
+  Visions in that order.
+- Linked Visions are resolved from exact versioned anchors, including each word
+  contained in a phrase or passage anchor.
+- Reader Back and Forward track explicit source navigation, not ordinary scroll.
 
 ## Architecture Boundaries
 
-- The renderer has no direct filesystem or network access. Use the IPC channels defined in `src/shared/contracts/IpcChannels.ts`.
-- PlatoSI owns model-provider configuration; Chora stores only its local PlatoSI paths in `.env.local`.
-- Current Dreams and Signals are local Markdown files under `Documents/Chora/<work name>/Dreams/` and `Documents/Chora/<work name>/Signals/`. This is a transitional persistence model; the main process continues to own it, folder placement, and recoverable aggregate trash until migration is designed.
-- Catalogue reads use the in-memory `DreamLibrary`; explicit **Reload from disk** stages and validates a filesystem rescan before replacing it.
-- Reading uses PlatoSI's canonical catalogue and text; opening or importing external text files is not supported.
-- Dream sources and Signal selections use PlatoSI's versioned Stephanus-relative location contract.
+- The renderer has no direct filesystem or network access.
+- Use `IPC_CHANNELS` and the typed preload API for every cross-process call.
+- Components communicate through `ChoraEventBus`; panels do not call each other.
+- Use `ErrorManager` for application logs, diagnostics, and user-facing errors.
+- PlatoSI owns canonical texts, dictionary material, morphology, occurrences,
+  related lexical material, and name research.
+- Chora has no model-provider or chat runtime.
+- Reading uses PlatoSI's canonical catalogue. Arbitrary external text import is
+  not supported.
 
-## Current Model Workflow
+## Build and Development
 
-PlatoSI owns model configuration and inquiry execution. Chora has no model-provider or chat runtime. `ChatRepository` remains only to preserve previously saved conversation data when Dreams enter or leave Trash. A future local-model memory workflow may retrieve bounded earlier writing and linguistic evidence, but it must return candidates with reasons and must never create reader graph connections.
+Prerequisites: Node.js 24+ and npm.
 
-## Configuration
+```bash
+npm install
+npm start
+npm run typecheck
+npm test
+npm run build
+npm run package
+```
 
-Copy `.env.example` to `.env.local` and configure the PlatoSI paths described in [README.md](README.md#development). Never commit `.env.local`.
+On Windows, use `npm.cmd` when PowerShell blocks `npm.ps1`.
 
-## Testing
+## Code Conventions
 
-Tests are in `tests/` and run with Vitest. Mirror the source layout:
+Read `CODING_STANDARDS.md` first. Important rules include:
 
-- `tests/main/*` for main-process modules
-- `tests/renderer/*` for renderer modules
+- PascalCase for exported functions, types, classes, interfaces, and public
+  members.
+- camelCase for locals, parameters, and private fields.
+- Tabs and Allman braces.
+- One operation per line.
+- Prefer a single return at the end of a function.
+- Async methods use an `Async` suffix where applicable.
+- Relative TypeScript imports include `.js`.
+- Prefer `const` and `readonly`.
+- Keep main-process responsibilities out of the renderer.
+- Preserve type safety and report failures explicitly.
 
-Follow the Build and Test Discipline section in CODING_STANDARDS.md. Run one targeted validation pass appropriate to the change. Create new tests only when explicitly required by the task or approved by the user; do not automatically repeat full builds, test suites, or lint passes. If validation fails, report the failure and likely cause before making further changes, and obtain approval before entering an iterative test-and-fix cycle.
+## Configuration and Tests
 
-## Common Gotchas
+Copy `.env.example` to `.env.local` and configure the PlatoSI paths described in
+`README.md`. Never commit `.env.local`.
 
-- TypeScript module resolution is `NodeNext`; always include the `.js` extension in relative imports, e.g. `../shared/chat/ChatTypes.js`.
-- `tsconfig.json` extends `tsconfig.main.json`; the latter is the source of compiler options.
-- The renderer build uses Vite; the main build uses `tsc`.
-- The bundled app loads from `.vite/build/` and `.vite/renderer/`.
+Tests use Vitest:
 
-## When in Doubt
+- `tests/main/*` covers main-process modules.
+- `tests/renderer/*` covers renderer modules.
 
-Preserve the existing architecture and conventions. Match the style of neighboring files. Do not introduce new dependencies without checking `package.json` first.
+Use the smallest validation command that covers a change, then run the full
+build and suite for architecture-wide work.
