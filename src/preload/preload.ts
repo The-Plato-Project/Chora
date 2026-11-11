@@ -268,7 +268,52 @@ async function ExecuteApplicationMenuCommand(command: ApplicationMenuCommand): P
 	return response as OperationResult<void>;
 }
 
+// Transports optional interlocutor commands through the context-isolated bridge.
+async function StartStudy(command: import("../shared/study/StudyTypes.js").StudyStartCommand): Promise<OperationResult<import("../shared/study/StudyTypes.js").StudyConversation>>
+{
+	const response = await ipcRenderer.invoke(IPC_CHANNELS.studyStart, command);
+	return response;
+}
+
+// Sends one bounded reader contribution to its captured conversation.
+async function SendStudy(id: string, text: string): Promise<OperationResult<import("../shared/study/StudyTypes.js").StudyConversation>>
+{
+	const response = await ipcRenderer.invoke(IPC_CHANNELS.studySend, id, text);
+	return response;
+}
+
+// Revokes the active local runtime explicitly.
+async function StopStudy(): Promise<OperationResult<void>>
+{
+	const response = await ipcRenderer.invoke(IPC_CHANNELS.studyStop);
+	return response;
+}
+
+// Restores display history without restarting execution.
+async function LoadStudyHistory(): Promise<OperationResult<import("../shared/study/StudyTypes.js").StudyConversation | null>>
+{
+	const response = await ipcRenderer.invoke(IPC_CHANNELS.studyHistory);
+	return response;
+}
+
+// Narrows subscriptions to application-owned streaming facts.
+function SubscribeStudy(callback: (update: import("../shared/study/StudyTypes.js").StudyUpdate) => void): ApiSubscription
+{
+	function Receive(_event: Electron.IpcRendererEvent, update: import("../shared/study/StudyTypes.js").StudyUpdate): void
+	{
+		callback(update);
+	}
+	function Unsubscribe(): void { ipcRenderer.removeListener(IPC_CHANNELS.studyUpdated, Receive); }
+	ipcRenderer.on(IPC_CHANNELS.studyUpdated, Receive);
+	return Unsubscribe;
+}
+
 const api: ChoraApi = {
+	StartStudy,
+	SendStudy,
+	StopStudy,
+	LoadStudyHistory,
+	SubscribeStudy,
 	UsesNativeMenu: process.platform === "darwin",
 	ExecuteApplicationMenuCommand,
 	SetAppearance,

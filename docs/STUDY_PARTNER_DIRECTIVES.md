@@ -3,9 +3,9 @@
 ## Ownership and status
 
 This is Chora's canonical behavioral directive specification for its optional
-interlocutor. The experimental interface and runtime are not implemented yet;
-this file is not currently loaded as a model prompt. The future application
-integration must supply these directives to each compatible backend, preserving
+interlocutor. The optional integration loads this file at explicit session start
+and supplies it to the backend as both initial instructions and a persistent
+Goose reminder. Each compatible backend must preserve
 the reader-facing identity across session restoration and backend replacement.
 Goose configuration must not supply a competing persona or philosophical role.
 

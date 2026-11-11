@@ -17,7 +17,11 @@ import { WordExplorationStore } from "../library/words/WordExplorationStore.js";
 import { WordVisionReferenceController } from "../library/words/WordVisionReferenceController.js";
 import { WordVisionReferenceStore } from "../library/words/WordVisionReferenceStore.js";
 import "../styles.css";
-import { DocumentIcon, SearchIcon } from "../ui/Icons.js";
+import { DocumentIcon, SearchIcon, TextQuoteIcon } from "../ui/Icons.js";
+import { StudyController } from "../study/StudyController.js";
+import { StudyGateway } from "../study/StudyGateway.js";
+import { StudyStore } from "../study/StudyStore.js";
+import { StudyPanel } from "../study/StudyPanel.js";
 import { WordSearchPanel } from "../library/words/WordSearchPanel.js";
 import { VisionController } from "../visions/VisionController.js";
 import { VisionGateway } from "../visions/VisionGateway.js";
@@ -53,6 +57,11 @@ export class ChoraApplication
 	private readonly state = new ApplicationState(this.events, this.errors, this.libraryStore, this.library,
 		this.visionStore, this.visions, this.wordStore, this.words);
 	private readonly anchorGateway = new TextAnchorGateway();
+	// Optional interlocutor state has no subscriptions to editor typing.
+	private readonly studyStore = new StudyStore();
+	private readonly studyGateway = new StudyGateway();
+	private readonly study = new StudyController(this.events, this.errors, this.studyStore, this.studyGateway,
+		this.libraryStore, this.visionStore);
 	private readonly visionReferences = new VisionReferenceController(this.events, this.errors, this.visionStore, this.anchorGateway, this.libraryStore);
 	private readonly wordVisionReferenceStore = new WordVisionReferenceStore();
 	private readonly wordVisionReferences = new WordVisionReferenceController(
@@ -67,7 +76,7 @@ export class ChoraApplication
 	public constructor(private readonly root: HTMLElement)
 	{
 		this.events.SetErrorHandler(this.HandleEventFailure.bind(this));
-		this.disposables.push(this.words, this.visions, this.visionReferences, this.wordVisionReferences, this.state);
+		this.disposables.push(this.words, this.visions, this.visionReferences, this.wordVisionReferences, this.state, this.study);
 	}
 
 	public async StartAsync(): Promise<void>
@@ -99,9 +108,16 @@ export class ChoraApplication
 			{
 				return new WordSearchPanel(searchRoot, application.events, application.wordStore, application.words);
 			}
+			// Mounting the optional surface does not enable or launch its backend.
+			function MountStudy(studyRoot: HTMLElement): StudyPanel
+			{
+				const panel = new StudyPanel(studyRoot, application.events, application.errors, application.studyStore, application.study);
+				return panel;
+			}
 			const extensions: readonly WorkspaceSidebarExtension[] = [
 				{ id: "explorer", title: "Explorer", icon: DocumentIcon, Mount: MountExplorer },
-				{ id: "word-search", title: "Word Search", icon: SearchIcon, Mount: MountWordSearch }
+				{ id: "word-search", title: "Word Search", icon: SearchIcon, Mount: MountWordSearch },
+				{ id: "interlocutor", title: "The Athenian Stranger", icon: TextQuoteIcon, Mount: MountStudy }
 			];
 			this.disposables.push(new WorkspaceSidebar(roots.sidebarRail, roots.sidebarHost, this.events, extensions));
 			this.disposables.push(new WordExplorationPanel(

@@ -2,9 +2,70 @@
 
 ## Status and purpose
 
-This is the design and acceptance contract for a new experimental PR. No agent
-runtime, dependency, model call, background indexing, or chat UI is enabled by
-this document. The working reading and writing environment remains the baseline.
+This is the design and acceptance contract for the experimental PR. The first
+implementation adds an optional sidebar conversation, a replaceable backend
+interface, and five read-only evidence tools. The runtime remains disabled until
+the reader chooses context and starts it explicitly. Behavioral acceptance is a
+separate reader-led evaluation; implementation alone does not establish it.
+
+### Running the Windows experiment
+
+1. Run `powershell -ExecutionPolicy Bypass -File scripts/InstallGoose.ps1`.
+   The installer verifies the official Goose 1.59.0 archive and executable.
+2. Add the printed `CHORA_GOOSE_BINARY` setting to `.env.local` and restart Chora.
+3. Start Ollama with `qwen3.5:9b` installed. The interface also offers an explicit
+   `qwen3.5:4b` choice; it never switches models or providers automatically.
+4. Open The Athenian Stranger in the activity bar. Choose the current work,
+   check the saved Visions to share, and optionally attach the selected Greek.
+   Save writing first: unsaved drafts are excluded.
+5. Start the local conversation. Ask a question and inspect retrieved source
+   cards below the conversation. These cards come from validated host results,
+   rather than interpreting model-generated links as commands.
+6. Stop ends the runtime and revokes evidence access. View last conversation
+   reopens passive history without replaying a turn or launching a model.
+
+The first slice keeps the latest transcript in application data under
+`interlocutor/latest.json`. It records partial responses separately from complete
+ones. Starting another conversation replaces that latest history; a conversation
+archive and native-session reconnection are not implemented. Goose keeps its
+own local session files in isolated application-data profiles under `goose/`.
+These profiles are separate from ordinary Goose configuration. This integration
+restricts exposed tools; it is not an operating-system sandbox.
+
+The initial binary pin is Windows x64 only. Other platforms and Goose versions
+fail closed until their capability behavior and binary are verified. No hosted
+provider settings or keys are inherited. Missing runtime/model availability is
+an interlocutor failure and does not prevent reading or writing.
+
+### Verified implementation, 11 November 2026
+
+- Full application build and 149 tests passed, including focused scope, MCP,
+  streaming, cancellation and retained-input checks.
+- A hidden, isolated Electron 37.10.3 application exercised the actual renderer,
+  preload, IPC, feature services, Goose 1.59.0 and Ollama `qwen3.5:9b` together.
+  It used a disposable Vision, retrieved that writing and Republic 327a, and
+  displayed a completed response. Stop during a subsequent turn retained a
+  partial response; history reopened without executing another turn.
+- The word tool queried the existing local PlatoSI service for κατέβην and
+  returned its dictionary entry and seven occurrences. Dictionary text and
+  occurrence inventories use explicit bounded pages; candidate lemmas remain
+  separate in the overview.
+- The effective Goose session contained exactly the five declared tools. No
+  developer, shell, file-editing, browser or inherited plugin tools were active.
+- Shared controls rendered square corners, unchanged focused-input borders,
+  and no outline. The feature introduces no typing subscription or editor
+  refresh path.
+
+The local profile sets a 16,384-token context and a 4,096-token response limit,
+with explicit thinking effort off. Effective model selection is checked before
+any reader turn. Empty, interrupted and token-limited responses are incomplete,
+not successful answers. There is no automatic model fallback or turn retry.
+
+These checks establish integration behavior, not reliable interpretation.
+During the disposable conversation the model attributed the opening Greek to
+the wrong speaker. Source cards identify actual retrieved material; they do not
+certify every claim in the response. The contextual acceptance scenarios below
+remain unvalidated and should guide evaluation with the reader.
 
 The agent's role is **interlocutor** and its reader-facing name is
 **The Athenian Stranger**. It follows the reader's
@@ -31,8 +92,8 @@ Socratic interrogation routine or pursuing its own philosophical agenda.
 the primary object of inquiry; the reader remains the principal investigator.
 
 [Interlocutor directives](STUDY_PARTNER_DIRECTIVES.md) are Chora's canonical
-behavioral specification. There is no runtime prompt loader yet. Implementation
-must supply these directives through the application-owned backend contract,
+behavioral specification. The optional module loads these directives through
+the application-owned backend contract,
 including when starting or restoring a session with another backend. Do not
 maintain a second persona or competing role instructions in Goose configuration.
 
@@ -191,12 +252,12 @@ selection, optional explicitly shared draft excerpt, and relevant revisions.
 The host validates the scope; a model cannot widen it through tool arguments.
 Changing the active editor tab does not silently retarget an in-flight turn.
 
-These are proposed tool contracts, not claims that the methods already exist:
+The first slice implements these read-only tool contracts:
 
 | Tool | Initial behavior | Existing authority |
 | --- | --- | --- |
-| `find_visions` | Search allowed Vision titles and prose; return bounded excerpts and factual match reasons | VisionService |
-| `read_vision` | Read a bounded window of one allowed saved Vision, with revision and placement references | VisionService |
+| `find_visions` | Literal search of the captured permitted saved snapshots; return bounded excerpts and factual match reasons | VisionService snapshots |
+| `read_vision` | Read a bounded window of one allowed saved Vision, preserving canonical placement metadata | VisionService snapshots |
 | `resolve_anchor` | Validate an existing anchor and return its exact Greek, versioned range, and source identity | TextAnchorService and LibraryService |
 | `read_passage` | Read a bounded canonical passage in the allowed work | LibraryService and its PlatoSI-backed document |
 | `get_word_evidence` | Return dictionary, morphology candidates, and occurrences for a validated exact word | WordExplorationService and PlatoSiGateway |

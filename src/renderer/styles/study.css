@@ -1,0 +1,48 @@
+/* Interlocutor content layout; colors and control skins belong to the shared theme. */
+.study-panel {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	min-width: 0;
+	height: 100%;
+	padding: 12px;
+	box-sizing: border-box;
+	overflow: auto;
+	font: var(--control-text-size)/1.5 var(--control-font);
+}
+
+.study-panel fieldset {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	min-width: 0;
+	border: 1px solid var(--panel-border);
+}
+
+.study-context-choices {
+	display: flex;
+	flex-direction: column;
+	max-height: 150px;
+	overflow: auto;
+}
+
+.study-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.study-transcript article {
+	padding: 12px 0;
+	border-bottom: 1px solid var(--panel-border);
+}
+
+.study-transcript p,
+.study-sources p {
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.study-status {
+	color: var(--muted-text);
+}

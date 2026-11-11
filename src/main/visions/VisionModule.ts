@@ -14,16 +14,31 @@ export class VisionModule extends ApplicationModule
 	private readonly workPaths: WorkStoragePaths;
 	private readonly ipcController: VisionIpcController;
 	private readonly anchorIpcController: TextAnchorIpcController;
+	// Existing owners shared with optional read-only evidence projections.
+	private readonly service: VisionService;
+	private readonly anchors: TextAnchorService;
 
 	public constructor(documentsPath: string, private readonly documents: LibraryService)
 	{
 		super();
 		this.workPaths = new WorkStoragePaths(path.join(documentsPath, "Chora"));
 		const repository = new VisionRepository(this.workPaths);
-		const service = new VisionService(repository);
-		this.ipcController = new VisionIpcController(service);
-		const anchors = new TextAnchorService(new TextAnchorRepository(this.workPaths), documents);
-		this.anchorIpcController = new TextAnchorIpcController(anchors);
+		this.service = new VisionService(repository);
+		this.ipcController = new VisionIpcController(this.service);
+		this.anchors = new TextAnchorService(new TextAnchorRepository(this.workPaths), documents);
+		this.anchorIpcController = new TextAnchorIpcController(this.anchors);
+	}
+
+	// Exposes use cases without exposing repositories or filesystem paths.
+	public GetService(): VisionService
+	{
+		return this.service;
+	}
+
+	// Shares exact anchor validation with permitted evidence readers.
+	public GetAnchors(): TextAnchorService
+	{
+		return this.anchors;
 	}
 
 	public async PrepareAsync(): Promise<void>

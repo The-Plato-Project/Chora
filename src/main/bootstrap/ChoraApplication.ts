@@ -10,6 +10,7 @@ import { Errors } from "../diagnostics/MainErrorManager.js";
 import { VisionModule } from "../visions/VisionModule.js";
 import { AppearanceIpcController } from "../shell/AppearanceIpcController.js";
 import { ApplicationMenuIpcController } from "../shell/ApplicationMenuIpcController.js";
+import { StudyModule } from "../study/StudyModule.js";
 
 // Composes, starts, and stops Chora's main-process feature modules.
 export class ChoraApplication
@@ -28,6 +29,8 @@ export class ChoraApplication
 	private library: LibraryModule | null = null;
 	// Owns Vision persistence for this application run.
 	private visions: VisionModule | null = null;
+	// Optional interlocutor composition; registering it launches no runtime.
+	private study: StudyModule | null = null;
 	// Owns the application-level startup and shutdown transition.
 	private lifecycle: "stopped" | "starting" | "started" = "stopped";
 
@@ -89,6 +92,7 @@ export class ChoraApplication
 			this.platosi = null;
 			this.library = null;
 			this.visions = null;
+			this.study = null;
 			this.lifecycle = "stopped";
 			throw error;
 		}
@@ -102,6 +106,7 @@ export class ChoraApplication
 			this.lifecycle = "stopped";
 			try
 			{
+				await this.study?.DrainAsync();
 				this.StopModules();
 			}
 			finally
@@ -111,6 +116,7 @@ export class ChoraApplication
 			this.platosi = null;
 			this.library = null;
 			this.visions = null;
+			this.study = null;
 		}
 	}
 
@@ -136,10 +142,12 @@ export class ChoraApplication
 		this.menuCommands.Register();
 		library.Start();
 		visions.Start();
+		this.study?.Register();
 	}
 
 	private StopModules(): void
 	{
+		this.study?.Unregister();
 		this.visions?.Stop();
 		this.library?.Stop();
 		this.diagnostics.Unregister();
@@ -157,6 +165,7 @@ export class ChoraApplication
 		this.platosi = platosi;
 		this.library = library;
 		this.visions = new VisionModule(this.documentsPath, library.GetService());
+		this.study = new StudyModule(this.windows, library, this.visions, this.internalPath);
 	}
 
 	// Returns the configured PlatoSI client.

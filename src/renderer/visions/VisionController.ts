@@ -32,6 +32,7 @@ export class VisionController
 		this.subscriptions.push(events.Subscribe("workspace.save-requested", this.HandleSaveRequestedAsync.bind(this)));
 		this.subscriptions.push(events.Subscribe("workspace.blurred", this.HandleBlurredAsync.bind(this)));
 		this.subscriptions.push(events.Subscribe("vision.reference-open-requested", this.HandleReferenceOpenRequestedAsync.bind(this)));
+		this.subscriptions.push(events.Subscribe("vision.document-open-requested", this.HandleDocumentOpenRequested.bind(this)));
 	}
 
 	// Loads authoritative writing before restoring open documents.
@@ -137,6 +138,12 @@ export class VisionController
 		{
 			this.errors.Report("VisionController", error, "The Vision could not be moved.");
 		}
+	}
+
+	// Opens an existing Vision through the shared document lifecycle.
+	private HandleDocumentOpenRequested(event: ChoraEvents["vision.document-open-requested"]): void
+	{
+		this.Open(event.visionId);
 	}
 
 	// Opens an existing Vision through the shared document lifecycle.

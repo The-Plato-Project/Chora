@@ -89,7 +89,9 @@ The permanent workflow is writing-first:
 - Use `ErrorManager` for application logs, diagnostics, and user-facing errors.
 - PlatoSI owns canonical texts, dictionary material, morphology, occurrences,
   related lexical material, and name research.
-- Chora has no model-provider or chat runtime.
+- Core reading and writing do not depend on a model-provider or chat runtime.
+  The optional interlocutor module owns a replaceable backend, explicit context
+  grants, and read-only evidence tools. Goose-specific execution stays in its adapter.
 - Reading uses PlatoSI's canonical catalogue. Arbitrary external text import is
   not supported.
 
