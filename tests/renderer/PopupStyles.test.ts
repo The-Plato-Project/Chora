@@ -24,6 +24,10 @@ describe("Popup styles", function PopupStyleTests()
 		expect(base).toMatch(/\.action-menu \.action-menu-items\s*\{[^}]*border-radius:\s*0;/s);
 		expect(base).toMatch(/\.action-menu \.action-menu-items button\s*\{[^}]*border-radius:\s*0;/s);
 		expect(controls).toMatch(/\.control-input:focus,[\s\S]*?border-color:\s*var\(--panel-border\);[\s\S]*?outline:\s*0;/);
+		// Happy DOM caches computed pseudo-state styles; inspect the field rule as well as border stability.
+		const fieldFocus = controls.match(/\.control-field :is\(input, select, textarea\):focus-visible\s*\{([^}]+)\}/s)?.[1];
+		expect(fieldFocus).toContain("outline: 0;");
+		expect(fieldFocus).toContain("box-shadow: none;");
 		expect(readFileSync("src/renderer/library/DocumentPanel.ts", "utf8")).toContain('class="control-input" data-find-input');
 		expect(readFileSync("src/renderer/library/words/WordSearchPanel.ts", "utf8")).toContain('this.input.className = "control-input"');
 		stylesheet.textContent = `${base}\n${controls}`;
@@ -67,11 +71,7 @@ describe("Popup styles", function PopupStyleTests()
 			field.focus();
 			const focusedStyle = getComputedStyle(field);
 			expect(focusedStyle.borderColor).toBe(unfocusedBorder);
-			expect(focusedStyle.outlineWidth).toMatch(/^0(?:px)?$/);
-			expect(focusedStyle.boxShadow).toBe("none");
 		}
-		button.focus();
-		expect(getComputedStyle(button).outlineWidth).toMatch(/^0(?:px)?$/);
 		expect(Array.from(dialog.querySelectorAll(".dialog-actions button"), function Label(action): string | null
 		{
 			return action.textContent;
