@@ -71,6 +71,12 @@ exact Greek placements.
 
 All three modes operate on the same authoritative document.
 
+Vision editing separates paragraphs that were pasted or saved as repeated hard
+line breaks. A multiline heading with those paragraph breaks keeps its title as
+a heading and the following paragraphs as normal prose. Switching from Write or
+Preview to another mode commits the repaired structure to Markdown. Single
+intentional line breaks, inline formatting, code, and exact anchors are retained.
+
 ### Folders and tabs
 
 The Explorer shows Visions beneath their work. Create nested folders, create a

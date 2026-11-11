@@ -57,21 +57,10 @@ describe("VisionPanel", function VisionPanelTests()
 			expect(root.querySelector<HTMLSelectElement>("[data-markdown-heading]")?.disabled).toBe(false);
 		});
 		const writing = root.querySelector<HTMLElement>("[contenteditable=true]")!;
-		expect(writing.querySelector("h2")?.textContent).toContain("The following prose.");
-		writing.focus();
-		const range = document.createRange();
-		range.selectNodeContents(writing.querySelector("h2")!.firstChild!);
-		const selection = window.getSelection()!;
-		selection.removeAllRanges();
-		selection.addRange(range);
-		document.dispatchEvent(new Event("selectionchange"));
-		const heading = root.querySelector<HTMLSelectElement>("[data-markdown-heading]")!;
-		heading.focus();
-		heading.value = "2";
-		heading.dispatchEvent(new Event("change", { bubbles: true }));
-		expect(root.querySelector("h2")?.textContent).toBe("Measurement of the Logos");
-		expect(store.GetActive()?.markdown.trim()).toBe("## Measurement of the Logos\n\nThe following prose.");
+		expect(writing.querySelector("h2")?.textContent).toBe("Measurement of the Logos");
+		expect(writing.querySelector("p")?.textContent).toBe("The following prose.");
 		root.querySelector<HTMLButtonElement>('[data-tab-id="markdown"]')?.click();
+		expect(store.GetActive()?.markdown.trim()).toBe("## Measurement of the Logos\n\nThe following prose.");
 		expect(root.querySelector('[data-tab-id="markdown"]')?.getAttribute("aria-selected")).toBe("true");
 		expect(root.querySelector(".vision-markdown-source")?.textContent).toContain("## Measurement of the Logos");
 

@@ -24,6 +24,7 @@ import {
 } from "../../shared/visions/VisionReferenceTypes.js";
 import { visionReferenceRemark, visionReferenceSchema } from "../visions/VisionReferencePlugin.js";
 import type { VisionReferenceAction } from "../../shared/contracts/ChoraApi.js";
+import { VisionMarkdownStructure } from "../visions/VisionMarkdownStructure.js";
 
 // A persistent Milkdown editor that stores Markdown through its owning feature's change handler.
 export class MarkdownEditor
@@ -44,7 +45,7 @@ export class MarkdownEditor
 	private readonly linkInput: HTMLInputElement = document.createElement("input");
 	// Buttons indexed by command name for enabled and pressed states.
 	private readonly buttons = new Map<string, HTMLButtonElement>();
-	// Most recently published Markdown; initialization never writes a normalized value back.
+	// Current Markdown; structure repairs publish on an edit or an explicit Vision mode change.
 	private markdown: string;
 	// Marks teardown requested while asynchronous initialization may still be running.
 	private disposed = false;
@@ -166,11 +167,17 @@ export class MarkdownEditor
 	{
 		const view = this.editor.ctx.get(editorViewCtx);
 		const parse = this.editor.ctx.get(parserCtx);
-		const doc = parse(this.markdown);
+		const parsed = parse(this.markdown);
+		const doc = this.enableVisionReferences ? VisionMarkdownStructure.NormalizeDocument(parsed) : parsed;
 		this.replacing = true;
 		try
 		{
 			view.updateState(EditorState.create({ doc, schema: view.state.schema, plugins: view.state.plugins }));
+			if (!doc.eq(parsed))
+			{
+				const serialize = this.editor.ctx.get(serializerCtx);
+				this.markdown = serialize(doc);
+			}
 			view.dom.setAttribute("role", this.readOnly ? "document" : "textbox");
 			this.UpdateToolbar(view);
 		}
@@ -396,6 +403,13 @@ export class MarkdownEditor
 	{
 		const owner = this;
 		return new Plugin({
+			props: {
+				transformPasted: function NormalizePaste(slice)
+				{
+					const normalized = owner.enableVisionReferences ? VisionMarkdownStructure.NormalizePaste(slice) : slice;
+					return normalized;
+				}
+			},
 			view: function CreateView()
 			{
 				return {
