@@ -6,21 +6,18 @@ import { EditorView } from "@milkdown/kit/prose/view";
 import { ErrorManager } from "../../src/renderer/core/diagnostics/RendererErrorManager.js";
 import { ChoraEventBus } from "../../src/renderer/core/events/ChoraEventBus.js";
 import type { ChoraEvents } from "../../src/renderer/core/events/ChoraEvents.js";
-import { ParseDreamMarkdown, SerializeDreamMarkdown } from "../../src/main/dreams/DreamMarkdownCodec.js";
-import type { DreamView } from "../../src/renderer/dreams/DreamView.js";
-import { SignalMarkdownDocument } from "../../src/shared/dreams/SignalMarkdownDocument.js";
-import { SignalMarkdownCodec } from "../../src/main/signals/SignalMarkdownCodec.js";
-import type { SignalRecord } from "../../src/shared/signals/SignalTypes.js";
+import { SerializeVisionReferenceClipboardHtml, SerializeVisionReferenceDrag, VisionReferenceDragMime, type VisionReferenceDragPayload, type VisionReferencePlacement } from "../../src/shared/visions/VisionReferenceTypes.js";
+import { ConcealVisionReferences, SerializeVisionReference } from "../../src/shared/visions/VisionReferenceMarkdown.js";
 
 // Mounted editors are disposed even when an assertion fails.
 const editors: MarkdownEditor[] = [];
 
 // Mounts the actual Milkdown wrapper with a tracked change callback.
-async function CreateEditorAsync(markdown: string, change = vi.fn(), readOnly = false): Promise<MarkdownEditor>
+async function CreateEditorAsync(markdown: string, change = vi.fn(), readOnly = false, toolbarMode: "hidden" | "full" = "hidden", enableVisionReferences = false, onVisionReferenceAction?: ConstructorParameters<typeof MarkdownEditor>[9], onVisionSelectionDrop?: ConstructorParameters<typeof MarkdownEditor>[10]): Promise<MarkdownEditor>
 {
 	const events = new ChoraEventBus<ChoraEvents>();
 	const errors = new ErrorManager(events);
-	const editor = new MarkdownEditor(markdown, "Test description", change, errors, readOnly);
+	const editor = new MarkdownEditor(markdown, "Test description", change, errors, readOnly, "", null, toolbarMode, enableVisionReferences, onVisionReferenceAction, onVisionSelectionDrop);
 	editors.push(editor);
 	document.body.append(editor.Root);
 	await editor.Ready;
@@ -51,33 +48,6 @@ afterEach(async function CleanupAsync()
 
 describe("MarkdownEditor", function MarkdownEditorTests()
 {
-	it("serializes a complete Signal", function SerializesSignalMarkdown()
-	{
-		const selection = { dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`, start: { stephanus: "s1", offset: 0 }, end: { stephanus: "s1", offset: 7 } };
-		const dream: DreamView = {
-			id: "dream", workId: "republic", dialogue: "Republic", title: "Descent",
-			source: selection,
-			signals: [{
-				id: "signal",
-				dreamId: "dream",
-				workId: "republic",
-				sourceRef: "s1",
-				text: "κατέβην",
-				selections: [selection],
-				description: "An observation",
-				createdAt: "2026-01-01",
-				updatedAt: "2026-01-01"
-			}],
-			reflection: "A reflection", linkedDreamIds: ["another"], createdAt: "2026-01-01", updatedAt: "2026-01-01"
-		};
-		const signal = dream.signals[0]!;
-		const markdown = SignalMarkdownDocument.SerializeSection(dream, signal, 1);
-		expect(markdown).toContain("# Signal");
-		expect(markdown).toContain("> κατέβην");
-		expect(markdown).toContain("Source: Republic · s1");
-		expect(markdown).toContain("## Observation\n\nAn observation");
-	});
-
 	it("renders read-only Markdown safely and updates without publishing edits", async function RendersReadOnlyAsync()
 	{
 		const change = vi.fn();
@@ -86,9 +56,44 @@ describe("MarkdownEditor", function MarkdownEditorTests()
 		expect(editor.Root.querySelector('[role="document"]')).not.toBeNull();
 		expect(editor.Root.querySelector<HTMLElement>(".markdown-toolbar")!.hidden).toBe(true);
 		expect(editor.Root.querySelector('img,script,iframe,a[href^="javascript:"]')).toBeNull();
-		editor.SetMarkdown("# Updated Dream\n\n**New observation**");
+		editor.SetMarkdown("# Updated Vision\n\n**New observation**");
 		expect(editor.Root.querySelector("strong")?.textContent).toBe("New observation");
 		expect(change).not.toHaveBeenCalled();
+
+		// A divider needs a paragraph boundary; otherwise Markdown treats the block as a setext heading.
+		editor.SetMarkdown("Measurement of the Logos\\\n\\\nA question about the telling of a story.\n\n---\n\nAfter the divider.");
+		expect(editor.Root.querySelector("h1,h2,h3,h4")).toBeNull();
+		expect(editor.Root.querySelector("hr")).not.toBeNull();
+		expect(editor.Root.querySelector("p")?.textContent).toContain("Measurement of the Logos");
+
+		// Repeated hard-break paragraphs must not become one section-sized setext heading.
+		const placement: VisionReferencePlacement = {
+			id: "placement:123e4567-e89b-42d3-a456-426614174002",
+			visionId: "123e4567-e89b-42d3-a456-426614174000",
+			anchorId: `anchor:sha256:${"a".repeat(64)}`,
+			presentation: "inline-word",
+			label: "λόγος"
+		};
+		const directive = SerializeVisionReference(placement);
+		const code = "literal\\\n\\\nunchanged";
+		const malformed = `\\\nBefore.\n\n## Scene\n\n\\\n\\\nMeasurement of the Logos\\\n\\\n**Question** ${directive}\\\nSecond line.\\\n\\\n&#x20;  Body after.\n${"-".repeat(120)}\n\n***\n\n\`\`\`text\n${code}\n\`\`\``;
+		const vision = await CreateEditorAsync(malformed, change, true, "full", true);
+		const headings = Array.from(vision.Root.querySelectorAll("h2"), function Heading(node): string | null
+		{
+			return node.textContent;
+		});
+		expect(headings).toEqual(["Scene", "Measurement of the Logos"]);
+		expect(vision.Root.querySelector("strong")?.textContent).toBe("Question");
+		expect(vision.Root.querySelector("h2 [data-vision-reference]")).toBeNull();
+		expect(vision.Root.querySelector("p [data-vision-reference]")?.textContent).toBe("λόγος");
+		expect(vision.Root.querySelector("pre code")?.textContent).toBe(code);
+		expect(vision.GetMarkdown()).toContain("## Measurement of the Logos\n\n**Question**");
+		expect(vision.GetMarkdown()).toContain(directive);
+		expect(vision.GetMarkdown()).not.toContain("&#x20;");
+		expect(change).not.toHaveBeenCalled();
+		const reopened = await CreateEditorAsync(vision.GetMarkdown(), vi.fn(), true, "full", true);
+		expect(reopened.Root.querySelectorAll("h2")).toHaveLength(2);
+		expect(reopened.GetMarkdown()).toBe(vision.GetMarkdown());
 	});
 
 	it("uses the context menu instead of a permanent toolbar for editable Markdown", async function HidesEditableToolbarAsync()
@@ -97,6 +102,289 @@ describe("MarkdownEditor", function MarkdownEditorTests()
 
 		expect(editor.Root.querySelector<HTMLElement>(".markdown-toolbar")?.hidden).toBe(true);
 		expect(editor.Root.querySelector<HTMLElement>("[contenteditable=true]")).not.toBeNull();
+	});
+
+	it("renders GFM and exposes the full Vision formatting toolbar", async function RendersVisionGfmAsync(): Promise<void>
+	{
+		const markdown = "~~memory~~\n\n- [ ] Return\n\n| Word | Note |\n| --- | --- |\n| λόγος | relation |";
+		const editor = await CreateEditorAsync(markdown, vi.fn(), false, "full");
+
+		expect(editor.Root.querySelector<HTMLElement>(".markdown-toolbar")?.hidden).toBe(false);
+		expect(editor.Root.querySelector("del")?.textContent).toBe("memory");
+		expect(editor.Root.querySelector("table")).not.toBeNull();
+		expect(editor.Root.querySelector("li[data-checked]")).not.toBeNull();
+		const heading = editor.Root.querySelector<HTMLSelectElement>("[data-markdown-heading]")!;
+		expect(Array.from(heading.options).map((option) => option.textContent)).toEqual([
+			"Normal",
+			"Heading 1",
+			"Heading 2",
+			"Heading 3",
+			"Heading 4"
+		]);
+		expect(editor.Root.querySelector('[data-markdown-command="heading_1"]')).toBeNull();
+		expect(editor.Root.querySelector('[data-markdown-command="task_list"]')).not.toBeNull();
+		expect(editor.Root.querySelector('[data-markdown-command="table"]')).not.toBeNull();
+		expect(editor.GetMarkdown()).toBe(markdown);
+	});
+
+	it("applies Heading 1 through Heading 4 and returns to normal text", async function AppliesHeadingStylesAsync(): Promise<void>
+	{
+		const change = vi.fn();
+		const editor = await CreateEditorAsync("Title", change, false, "full", true);
+		SelectContent(editor);
+		const heading = editor.Root.querySelector<HTMLSelectElement>("[data-markdown-heading]")!;
+
+		heading.value = "1";
+		heading.dispatchEvent(new Event("change", { bubbles: true }));
+		expect(editor.Root.querySelector("h1")?.textContent).toBe("Title");
+		expect(editor.GetMarkdown().trim()).toBe("# Title");
+
+		heading.value = "4";
+		heading.dispatchEvent(new Event("change", { bubbles: true }));
+		expect(editor.Root.querySelector("h4")?.textContent).toBe("Title");
+		expect(editor.GetMarkdown().trim()).toBe("#### Title");
+
+		heading.value = "paragraph";
+		heading.dispatchEvent(new Event("change", { bubbles: true }));
+		expect(editor.Root.querySelector("p")?.textContent).toBe("Title");
+		expect(editor.GetMarkdown().trim()).toBe("Title");
+
+		// A selected title within hard-break prose becomes its own heading, preserving exact evidence.
+		const placement: VisionReferencePlacement = {
+			id: "placement:123e4567-e89b-42d3-a456-426614174002",
+			visionId: "123e4567-e89b-42d3-a456-426614174000",
+			anchorId: `anchor:sha256:${"a".repeat(64)}`,
+			presentation: "inline-word",
+			label: "λόγος"
+		};
+		const directive = SerializeVisionReference(placement);
+		const markdown = `Before the title\\\n\\\nMeasurement of the Logos\\\n\\\nAfter **the title** ${directive}\\\nStill normal prose.`;
+		editor.SetMarkdown(markdown);
+		const content = editor.Root.querySelector<HTMLElement>("[contenteditable=true]")!;
+		const paragraph = Array.from(content.querySelectorAll("p")).find(function FindTitleParagraph(candidate): boolean
+		{
+			const matches = candidate.textContent === "Measurement of the Logos";
+			return matches;
+		})!;
+		const title = Array.from(paragraph.childNodes).find(function FindTitle(node): boolean
+		{
+			const matches = node.nodeType === Node.TEXT_NODE && node.textContent === "Measurement of the Logos";
+			return matches;
+		})!;
+		content.focus();
+		const range = document.createRange();
+		range.selectNodeContents(title);
+		const selection = window.getSelection()!;
+		selection.removeAllRanges();
+		selection.addRange(range);
+		document.dispatchEvent(new Event("selectionchange"));
+		heading.focus();
+		heading.value = "2";
+		heading.dispatchEvent(new Event("change", { bubbles: true }));
+		expect(editor.Root.querySelectorAll("h2")).toHaveLength(1);
+		expect(editor.Root.querySelector("h2")?.textContent).toBe("Measurement of the Logos");
+		expect(editor.GetMarkdown()).toContain("\n\n## Measurement of the Logos\n\n");
+		expect(editor.GetMarkdown()).toContain(directive);
+		expect(editor.Root.querySelector("strong")?.textContent).toBe("the title");
+		expect(change).toHaveBeenLastCalledWith(editor.GetMarkdown());
+		const reopened = await CreateEditorAsync(editor.GetMarkdown(), vi.fn(), true, "full", true);
+		expect(reopened.Root.querySelector("h2")?.textContent).toBe("Measurement of the Logos");
+		expect(reopened.Root.querySelector("h2 [data-vision-reference]")).toBeNull();
+		expect(reopened.Root.querySelector("p [data-vision-reference]")?.textContent).toBe("λόγος");
+		editor.Root.querySelector<HTMLButtonElement>('[data-markdown-command="undo"]')!.click();
+		expect(editor.Root.querySelector("h2")).toBeNull();
+		expect(editor.Root.querySelectorAll(".ProseMirror > p")).toHaveLength(3);
+		editor.Root.querySelector<HTMLButtonElement>('[data-markdown-command="redo"]')!.click();
+		expect(editor.Root.querySelector("h2")?.textContent).toBe("Measurement of the Logos");
+	});
+
+	it("inserts and round-trips an atomic Vision word reference", async function InsertsVisionWordReferenceAsync(): Promise<void>
+	{
+		const change = vi.fn();
+		const placement: VisionReferencePlacement = {
+			id: "placement:123e4567-e89b-42d3-a456-426614174002",
+			visionId: "123e4567-e89b-42d3-a456-426614174000",
+			anchorId: `anchor:sha256:${"a".repeat(64)}`,
+			presentation: "inline-word",
+			label: "κατέβην"
+		};
+		const editor = await CreateEditorAsync("Before after", change, false, "full", true);
+
+		editor.InsertVisionReference(placement);
+
+		const directive = SerializeVisionReference(placement);
+		expect(editor.GetMarkdown()).toContain(directive);
+		expect(change).toHaveBeenCalled();
+		const reference = editor.Root.querySelector<HTMLElement>("[data-vision-reference]");
+		expect(reference?.textContent).toBe("κατέβην");
+		expect(reference?.dataset.anchorId).toBe(placement.anchorId);
+		expect(reference?.getAttribute("contenteditable")).toBe("false");
+		editor.FocusVisionReference(placement.id);
+		expect(reference?.classList.contains("ProseMirror-selectednode")).toBe(true);
+
+		const reopened = await CreateEditorAsync(`Earlier ${directive} later`, vi.fn(), true, "hidden", true);
+		const restored = reopened.Root.querySelector<HTMLElement>("[data-vision-reference]");
+		expect(restored?.dataset.placementId).toBe(placement.id);
+		expect(restored?.dataset.anchorId).toBe(placement.anchorId);
+		expect(reopened.GetMarkdown()).toBe(`Earlier ${directive} later`);
+	});
+
+	it("offers exact Vision word reference actions", async function OpensVisionReferenceMenuAsync(): Promise<void>
+	{
+		const placement: VisionReferencePlacement = {
+			id: "placement:123e4567-e89b-42d3-a456-426614174002",
+			visionId: "123e4567-e89b-42d3-a456-426614174000",
+			anchorId: `anchor:sha256:${"a".repeat(64)}`,
+			presentation: "inline-word",
+			label: "κατέβην"
+		};
+		const action = vi.fn().mockResolvedValue(undefined);
+		const menu = vi.spyOn(MarkdownEditorGateway.prototype, "ShowVisionReferenceMenuAsync")
+			.mockResolvedValueOnce("navigate")
+			.mockResolvedValueOnce("copy");
+		const copy = vi.spyOn(MarkdownEditorGateway.prototype, "CopyTextAsync").mockResolvedValue();
+		const editor = await CreateEditorAsync(SerializeVisionReference(placement), vi.fn(), false, "full", true, action);
+		const reference = editor.Root.querySelector<HTMLElement>("[data-vision-reference]")!;
+
+		reference.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+		await vi.waitFor(() => expect(action).toHaveBeenCalledWith(placement, "navigate"));
+		reference.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+		await vi.waitFor(() => expect(copy).toHaveBeenCalledWith("κατέβην"));
+		expect(menu).toHaveBeenCalledTimes(2);
+		expect(menu).toHaveBeenCalledWith(true);
+		action.mockClear();
+		reference.click();
+		await vi.waitFor(() => expect(action).toHaveBeenCalledWith(placement, "explore-word"));
+	});
+
+	it("round-trips an exact multi-line Vision range reference", async function InsertsVisionRangeReferenceAsync(): Promise<void>
+	{
+		const placement: VisionReferencePlacement = {
+			id: "placement:123e4567-e89b-42d3-a456-426614174003",
+			visionId: "123e4567-e89b-42d3-a456-426614174000",
+			anchorId: `anchor:sha256:${"c".repeat(64)}`,
+			presentation: "inline-range",
+			label: "κατέβην | πρὸς\nτὸν Πειραιᾶ"
+		};
+		const action = vi.fn().mockResolvedValue(undefined);
+		const menu = vi.spyOn(MarkdownEditorGateway.prototype, "ShowVisionReferenceMenuAsync").mockResolvedValue("navigate");
+		const editor = await CreateEditorAsync("Before after", vi.fn(), false, "full", true, action);
+
+		editor.InsertVisionReference(placement);
+
+		const directive = SerializeVisionReference(placement);
+		expect(directive).toContain("{{chora-range|");
+		expect(directive).not.toContain(placement.label);
+		expect(ConcealVisionReferences(directive)).toBe(`[[${placement.label}]]`);
+		expect(editor.GetMarkdown()).toContain(directive);
+		const reference = editor.Root.querySelector<HTMLElement>('[data-vision-reference="inline-range"]');
+		expect(reference?.textContent).toBe(placement.label);
+		reference?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+		await vi.waitFor(() => expect(action).toHaveBeenCalledWith(placement, "navigate"));
+		expect(menu).toHaveBeenCalledWith(false);
+
+		const reopened = await CreateEditorAsync(`Earlier ${directive} later`, vi.fn(), true, "hidden", true);
+		expect(reopened.Root.querySelector('[data-vision-reference="inline-range"]')?.textContent).toBe(placement.label);
+		expect(reopened.GetMarkdown()).toBe(`Earlier ${directive} later`);
+	});
+
+	it("opens one clicked Greek word inside a locked range reference", async function OpensClickedRangeWordAsync(): Promise<void>
+	{
+		const placement: VisionReferencePlacement = {
+			id: "placement:123e4567-e89b-42d3-a456-426614174005",
+			visionId: "123e4567-e89b-42d3-a456-426614174000",
+			anchorId: `anchor:sha256:${"e".repeat(64)}`,
+			presentation: "inline-range",
+			label: "κατέβην πρὸς"
+		};
+		const action = vi.fn().mockResolvedValue(undefined);
+		const editor = await CreateEditorAsync(SerializeVisionReference(placement), vi.fn(), false, "full", true, action);
+		const word = editor.Root.querySelector<HTMLElement>('[data-vision-range-word][data-word-start="8"]')!;
+
+		word.click();
+
+		await vi.waitFor(() =>
+		{
+			expect(action).toHaveBeenCalledWith(placement, "explore-word", { start: 8, end: 12 });
+		});
+		expect(word.textContent).toBe("πρὸς");
+	});
+
+	it("inserts a dragged exact reader selection at the Vision drop point", async function DropsVisionRangeReferenceAsync(): Promise<void>
+	{
+		const payload: VisionReferenceDragPayload = {
+			selection: {
+				dialogue: "republic",
+				text_version: `sha256:${"0".repeat(64)}`,
+				start: { stephanus: "327a", offset: 0 },
+				end: { stephanus: "327a", offset: 12 }
+			},
+			anchorKind: "phrase"
+		};
+		const placement: VisionReferencePlacement = {
+			id: "placement:123e4567-e89b-42d3-a456-426614174004",
+			visionId: "123e4567-e89b-42d3-a456-426614174000",
+			anchorId: `anchor:sha256:${"d".repeat(64)}`,
+			presentation: "inline-range",
+			label: "κατέβην πρὸς"
+		};
+		let editor: MarkdownEditor;
+		const drop = vi.fn(async (_payload: VisionReferenceDragPayload, requestId: string): Promise<void> =>
+		{
+			editor.InsertVisionReference(placement, requestId);
+		});
+		editor = await CreateEditorAsync("Before after", vi.fn(), false, "full", true, undefined, drop);
+		const transfer = new DataTransfer();
+		transfer.setData(VisionReferenceDragMime, SerializeVisionReferenceDrag(payload));
+		const dropEvent = new DragEvent("drop", { bubbles: true, cancelable: true });
+		Object.defineProperty(dropEvent, "dataTransfer", { value: transfer });
+
+		editor.Root.querySelector<HTMLElement>(".markdown-content")?.dispatchEvent(dropEvent);
+
+		await vi.waitFor(() => expect(drop).toHaveBeenCalledWith(payload, expect.any(String)));
+		expect(editor.GetMarkdown()).toContain(SerializeVisionReference(placement));
+		expect(editor.Root.querySelector('[data-vision-reference="inline-range"]')?.textContent).toBe(placement.label);
+	});
+
+	it("pastes a copied reader anchor through the existing Vision insertion workflow", async function PastesVisionRangeReferenceAsync(): Promise<void>
+	{
+		const payload: VisionReferenceDragPayload = {
+			selection: {
+				dialogue: "republic",
+				text_version: `sha256:${"0".repeat(64)}`,
+				start: { stephanus: "327a", offset: 0 },
+				end: { stephanus: "327a", offset: 12 }
+			},
+			anchorKind: "phrase"
+		};
+		const placement: VisionReferencePlacement = {
+			id: "placement:123e4567-e89b-42d3-a456-426614174005",
+			visionId: "123e4567-e89b-42d3-a456-426614174000",
+			anchorId: `anchor:sha256:${"e".repeat(64)}`,
+			presentation: "inline-range",
+			label: "κατέβην πρὸς"
+		};
+		let editor: MarkdownEditor;
+		const insert = vi.fn(async (_payload: VisionReferenceDragPayload, requestId: string): Promise<void> =>
+		{
+			editor.InsertVisionReference(placement, requestId);
+		});
+		editor = await CreateEditorAsync("Replace me", vi.fn(), false, "full", true, undefined, insert);
+		SelectContent(editor);
+		const clipboard = new DataTransfer();
+		clipboard.setData("text/html", SerializeVisionReferenceClipboardHtml(payload, placement.label));
+		clipboard.setData("text/plain", placement.label);
+		const paste = new ClipboardEvent("paste", { clipboardData: clipboard, bubbles: true, cancelable: true });
+		const fallbackPaste = vi.fn();
+		editor.Root.querySelector<HTMLElement>(".markdown-content")!.addEventListener("paste", fallbackPaste);
+
+		editor.Root.querySelector<HTMLElement>("[contenteditable=true]")!.dispatchEvent(paste);
+
+		await vi.waitFor(() => expect(insert).toHaveBeenCalledWith(payload, expect.any(String)));
+		expect(paste.defaultPrevented).toBe(true);
+		expect(fallbackPaste).not.toHaveBeenCalled();
+		expect(editor.Root.querySelectorAll("[data-vision-reference]")).toHaveLength(1);
+		expect(editor.Root.querySelector('[data-vision-reference="inline-range"]')?.textContent).toBe(placement.label);
 	});
 
 	it("replaces external content without publishing changes or retaining stale undo history", async function ReplacesDocumentAsync()
@@ -255,46 +543,6 @@ describe("MarkdownEditor", function MarkdownEditorTests()
 		expect(editor.GetMarkdown().trim()).toBe("κατέβην");
 	});
 
-	it("round-trips formatted descriptions and Reflections through the existing Markdown file codec", async function PersistsMarkdownAsync()
-	{
-		const editor = await CreateEditorAsync("κατέβην");
-		SelectContent(editor);
-		editor.Root.querySelector<HTMLButtonElement>('[data-markdown-command="bold"]')!.click();
-		const markdown = editor.GetMarkdown();
-		const selection = { dialogue: "republic", text_version: `sha256:${"0".repeat(64)}`, start: { stephanus: "s1", offset: 0 }, end: { stephanus: "s1", offset: 7 } };
-		const dream: DreamView = {
-			id: "formatted", workId: "republic", dialogue: "Republic", title: "Formatting",
-			source: selection,
-
-			signals: [{
-				id: "one",
-				dreamId: "formatted",
-				workId: "republic",
-				sourceRef: "s1",
-				selections: [selection],
-				text: "κατέβην",
-				description: markdown,
-				createdAt: "2026-09-06",
-				updatedAt: "2026-09-06"
-			}],
-			reflection: markdown, linkedDreamIds: [], createdAt: "2026-09-06", updatedAt: "2026-09-06"
-		};
-		const signal: SignalRecord = {
-			...dream.signals[0]!,
-			workId: dream.workId,
-			createdAt: dream.createdAt,
-			updatedAt: dream.updatedAt
-		};
-		const serialized = SerializeDreamMarkdown(dream);
-		const restored = ParseDreamMarkdown(serialized)!;
-		const signalCodec = new SignalMarkdownCodec();
-		const restoredSignal = signalCodec.Parse(signalCodec.Serialize(signal));
-		expect(restoredSignal.description).toBe(markdown.trim());
-		expect(restored.reflection.trim()).toBe(markdown.trim());
-		const reopened = await CreateEditorAsync(restored.reflection);
-		expect(reopened.Root.querySelector("strong")?.textContent).toBe("κατέβην");
-	});
-
 	it("disposes safely before asynchronous initialization completes", async function DisposesEarlyAsync()
 	{
 		const change = vi.fn();
@@ -310,7 +558,7 @@ describe("MarkdownEditor", function MarkdownEditorTests()
 	it("preserves Greek text pasted through the clipboard", async function PastesGreekAsync()
 	{
 		const change = vi.fn();
-		const editor = await CreateEditorAsync("Original", change);
+		const editor = await CreateEditorAsync("Original", change, false, "full", true);
 		SelectContent(editor);
 		const clipboard = new DataTransfer();
 		clipboard.setData("text/plain", "κατέβην χθὲς");
@@ -318,5 +566,14 @@ describe("MarkdownEditor", function MarkdownEditorTests()
 		editor.Root.querySelector("[contenteditable=true]")!.dispatchEvent(event);
 		expect(editor.GetMarkdown().trim()).toBe("κατέβην χθὲς");
 		expect(change).toHaveBeenCalled();
+		SelectContent(editor);
+		const richClipboard = new DataTransfer();
+		richClipboard.setData("text/html", "<p>κατέβην<br><br>χθὲς <strong>bold</strong></p>");
+		richClipboard.setData("text/plain", "κατέβην\n\nχθὲς bold");
+		const richPaste = new ClipboardEvent("paste", { clipboardData: richClipboard, bubbles: true, cancelable: true });
+		editor.Root.querySelector<HTMLElement>("[contenteditable=true]")!.dispatchEvent(richPaste);
+		expect(editor.GetMarkdown().trim()).toBe("κατέβην\n\nχθὲς **bold**");
+		expect(editor.Root.querySelectorAll(".ProseMirror > p")).toHaveLength(2);
+		expect(editor.Root.querySelector("strong")?.textContent).toBe("bold");
 	});
 });

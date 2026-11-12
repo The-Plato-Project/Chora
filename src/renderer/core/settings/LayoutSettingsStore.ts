@@ -3,16 +3,37 @@ export type LayoutDimension =
 	"leftPaneWidth"
 	| "editorPaneWidth"
 	| "wordPaneHeight"
-	| "signalNavigationWidth"
-	| "dreamSourceHeight"
-	| "dreamReflectionsHeight"
-	| "chatComposerHeight";
+	| "wordLemmaWidth"
+	| "wordAnalysisWidth"
+	| "wordDictionaryWidth"
+	| "wordPersonWidth"
+	| "wordOccurrencesWidth"
+	| "wordOccurrenceNavigationWidth"
+	| "wordDictionaryPrimaryWidth"
+	| "wordOccurrencesPrimaryWidth"
+	| "wordOccurrenceListWidth"
+	| "wordDictionaryPrimaryRatio"
+	| "wordOccurrenceNavigationRatio"
+	| "wordRelatedWidth";
+
+// Durable geometry for one content host, independent of the content attached to it.
+export interface SplitPaneState
+{
+	// Remembered expanded size, retained while a surface is collapsed or unavailable.
+	readonly Size: number;
+	// A collapsed pane has zero content extent and a reachable adjacent divider.
+	readonly Collapsed: boolean;
+}
+
+// Stable pane identities allow new rows/columns without changing the storage contract.
+export type SplitViewState = Readonly<Record<string, SplitPaneState>>;
 
 // Persisted renderer layout preferences.
 interface LayoutPreferences
 {
 	dimensions: Partial<Record<LayoutDimension, number>>;
 	explorerCollapsed: boolean;
+	splitViews: Record<string, SplitViewState>;
 }
 
 // Owns durable user-adjusted renderer dimensions and collapse state.
@@ -60,10 +81,47 @@ export class LayoutSettingsStore
 		this.Save();
 	}
 
+	// Reads one generic split group's saved pane geometry.
+	public GetSplitView(id: string): SplitViewState | null
+	{
+		const state = this.preferences.splitViews[id];
+		const snapshot = state === undefined ? null : structuredClone(state);
+		return snapshot;
+	}
+
+	// Persists a defensive layout snapshot after a completed resize/collapse gesture.
+	public SetSplitView(id: string, state: SplitViewState): void
+	{
+		this.preferences.splitViews[id] = this.ReadSplitView(state);
+		this.Save();
+	}
+
+	// Validates only geometry, never application feature identities or DOM state.
+	private ReadSplitView(value: unknown): SplitViewState
+	{
+		const state: Record<string, SplitPaneState> = {};
+		if (typeof value === "object" && value !== null)
+		{
+			for (const [id, item] of Object.entries(value))
+			{
+				if (id !== "__proto__" && typeof item === "object" && item !== null)
+				{
+					const candidate = item as Partial<SplitPaneState>;
+					if (typeof candidate.Size === "number" && Number.isFinite(candidate.Size) && candidate.Size >= 0 && candidate.Size <= 16000
+						&& typeof candidate.Collapsed === "boolean")
+					{
+						state[id] = { Size: candidate.Size, Collapsed: candidate.Collapsed };
+					}
+				}
+			}
+		}
+		return state;
+	}
+
 	// Reads valid persisted layout preferences while discarding corrupt fields.
 	private Load(): LayoutPreferences
 	{
-		const preferences: LayoutPreferences = { dimensions: {}, explorerCollapsed: false };
+		const preferences: LayoutPreferences = { dimensions: {}, explorerCollapsed: false, splitViews: {} };
 
 		try
 		{
@@ -72,6 +130,16 @@ export class LayoutSettingsStore
 			{
 				const candidate = JSON.parse(stored) as Partial<LayoutPreferences>;
 				if (candidate.explorerCollapsed === true) preferences.explorerCollapsed = true;
+				if (typeof candidate.splitViews === "object" && candidate.splitViews !== null)
+				{
+					for (const [id, value] of Object.entries(candidate.splitViews))
+					{
+						if (id !== "__proto__")
+						{
+							preferences.splitViews[id] = this.ReadSplitView(value);
+						}
+					}
+				}
 				if (typeof candidate.dimensions === "object" && candidate.dimensions !== null)
 				{
 					for (const [name, value] of Object.entries(candidate.dimensions))
@@ -113,10 +181,18 @@ export class LayoutSettingsStore
 			"leftPaneWidth",
 			"editorPaneWidth",
 			"wordPaneHeight",
-			"signalNavigationWidth",
-			"dreamSourceHeight",
-			"dreamReflectionsHeight",
-			"chatComposerHeight"
+			"wordLemmaWidth",
+			"wordAnalysisWidth",
+			"wordDictionaryWidth",
+			"wordPersonWidth",
+			"wordOccurrencesWidth",
+			"wordOccurrenceNavigationWidth",
+			"wordDictionaryPrimaryWidth",
+			"wordOccurrencesPrimaryWidth",
+			"wordOccurrenceListWidth",
+			"wordDictionaryPrimaryRatio",
+			"wordOccurrenceNavigationRatio",
+			"wordRelatedWidth"
 		];
 		const isDimension = names.includes(name);
 

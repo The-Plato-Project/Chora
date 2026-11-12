@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from "vitest";
-import { TabControl } from "../../src/renderer/ui/TabControl.js";
-import { TabPanel } from "../../src/renderer/ui/TabPanel.js";
+import { TabControl } from "../../src/renderer/ui/controls/TabControl.js";
+import { TabPanel } from "../../src/renderer/ui/controls/TabPanel.js";
 
 // Minimal concrete content for exercising the base class contract.
 class TestPanel extends TabPanel
@@ -60,5 +60,22 @@ describe("TabControl", function TabControlTests()
 			new TabControl([new TestPanel("same"), new TestPanel("same")], "Invalid");
 		}
 		expect(CreateInvalidControl).toThrow("unique");
+	});
+
+	it("adds and closes reusable dynamic tabs", function ManagesDynamicTabs()
+	{
+		const closed: string[] = [];
+		const tabs = new TabControl([new TestPanel("first")], "Dynamic content", undefined, (id) => closed.push(id));
+		document.body.append(tabs.Root);
+		tabs.Add(new TestPanel("second"), true);
+		tabs.Select("second");
+		expect(tabs.GetSelectedId()).toBe("second");
+		expect(tabs.Root.querySelectorAll("[role=tab]")).toHaveLength(2);
+		tabs.Root.querySelector<HTMLButtonElement>('[data-tab-close="second"]')?.click();
+		expect(closed).toEqual(["second"]);
+		tabs.Remove("second");
+		expect(tabs.GetSelectedId()).toBe("first");
+		expect(tabs.Root.querySelectorAll("[role=tab]")).toHaveLength(1);
+		tabs.Dispose();
 	});
 });

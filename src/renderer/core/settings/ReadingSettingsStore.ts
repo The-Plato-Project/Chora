@@ -1,7 +1,7 @@
 // Global appearance preference shared across every renderer surface.
 export type Appearance = "light" | "dark";
 
-// Global reading font family shared by the reader and Dream surfaces.
+// Global reading font family shared by reading and writing surfaces.
 export type ReadingFont = "serif" | "sans";
 
 // Persisted global reading preferences.
@@ -10,6 +10,7 @@ interface ReadingPreferences
 	fontSize: number;
 	font: ReadingFont;
 	appearance: Appearance;
+	anchorHighlightColor: string;
 }
 
 // Owns global reading settings and applies them to the document root as shared CSS variables.
@@ -21,8 +22,9 @@ export class ReadingSettingsStore
 	private static readonly SerifStack = `"Iowan Old Style", "Palatino Linotype", Georgia, serif`;
 	private static readonly SansStack = `-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
 	// Bounds enforced on the reading font size.
-	private static readonly MinimumFontSize = 14;
+	private static readonly MinimumFontSize = 10;
 	private static readonly MaximumFontSize = 32;
+	private static readonly DefaultAnchorHighlightColor = "#b65e3b";
 	// Currently applied reading preferences.
 	private preferences: ReadingPreferences = this.Load();
 
@@ -44,6 +46,11 @@ export class ReadingSettingsStore
 		return this.preferences.appearance;
 	}
 
+	public GetAnchorHighlightColor(): string
+	{
+		return this.preferences.anchorHighlightColor;
+	}
+
 	// Changes the reading font size by a step, clamped to the allowed range.
 	public ChangeFontSize(delta: number): void
 	{
@@ -57,6 +64,14 @@ export class ReadingSettingsStore
 	public SetFont(font: ReadingFont): void
 	{
 		this.preferences.font = font;
+		this.Save();
+		this.Apply();
+	}
+
+	public SetAnchorHighlightColor(color: string): void
+	{
+		if (!/^#[0-9a-f]{6}$/iu.test(color)) throw new Error("The anchor highlight color is invalid.");
+		this.preferences.anchorHighlightColor = color.toLocaleLowerCase();
 		this.Save();
 		this.Apply();
 	}
@@ -76,13 +91,19 @@ export class ReadingSettingsStore
 		const stack = this.preferences.font === "sans" ? ReadingSettingsStore.SansStack : ReadingSettingsStore.SerifStack;
 		root.style.setProperty("--reading-font-size", `${this.preferences.fontSize}px`);
 		root.style.setProperty("--reading-font", stack);
+		root.style.setProperty("--vision-reference-color", this.preferences.anchorHighlightColor);
 		root.dataset.theme = this.preferences.appearance;
 	}
 
 	// Reads persisted preferences from local storage, falling back to defaults when missing or invalid.
 	private Load(): ReadingPreferences
 	{
-		const preferences: ReadingPreferences = { fontSize: 18, font: "serif", appearance: "light" };
+		const preferences: ReadingPreferences = {
+			fontSize: 18,
+			font: "serif",
+			appearance: "light",
+			anchorHighlightColor: ReadingSettingsStore.DefaultAnchorHighlightColor
+		};
 
 		try
 		{
@@ -93,6 +114,10 @@ export class ReadingSettingsStore
 				if (typeof candidate.fontSize === "number" && candidate.fontSize >= ReadingSettingsStore.MinimumFontSize && candidate.fontSize <= ReadingSettingsStore.MaximumFontSize) preferences.fontSize = candidate.fontSize;
 				if (candidate.font === "serif" || candidate.font === "sans") preferences.font = candidate.font;
 				if (candidate.appearance === "light" || candidate.appearance === "dark") preferences.appearance = candidate.appearance;
+				if (typeof candidate.anchorHighlightColor === "string" && /^#[0-9a-f]{6}$/iu.test(candidate.anchorHighlightColor))
+				{
+					preferences.anchorHighlightColor = candidate.anchorHighlightColor.toLocaleLowerCase();
+				}
 			}
 		}
 		catch

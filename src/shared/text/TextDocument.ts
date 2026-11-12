@@ -1,4 +1,5 @@
 import type { TextPosition, TextSelection } from "./TextSelection.js";
+import { FindGreekWords } from "./GreekWords.js";
 
 // Serialized form of one source citation at an IPC or JSON boundary.
 export interface CitationSnapshot
@@ -309,6 +310,29 @@ export class TextDocument
 		return reconstructed;
 	}
 
+	// Creates an exact canonical subrange from UTF-16 offsets within reconstructed selection text.
+	public CreateSubselection(container: TextSelection, relativeStart: number, relativeEnd: number): TextSelection
+	{
+		this.ValidateSelection(container);
+		const reconstructed = this.ReconstructText(container);
+		const valid = Number.isInteger(relativeStart)
+			&& Number.isInteger(relativeEnd)
+			&& relativeStart >= 0
+			&& relativeStart < relativeEnd
+			&& relativeEnd <= reconstructed.length;
+		if (!valid) throw new Error("Relative selection offsets are invalid.");
+		const start = this.ResolveRelativePosition(container, relativeStart);
+		const end = this.ResolveRelativePosition(container, relativeEnd);
+		return this.CreateSelection(start, end);
+	}
+
+	// Enumerates every exact Greek word occurrence contained by a canonical selection.
+	public GetGreekWordSelections(container: TextSelection): readonly TextSelection[]
+	{
+		const reconstructed = this.ReconstructText(container);
+		return FindGreekWords(reconstructed).map((word) => this.CreateSubselection(container, word.start, word.end));
+	}
+
 	// Narrows a same-segment browser selection to its one Greek word, ignoring surrounding selection punctuation or spacing.
 	public GetSingleGreekWordSelection(selection: TextSelection): TextSelection | null
 	{
@@ -316,13 +340,13 @@ export class TextDocument
 		if (selection.start.stephanus !== selection.end.stephanus) return null;
 
 		const selectedText = this.ReconstructText(selection);
-		const matches = [...selectedText.matchAll(/(?:(?=\p{Script=Greek})\p{L}|\p{M})+/gu)];
+		const matches = FindGreekWords(selectedText);
 		if (matches.length !== 1) return null;
 
 		const match = matches[0];
-		const word = match?.[0] ?? "";
-		const startIndex = match?.index;
-		if (word.length === 0 || startIndex === undefined) return null;
+		if (match === undefined) return null;
+		const word = match.text;
+		const startIndex = match.start;
 
 		const before = selectedText.slice(0, startIndex);
 		const after = selectedText.slice(startIndex + word.length);
@@ -404,6 +428,31 @@ export class TextDocument
 		const meets = samePosition || crossesSegmentBoundary;
 
 		return meets;
+	}
+
+	private ResolveRelativePosition(container: TextSelection, relativeOffset: number): TextPosition
+	{
+		const firstIndex = this.GetSegmentIndex(container.start.stephanus);
+		const lastIndex = this.GetSegmentIndex(container.end.stephanus);
+		let reconstructedOffset = 0;
+		for (let index = firstIndex; index <= lastIndex; index += 1)
+		{
+			const segment = this.segments[index];
+			if (segment === undefined) throw new Error("Invalid selection segment ordering.");
+			const from = index === firstIndex ? container.start.offset : 0;
+			const to = index === lastIndex ? container.end.offset : segment.text.length;
+			const length = to - from;
+			if (relativeOffset >= reconstructedOffset && relativeOffset <= reconstructedOffset + length)
+			{
+				return {
+					stephanus: segment.key,
+					offset: from + relativeOffset - reconstructedOffset
+				};
+			}
+			reconstructedOffset += length;
+			if (index < lastIndex) reconstructedOffset += 1;
+		}
+		throw new Error("Relative selection offset crosses a segment separator.");
 	}
 
 	// Resolves the citation at one exact position.

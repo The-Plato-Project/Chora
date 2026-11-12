@@ -71,4 +71,18 @@ describe("TextDocument selections", function TextDocumentSelectionTests()
 			});
 		}).toThrow("does not match the active document");
 	});
+
+	it("maps reconstructed passage offsets back to exact canonical positions", function MapsSubselection(): void
+	{
+		const document = CreateDocument();
+		const passage = document.CreateSelection(
+			{ stephanus: "s1", offset: 0 },
+			{ stephanus: "s2", offset: 12 });
+
+		const word = document.CreateSubselection(passage, 18, 25);
+
+		expect(document.ReconstructText(word)).toBe("Πειραιᾶ");
+		expect(word.start).toEqual({ stephanus: "s2", offset: 5 });
+		expect(word.end).toEqual({ stephanus: "s2", offset: 12 });
+	});
 });

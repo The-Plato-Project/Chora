@@ -1,36 +1,25 @@
-/* Part of styles.css, split by topic. Import order in ../styles.css matches this file's original position — do not reorder relative to the other split files. */
-/* Responsive breakpoints for narrower windows. */
+/* Reading typography adapts to narrow windows; split views manage panel geometry. */
 
-@media (max-width: 1000px) {
-	.shell {
-		--left-pane-width: 180px;
-		--dream-pane-width: 44vw;
-		grid-template-columns: minmax(180px, var(--left-pane-width)) minmax(0, 1fr) 0;
+@media (max-width: 1150px) {
+	.reader-toolbar-line {
+		gap: 6px;
 	}
 
-	.shell.dream-open {
-		grid-template-columns: minmax(180px, var(--left-pane-width)) minmax(300px, var(--dream-pane-width)) minmax(0, 1fr);
+	.text-segment {
+		padding-left: 52px;
+	}
+
+	.source-locator {
+		width: 50px;
 	}
 }
 
 @media (max-width: 760px) {
-	.shell {
-		--left-pane-width: 170px;
-		--dream-pane-width: 40vw;
+	.reader-passage-navigation {
+		gap: 6px;
 	}
 
-	.shell.dream-open {
-		grid-template-columns: var(--left-pane-width) minmax(240px, var(--dream-pane-width)) minmax(0, 1fr);
-		grid-template-areas: "left editor document";
-	}
-}
-
-@media (max-width: 650px) {
-	#readingPane {
-		padding: 1.4rem 1rem 3rem;
-	}
-
-	.reader-toolbar {
-		margin-top: -1.4rem;
+	.reader-passage-divider {
+		margin: 0 2px;
 	}
 }

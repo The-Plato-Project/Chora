@@ -24,7 +24,6 @@ export class WorkspaceSidebar
 	private readonly subscriptions: Unsubscribe[] = [];
 	private readonly panels = new Map<string, SidebarPanel>();
 	private readonly clickHandler = this.HandleClick.bind(this);
-	private selectedId = "";
 
 	public constructor(
 		private readonly rail: HTMLElement,
@@ -48,14 +47,8 @@ export class WorkspaceSidebar
 		{
 			throw new Error("The Explorer sidebar extension is required.");
 		}
-		const focusExplorer = this.SelectExplorer.bind(this);
-		const openExplorer = this.OpenExplorerAsync.bind(this);
 		const selectPanel = this.SelectRequestedAsync.bind(this);
-		const focusSubscription = events.Subscribe("workspace.dreams-focus-requested", focusExplorer);
-		const filterSubscription = events.Subscribe("dream.passage-filter-changed", openExplorer);
 		const selectSubscription = events.Subscribe("workspace.sidebar-select-requested", selectPanel);
-		this.subscriptions.push(focusSubscription);
-		this.subscriptions.push(filterSubscription);
 		this.subscriptions.push(selectSubscription);
 		for (const extension of extensions)
 		{
@@ -113,18 +106,6 @@ export class WorkspaceSidebar
 			panel.root.hidden = !selected;
 			panel.button.setAttribute("aria-pressed", pressed);
 		}
-		this.selectedId = id;
-	}
-
-	private SelectExplorer(): void
-	{
-		this.Select("explorer");
-	}
-
-	private async OpenExplorerAsync(): Promise<void>
-	{
-		this.Select("explorer");
-		await this.events.PublishAsync("workspace.sidebar-open-requested", {});
 	}
 
 	private async SelectRequestedAsync(event: ChoraEvents["workspace.sidebar-select-requested"]): Promise<void>
@@ -152,9 +133,5 @@ export class WorkspaceSidebar
 	{
 		this.Select(id);
 		await this.events.PublishAsync("workspace.sidebar-open-requested", {});
-		if (id === "explorer" && this.selectedId === id)
-		{
-			await this.events.PublishAsync("workspace.dreams-focus-requested", {});
-		}
 	}
 }

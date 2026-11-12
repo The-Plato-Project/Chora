@@ -2,7 +2,7 @@
 	"name": "chora",
 	"version": "0.1.0",
 	"private": true,
-	"description": "Chora — Where texts dream.",
+	"description": "Chora — A reading and writing environment for Plato.",
 	"main": ".vite/build/src/main/main.js",
 	"scripts": {
 		"postinstall": "node scripts/FixMilkdownDeclarations.mjs",
@@ -18,6 +18,10 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
+		"@codemirror/commands": "^6.11.1",
+		"@codemirror/lang-markdown": "^6.5.2",
+		"@codemirror/state": "^6.7.6",
+		"@codemirror/view": "^6.43.15",
 		"@milkdown/kit": "^7.22.1",
 		"electron-squirrel-startup": "^1.0.1",
 		"gray-matter": "^4.0.3",

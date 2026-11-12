@@ -10,7 +10,7 @@ export interface LibraryReader
 
 export class LibraryService
 {
-	// Shares immutable PlatoSI documents across Dream and renderer workflows.
+	// Shares immutable PlatoSI documents across renderer workflows.
 	private readonly documents = new Map<string, Promise<TextDocument>>();
 
 	public constructor(private readonly repository: LibraryReader)

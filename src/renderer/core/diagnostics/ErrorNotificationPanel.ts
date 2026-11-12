@@ -2,16 +2,19 @@ import type { ErrorRecord } from "../../../shared/diagnostics/DiagnosticManager.
 import type { ChoraEvents } from "../events/ChoraEvents.js";
 import type { ChoraEventBus, Unsubscribe } from "../events/ChoraEventBus.js";
 import { EscapeHtml } from "../../ui/Html.js";
-import { PopupPanel } from "../../ui/PopupPanel.js";
+import { DialogControl } from "../../ui/controls/DialogControl.js";
+import { ErrorManager } from "./RendererErrorManager.js";
 
-// Owns diagnostic notification ordering, popup lifetime, and dismissal without coordinating feature operations.
+// Owns diagnostic notification ordering, dialog lifetime, and dismissal without coordinating feature operations.
 export class ErrorNotificationPanel
 {
 	// Subscription released with this UI owner.
 	private readonly unsubscribe: Unsubscribe;
-	// Prevents disposed presentation from reopening a queued popup.
+	// Prevents disposed presentation from reopening a queued dialog.
 	private isDisposed = false;
-	private errorPopup: PopupPanel | null = null;
+	private errorDialog: DialogControl | null = null;
+	// Uses the shared diagnostic authority for unexpected presentation failures.
+	private readonly errors: ErrorManager;
 	// User notifications waiting for explicit dismissal of the current message.
 	private readonly pendingErrors: ErrorRecord[] = [];
 	// Suppresses duplicate notifications from repeated catches of the same operation failure.
@@ -20,6 +23,7 @@ export class ErrorNotificationPanel
 	// Subscribes only to completed user-facing diagnostic reports.
 	public constructor(events: ChoraEventBus<ChoraEvents>)
 	{
+		this.errors = new ErrorManager(events);
 		this.unsubscribe = events.Subscribe("error.reported", this.HandleErrorReported.bind(this));
 	}
 
@@ -29,7 +33,7 @@ export class ErrorNotificationPanel
 		this.isDisposed = true;
 		this.unsubscribe();
 		this.pendingErrors.length = 0;
-		this.CloseErrorPopup();
+		this.CloseErrorDialog();
 	}
 
 	// Queues each diagnostic identity once for presentation.
@@ -53,25 +57,27 @@ export class ErrorNotificationPanel
 	// Presents the next queued notification with a reference that can be found in the log.
 	private ShowNextError(): void
 	{
-		if (this.errorPopup === null && !this.isDisposed)
+		if (this.errorDialog === null && !this.isDisposed)
 		{
 			const error = this.pendingErrors.shift();
 			if (error !== undefined)
 			{
-				this.errorPopup = new PopupPanel(error.level === "warning" ? "Operation needs attention" : "Operation could not finish");
+				this.errorDialog = new DialogControl(this.errors);
 				const message = error.userMessage ?? error.message;
-				this.errorPopup.SetBodyHtml(`<p role="alert">${EscapeHtml(message)}</p><p>Diagnostic reference: ${EscapeHtml(error.id)}</p><p>Logs are available from Help → Open Logs Folder.</p>`);
-				this.errorPopup.OnClose(this.CloseErrorPopup.bind(this));
-				this.errorPopup.Open();
+				this.errorDialog.Open({
+					Title: error.level === "warning" ? "Operation needs attention" : "Operation could not finish",
+					Content: `<p role="alert">${EscapeHtml(message)}</p><p>Diagnostic reference: ${EscapeHtml(error.id)}</p><p>Logs are available from Help → Open Logs Folder.</p>`,
+					Closed: this.CloseErrorDialog.bind(this)
+				});
 			}
 		}
 	}
 
 	// Releases the dismissed notification before presenting any queued failure.
-	private CloseErrorPopup(): void
+	private CloseErrorDialog(): void
 	{
-		const popup = this.errorPopup;
-		this.errorPopup = null;
+		const popup = this.errorDialog;
+		this.errorDialog = null;
 		popup?.Dispose();
 		this.ShowNextError();
 	}

@@ -1,0 +1,72 @@
+/* Application menu geometry and state; all surfaces use the shared theme palette. */
+.menu-bar-control {
+	display: flex;
+	flex: 0 0 25px;
+	align-items: stretch;
+	border-bottom: 1px solid var(--panel-border);
+	background: var(--selection-background);
+	color: var(--app-text);
+	font: 12px/1.4 var(--ui-font);
+	z-index: 100;
+}
+
+.menu-bar-control[hidden],
+.menu-bar-popup[hidden] {
+	display: none;
+}
+
+.menu-bar-group {
+	position: relative;
+}
+
+.menu-bar-trigger,
+.menu-bar-popup button {
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+}
+
+.menu-bar-trigger {
+	height: 100%;
+	padding: 2px 9px;
+}
+
+.menu-bar-trigger:hover,
+.menu-bar-trigger[aria-expanded="true"] {
+	background: var(--panel-background);
+}
+
+.menu-bar-popup button:hover,
+.menu-bar-popup button:focus-visible {
+	background: var(--selection-background);
+}
+
+.menu-bar-popup {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	min-width: 205px;
+	padding: 3px 0;
+	border: 1px solid var(--panel-border);
+	border-radius: 0;
+	background: var(--panel-background);
+	box-shadow: 0 4px 10px #0003;
+}
+
+.menu-bar-popup button {
+	display: flex;
+	justify-content: space-between;
+	gap: 24px;
+	width: 100%;
+	min-height: 28px;
+	padding: 4px 12px;
+	white-space: nowrap;
+	outline: 0;
+}
+
+.menu-bar-shortcut {
+	color: var(--muted-text);
+}

@@ -1,0 +1,26 @@
+/* Light theme palette, used by default. Geometry belongs to the owning surface stylesheet. */
+
+:root {
+	color-scheme: light;
+	--app-background: #eeeee7;
+	--panel-background: #fafbf6;
+	--side-panel-background: #f0f2e9;
+	--editor-input-background: #fffffc;
+	--editor-background: #fffffc;
+	--raised-background: #f0f2e8;
+	--selection-background: #dfe7d6;
+	--panel-border: #d1dac9;
+	--app-text: #17465c;
+	--muted-text: #66808a;
+	--accent: #b65e3b;
+	--accent-soft: #dfe7d6;
+	--vision-reference-tint: var(--vision-reference-color, var(--accent));
+	--vision-reference-foreground: var(--app-text);
+	--vision-reference-background: color-mix(in srgb, var(--vision-reference-tint) 10%, transparent);
+	--vision-range-reference-background: color-mix(in srgb, var(--vision-reference-tint) 7%, transparent);
+	--vision-reference-hover-background: color-mix(in srgb, var(--vision-reference-tint) 16%, transparent);
+	--danger: #c83d3d;
+	--reader-background: #fffffc;
+	--reader-foreground: #17465c;
+	--reader-surround-background: #ebe6dc;
+}

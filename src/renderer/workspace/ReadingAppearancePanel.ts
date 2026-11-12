@@ -1,80 +1,85 @@
-import { ReadingSettingsStore, type ReadingFont } from "../core/settings/ReadingSettingsStore.js";
+import { ReadingSettingsStore } from "../core/settings/ReadingSettingsStore.js";
+import type { ErrorManager } from "../core/diagnostics/RendererErrorManager.js";
+import type { ChoraEventBus, Unsubscribe } from "../core/events/ChoraEventBus.js";
+import type { ChoraEvents } from "../core/events/ChoraEvents.js";
+import { DialogControl } from "../ui/controls/DialogControl.js";
+import { ReadingAppearanceGateway } from "./ReadingAppearanceGateway.js";
 
-// Owns appearance-control DOM interactions while ReadingSettingsStore owns persisted preferences.
+// Owns application settings DOM; the existing settings store remains authoritative.
 export class ReadingAppearancePanel
 {
-	// Click handler shared by appearance and font-size controls.
-	private readonly clickHandler = this.HandleLeftViewClick.bind(this);
-	// Change handler for the reading-font selector.
-	private readonly changeHandler = this.HandleSettingsChange.bind(this);
+	// Shared modal commits draft preferences only when the reader chooses OK.
+	private readonly dialog: DialogControl;
+	private readonly unsubscribe: Unsubscribe;
 
-	// Applies the current preferences and attaches their existing controls.
-	public constructor(private readonly root: HTMLElement, private readonly settings: ReadingSettingsStore)
+	// Native menu requests arrive as typed application events.
+	public constructor(private readonly settings: ReadingSettingsStore, events: ChoraEventBus<ChoraEvents>,
+		private readonly errors: ErrorManager, private readonly gateway = new ReadingAppearanceGateway())
 	{
 		settings.Apply();
-		root.addEventListener("click", this.clickHandler);
-		root.addEventListener("change", this.changeHandler);
+		this.dialog = new DialogControl(errors);
+		this.unsubscribe = events.Subscribe("workspace.settings-open-requested", this.Open.bind(this));
+		void this.ApplyNativeAppearanceAsync();
 	}
 
-	// Releases the preference-control listeners.
+	// Reopens from persisted preferences so Cancel discards all uncommitted input.
+	private Open(): void
+	{
+		const font = this.settings.GetFont();
+		const appearance = this.settings.GetAppearance();
+		this.dialog.Open({
+			Title: "Chora settings",
+			Content: `<div class="application-settings-fields">
+				<label class="control-field"><span>Theme</span><select data-appearance><option value="light"${appearance === "light" ? " selected" : ""}>Light</option><option value="dark"${appearance === "dark" ? " selected" : ""}>Dark</option></select></label>
+				<label class="control-field"><span>Reading font</span><select data-reading-font><option value="serif"${font === "serif" ? " selected" : ""}>Serif</option><option value="sans"${font === "sans" ? " selected" : ""}>Sans</option></select></label>
+				<label class="control-field"><span>Text size</span><input class="control-input" data-reading-size type="number" min="10" max="32" step="1" required value="${this.settings.GetFontSize()}"></label>
+				<label class="control-field"><span>Greek anchor highlight</span><input data-anchor-highlight-color type="color" value="${this.settings.GetAnchorHighlightColor()}"></label>
+			</div>`,
+			CommitAsync: this.Commit.bind(this),
+			InitialFocus: "[data-appearance]"
+		});
+	}
+
+	// Applies validated preferences through their existing owner after explicit confirmation.
+	private Commit(): boolean
+	{
+		const font = this.dialog.Content.querySelector<HTMLSelectElement>("[data-reading-font]")!.value;
+		const appearance = this.dialog.Content.querySelector<HTMLSelectElement>("[data-appearance]")!.value;
+		const size = this.dialog.Content.querySelector<HTMLInputElement>("[data-reading-size]")!.valueAsNumber;
+		const color = this.dialog.Content.querySelector<HTMLInputElement>("[data-anchor-highlight-color]")!.value;
+		const valid = (font === "serif" || font === "sans") && (appearance === "light" || appearance === "dark")
+			&& Number.isInteger(size) && size >= 10 && size <= 32 && /^#[0-9a-f]{6}$/iu.test(color);
+		if (valid)
+		{
+			this.settings.SetFont(font);
+			this.settings.ChangeFontSize(size - this.settings.GetFontSize());
+			this.settings.SetAnchorHighlightColor(color);
+			if (this.settings.GetAppearance() !== appearance)
+			{
+				this.settings.ToggleAppearance();
+				void this.ApplyNativeAppearanceAsync();
+			}
+		}
+		return valid;
+	}
+
+	// Keeps native title/menu chrome in step with the persisted application theme.
+	private async ApplyNativeAppearanceAsync(): Promise<void>
+	{
+		try
+		{
+			await this.gateway.ApplyAsync(this.settings.GetAppearance());
+		}
+		catch (error)
+		{
+			this.errors.Report("ReadingAppearance", error, "The native window appearance could not be updated.");
+		}
+	}
+
+	// Releases both the application event and the reusable modal.
 	public Dispose(): void
 	{
-		this.root.removeEventListener("click", this.clickHandler);
-		this.root.removeEventListener("change", this.changeHandler);
-	}
-
-	// Routes application-level reading-setting controls to their workflows.
-	private HandleLeftViewClick(event: Event): void
-	{
-		const target = event.target as HTMLElement | null;
-		const appearanceButton = target?.closest<HTMLElement>("[data-toggle-appearance]");
-		const fontStep = target?.closest<HTMLElement>("[data-font-size]")?.dataset.fontSize;
-
-		if (appearanceButton != null)
-		{
-			this.ToggleAppearance();
-		}
-
-		if (fontStep !== undefined)
-		{
-			this.ChangeFontSize(Number.parseInt(fontStep, 10));
-		}
-
-	}
-
-	// Applies a change to the reading-font selector.
-	private HandleSettingsChange(event: Event): void
-	{
-		const target = event.target as HTMLSelectElement | null;
-
-		if (target?.matches("[data-reading-font]") === true)
-		{
-			this.settings.SetFont(target.value as ReadingFont);
-		}
-	}
-
-	// Applies a font-size step and reflects the new value in the toolbar.
-	private ChangeFontSize(delta: number): void
-	{
-		this.settings.ChangeFontSize(delta);
-		const value = this.root.querySelector<HTMLElement>("[data-font-size-value]");
-		if (value !== null) value.textContent = String(this.settings.GetFontSize());
-	}
-
-	// Toggles light/dark appearance and reflects the current theme in reading settings.
-	private ToggleAppearance(): void
-	{
-		this.settings.ToggleAppearance();
-		const button = this.root.querySelector<HTMLElement>("[data-toggle-appearance]");
-		const value = button?.querySelector<HTMLElement>("[data-appearance-value]");
-		const isLight = this.settings.GetAppearance() === "light";
-		const label = isLight ? "Use dark appearance" : "Use light appearance";
-
-		if (button !== null)
-		{
-			button.title = label;
-			button.setAttribute("aria-label", label);
-		}
-		if (value !== null && value !== undefined) value.textContent = isLight ? "Light" : "Dark";
+		this.unsubscribe();
+		this.dialog.Dispose();
 	}
 }

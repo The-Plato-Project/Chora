@@ -1,5 +1,24 @@
 import { Errors } from "../diagnostics/MainErrorManager.js";
-import { app, dialog, shell, Menu, type MenuItemConstructorOptions } from "electron";
+import { app, BrowserWindow, dialog, shell, Menu, type MenuItemConstructorOptions } from "electron";
+import { IPC_CHANNELS } from "../../shared/contracts/IpcChannels.js";
+import type { ApplicationMenuCommand } from "../../shared/contracts/ChoraApi.js";
+
+// Shares application actions between the native macOS menu and the renderer menu boundary.
+export async function ExecuteApplicationMenuCommandAsync(command: ApplicationMenuCommand): Promise<void>
+{
+	if (command === "quit")
+	{
+		app.quit();
+	}
+	else if (command === "settings")
+	{
+		OpenSettings();
+	}
+	else if (command === "logs")
+	{
+		await OpenLogsAsync();
+	}
+}
 
 // Creates native application commands for the bundled Library reading environment.
 export function CreateApplicationMenu(): Menu
@@ -14,6 +33,10 @@ export function CreateApplicationMenu(): Menu
 			]
 		},
 		{
+			label: "Settings",
+			submenu: [{ label: "Chora settings", accelerator: "CmdOrCtrl+,", click: OpenSettings }]
+		},
+		{
 			label: "Help",
 			submenu: [{ label: "Open Logs Folder", click: OpenLogsAsync }]
 		}
@@ -21,6 +44,13 @@ export function CreateApplicationMenu(): Menu
 	const menu = Menu.buildFromTemplate(menuTemplate);
 
 	return menu;
+}
+
+// Requests renderer-owned preferences without moving application settings into Electron.
+function OpenSettings(): void
+{
+	const window = BrowserWindow.getFocusedWindow();
+	if (window !== null && !window.isDestroyed()) window.webContents.send(IPC_CHANNELS.openSettings);
 }
 
 // Exposes the authoritative logs location and reports storage health without requesting renderer paths.

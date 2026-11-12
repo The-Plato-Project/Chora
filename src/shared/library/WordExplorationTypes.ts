@@ -48,6 +48,12 @@ export interface WordEvidenceCandidate
 	readonly via: string | null;
 	readonly citation: string | null;
 	readonly tag: string | null;
+	/** Original provider headword, including any homograph suffix. */
+	readonly headword?: string | null;
+	/** Provider's identifier distinguishing identically spelled headwords. */
+	readonly homograph?: string | null;
+	/** Grammatical features supplied by the analysis provider. */
+	readonly features?: Readonly<Record<string, string>> | null;
 	readonly settings: Readonly<Record<string, WordEvidenceValue>>;
 	readonly source: WordEvidenceSource;
 }
@@ -80,26 +86,40 @@ export interface WordPersonSource
 	readonly excerpt: string;
 	readonly provider: string;
 	readonly cached: boolean;
+	readonly relevance: "plato_dialogue" | "other";
 }
 
 export interface WordPersonResearch
 {
-	readonly contract: "platosi.person-research.v1";
+	readonly contract: "platosi.person-research.v3";
 	readonly status: string;
 	readonly lemma: string;
 	readonly classification: {
 		readonly properNameCandidate: boolean;
 		readonly basis: string;
 	};
-	readonly roots: readonly string[];
-	readonly summary: {
-		readonly person: string;
-		readonly nameMeaning: string;
-		readonly relationships: readonly string[];
-	} | null;
+	/** Consolidated, source-cited research about the selected proper name. */
+	readonly overview: string;
+	/** Unique references cited in the overview, or retrieved references after a failure. */
 	readonly sources: readonly WordPersonSource[];
+	readonly candidates: readonly {
+		readonly id: string;
+		readonly label: string;
+		readonly sources: readonly WordPersonSource[];
+	}[];
 	readonly model: Readonly<Record<string, WordEvidenceValue>> | null;
 	readonly warnings: readonly string[];
+}
+
+export interface WordNameNoteKey
+{
+	readonly dialogue: string;
+	readonly lemma: string;
+}
+
+export interface WordNameNote extends WordNameNoteKey
+{
+	readonly text: string;
 }
 
 export interface WordCitation
@@ -153,6 +173,12 @@ export interface WordRelatedLemma
 	readonly total: number;
 	readonly forms: readonly WordDialogueForm[];
 	readonly evidence: readonly Readonly<Record<string, WordEvidenceValue>>[];
+	/** Dictionary evidence for the related headword, separate from the relationship evidence. */
+	readonly dictionary?: {
+		readonly status: string;
+		readonly entries: readonly WordDictionaryEntry[];
+		readonly possiblyTruncated: boolean;
+	} | null;
 }
 
 export interface WordDialogueLemma
@@ -173,14 +199,57 @@ export interface WordLemmaEvidence
 	} | null;
 }
 
+/** Sources consulted for analysis and for the separate dialogue form inventories. */
+export interface WordEvidenceCoverage
+{
+	/** Providers returning analyses for the selected word. */
+	readonly analysisProviders: readonly string[];
+	/** Providers supplying reverse lemma-form inventories. */
+	readonly formInventoryProviders: readonly string[];
+	/** Analysis providers that have not supplied an occurrence inventory. */
+	readonly analysisOnlyProviders: readonly string[];
+	/** Providers whose analyses are stored in PlatoSI's permanent dialogue index. */
+	readonly morphologyIndexProviders?: readonly string[];
+	/** Permanent dialogue morphology coverage, separate from contextual interpretation. */
+	readonly morphologyIndexes?: readonly {
+		readonly provider: string;
+		readonly state: string;
+		readonly checkedForms: number;
+		readonly totalForms: number;
+		readonly analyzedForms: number;
+		readonly unresolvedForms: number;
+		readonly failedForms: number;
+		readonly pendingForms: number;
+		readonly wholeDialogueComplete: boolean;
+		readonly contextReviewed: boolean;
+	}[];
+	/** Providers contributing current cached source headword mappings. */
+	readonly cachedAnalysisProviders?: readonly string[];
+	/** Dialogue-wide cache coverage, separate from contextual interpretation. */
+	readonly cachedFormCoverage?: readonly {
+		readonly provider: string;
+		readonly checkedForms: number;
+		readonly totalForms: number;
+		readonly checkedTokens: number;
+		readonly totalTokens: number;
+		readonly wholeDialogueComplete: boolean;
+		readonly contextReviewed: boolean;
+	}[];
+}
+
 export interface WordEvidenceResult
 {
-	readonly contract: "platosi.dialogue-lexicon.v1";
-	readonly selection: TextSelection;
+	readonly contract: "platosi.dialogue-lexicon.v1" | "platosi.lexical-evidence.v1";
+	readonly selection: TextSelection | null;
+	// Work used for occurrences, independent of the lookup's lexical or passage origin.
+	readonly work: WordWorkScope | null;
+	readonly occurrencesStatus: "indexed" | "unavailable";
 	readonly form: string;
 	readonly context: readonly { readonly stephanus: string; readonly text: string }[];
 	readonly possibilities: readonly WordLemmaPossibility[];
 	readonly lemmas: readonly WordDialogueLemma[];
+	/** Absent in responses that do not report inventory coverage. */
+	readonly coverage?: WordEvidenceCoverage | null;
 	readonly dictionary: {
 		readonly status: string;
 		readonly entries: readonly WordDictionaryEntry[];
@@ -197,4 +266,20 @@ export interface WordEvidenceResult
 	};
 	readonly warnings: readonly string[];
 	readonly limitations: string;
+}
+
+// Canonical occurrence scope without inventing a passage selection.
+export interface WordWorkScope
+{
+	readonly dialogue: string;
+	readonly text_version: string;
+}
+
+// Bounded headword matches and possible lemmas for a reader-entered Greek word.
+export interface WordLexicalSearchResult
+{
+	readonly query: string;
+	readonly items: readonly { readonly lemma: string }[];
+	readonly possiblyTruncated: boolean;
+	readonly warnings: readonly string[];
 }

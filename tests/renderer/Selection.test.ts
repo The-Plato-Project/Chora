@@ -58,4 +58,5 @@ describe("CaptureSelection", function CaptureSelectionTests()
 		expect(captured?.end).toEqual({ stephanus: "s1", offset: 16 });
 		expect(captured === null ? "" : TextDocument.FromSnapshot(work).ReconstructText(captured)).toBe("gamma");
 	});
+
 });

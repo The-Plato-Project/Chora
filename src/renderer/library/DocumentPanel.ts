@@ -6,9 +6,14 @@ import { LibraryController } from "../library/LibraryController.js";
 import { LibraryStore } from "../library/LibraryStore.js";
 import { CaptureSelection, ClearBrowserSelection } from "./Selection.js";
 import { EscapeHtml } from "../ui/Html.js";
-import { CloseIcon, PreviousIcon, NextIcon, SearchIcon, SettingsIcon } from "../ui/Icons.js";
+import { CloseIcon, PreviousIcon, NextIcon, SearchIcon } from "../ui/Icons.js";
 import { RenderSemanticText } from "./SemanticTextMarkup.js";
-import { ReadingSettingsStore } from "../core/settings/ReadingSettingsStore.js";
+import {
+	CreateVisionReferencePayload,
+	SerializeVisionReferenceClipboardHtml,
+	SerializeVisionReferenceDrag,
+	VisionReferenceDragMime
+} from "../../shared/visions/VisionReferenceTypes.js";
 
 // Renders the active text and its reading toolbar, and translates browser events into controller calls.
 export class DocumentPanel
@@ -22,26 +27,39 @@ export class DocumentPanel
 	private findIndex = 0;
 	// Lowercased query currently highlighted, used to detect repeat searches.
 	private activeFindQuery = "";
+	// Exact canonical ranges belonging to the lemma active in Word Lookup.
+	private wordHighlights: readonly TextSelection[] = [];
+	private readonly historyBack: string[] = [];
+	private readonly historyForward: string[] = [];
+	private focusedSegmentKey: string | null = null;
+	// Viewport that owns reader scrolling in the composed workspace.
+	private readonly scrollRoot: HTMLElement;
+	private readonly scrollHandler = this.ScheduleReadingFocus.bind(this);
+	private readonly copyHandler = this.HandleCopy.bind(this);
 
 	// Wires up DOM and application-event listeners.
 	public constructor(
 		private readonly root: HTMLElement,
 		private readonly events: ChoraEventBus<ChoraEvents>,
 		private readonly library: LibraryStore,
-		private readonly controller: LibraryController,
-		private readonly settings: ReadingSettingsStore)
+		private readonly controller: LibraryController)
 	{
+		this.scrollRoot = this.root;
 		this.root.addEventListener("change", this.HandleChange.bind(this));
 		this.root.addEventListener("input", this.HandleInput.bind(this));
 		this.root.addEventListener("keydown", this.HandleKeyDown.bind(this));
 		this.root.addEventListener("click", this.HandleClick.bind(this));
+		this.root.addEventListener("dragstart", this.HandleSelectionDragStart.bind(this));
+		this.root.addEventListener("copy", this.copyHandler);
 		this.root.addEventListener("mouseup", this.CaptureCurrentSelection.bind(this));
 		this.root.addEventListener("keyup", this.CaptureCurrentSelection.bind(this));
-		this.root.addEventListener("scroll", this.ScheduleReadingFocus.bind(this));
+		this.scrollRoot.addEventListener("scroll", this.scrollHandler);
 		this.root.addEventListener("contextmenu", this.HandleContextMenuAsync.bind(this));
 		this.subscriptions.push(this.events.Subscribe("library.text-opened", this.HandleTextOpened.bind(this)));
 		this.subscriptions.push(this.events.Subscribe("library.jump-requested", this.HandleJumpRequested.bind(this)));
 		this.subscriptions.push(this.events.Subscribe("library.focus-changed", this.HandleFocusChanged.bind(this)));
+		this.subscriptions.push(this.events.Subscribe("library.position-restored", this.HandlePositionRestored.bind(this)));
+		this.subscriptions.push(this.events.Subscribe("word.highlights-changed", this.HandleWordHighlightsChanged.bind(this)));
 		this.RenderWelcome();
 	}
 
@@ -51,19 +69,30 @@ export class DocumentPanel
 		for (const unsubscribe of this.subscriptions) unsubscribe();
 		this.subscriptions.length = 0;
 		if (this.focusTimer !== null) clearTimeout(this.focusTimer);
+		this.scrollRoot.removeEventListener("scroll", this.scrollHandler);
+		this.root.removeEventListener("copy", this.copyHandler);
 	}
 
 	// Routes a text-opened application event to a fresh render.
 	private HandleTextOpened(): void
 	{
+		this.wordHighlights = [];
 		const snapshot = this.library.GetSnapshot();
 		if (snapshot.text !== null) this.Update(snapshot.text, snapshot.sourceNotice);
 	}
 
-	// Renders the quiet startup state before a text or Dream is opened.
+	// Replaces persistent lemma decorations without scrolling or creating a browser selection.
+	private HandleWordHighlightsChanged(event: ChoraEvents["word.highlights-changed"]): void
+	{
+		this.wordHighlights = structuredClone(event.selections);
+		this.RenderWordHighlights();
+		ClearBrowserSelection();
+	}
+
+	// Renders the quiet startup state before a text is opened.
 	private RenderWelcome(): void
 	{
-		this.root.innerHTML = `<section class="workspace-welcome" aria-labelledby="workspace-welcome-heading"><h1 id="workspace-welcome-heading">Chora</h1><div class="workspace-welcome-actions"><button class="button-control" data-welcome-open-dream type="button">Open Dream</button><button class="button-control" data-welcome-create-dream type="button">Create Dream</button></div></section>`;
+		this.root.innerHTML = `<section class="workspace-welcome" aria-labelledby="workspace-welcome-heading"><h1 id="workspace-welcome-heading">Chora</h1><div class="workspace-welcome-actions"><button class="button-control" data-welcome-open-library type="button">Open Library</button></div></section>`;
 	}
 
 	// Routes a jump-requested application event to the scroll workflow.
@@ -73,16 +102,28 @@ export class DocumentPanel
 		this.JumpToSelections(selections, event.target ?? "source");
 	}
 
+	// Restores position independently of deliberate source navigation and highlighting.
+	private HandlePositionRestored(event: ChoraEvents["library.position-restored"]): void
+	{
+		const key = CSS.escape(event.segmentKey);
+		const segment = this.root.querySelector<HTMLElement>(`[data-segment-key="${key}"]`);
+		if (segment !== null) this.ScrollToSegment(segment, false);
+	}
+
 	// Renders the full reading pane for a newly opened text.
 	private Update(document: TextDocument, sourceNotice: SourceNotice | null): void
 	{
 		this.findHits = [];
 		this.findIndex = 0;
 		this.activeFindQuery = "";
+		this.historyBack.length = 0;
+		this.historyForward.length = 0;
+		this.focusedSegmentKey = document.segments[0]?.key ?? null;
 		const toolbar = this.RenderReaderToolbar(document);
 		const segments = this.RenderSegments(document);
 		this.root.innerHTML = `<section id="readingPane">${toolbar}<div class="text-body">${segments}</div>${this.RenderSourceAttribution(document, sourceNotice)}</section>`;
 		this.UpdateFindCount();
+		this.UpdateHistoryControls();
 		this.ScheduleReadingFocus();
 	}
 
@@ -127,13 +168,10 @@ export class DocumentPanel
 		const locators = this.CollectLocators(document);
 		const locatorOptions = locators.map((locator) => `<option value="${EscapeHtml(locator)}">${EscapeHtml(locator)}</option>`).join("");
 		const locatorControl = locators.length === 0 ? "" : `<label class="reader-control reader-locator-select"><select data-locator-navigation aria-label="Choose Stephanus passage">${locatorOptions}</select></label>`;
-		const font = this.settings.GetFont();
-		const isLight = this.settings.GetAppearance() === "light";
-		const appearanceLabel = isLight ? "Use dark appearance" : "Use light appearance";
 		const passageControl = bookControl.length === 0 && locatorControl.length === 0 ? "" : `<div class="reader-passage-control"><button class="reader-icon-button button-control" data-passage-step="-1" type="button" title="Previous passage" aria-label="Previous passage">${PreviousIcon}</button>${bookControl}${bookControl.length > 0 && locatorControl.length > 0 ? `<span class="reader-passage-divider" aria-hidden="true"></span>` : ""}${locatorControl}<button class="reader-icon-button button-control" data-passage-step="1" type="button" title="Next passage" aria-label="Next passage">${NextIcon}</button></div>`;
-		const search = `<details class="action-menu reader-search-menu"><summary data-find-toggle title="Find in text" aria-label="Find in text">${SearchIcon}</summary><div class="action-menu-items reader-search-popover"><div class="application-find"><input data-find-input type="search" placeholder="Find in text..." aria-label="Find in text"><span data-find-count aria-live="polite"></span><button data-find-prev type="button" title="Previous match" aria-label="Previous match">${PreviousIcon}</button><button data-find-next type="button" title="Next match" aria-label="Next match">${NextIcon}</button><button data-find-close type="button" title="Close search" aria-label="Close search">${CloseIcon}</button></div></div></details>`;
-		const settings = `<details class="action-menu reader-settings-menu"><summary title="Reading settings" aria-label="Reading settings">${SettingsIcon}</summary><div class="action-menu-items reader-settings-popover"><label class="reader-setting-row"><span>Font</span><select data-reading-font aria-label="Reading font"><option value="serif"${font === "serif" ? " selected" : ""}>Serif</option><option value="sans"${font === "sans" ? " selected" : ""}>Sans</option></select></label><div class="reader-setting-row"><span>Text size</span><div class="app-setting-stepper"><button data-font-size="-1" type="button" title="Decrease text size" aria-label="Decrease text size">A&minus;</button><output data-font-size-value>${this.settings.GetFontSize()}</output><button data-font-size="1" type="button" title="Increase text size" aria-label="Increase text size">A+</button></div></div><button class="reader-setting-row reader-theme-toggle" data-toggle-appearance type="button" title="${appearanceLabel}" aria-label="${appearanceLabel}"><span>Theme</span><span data-appearance-value>${isLight ? "Light" : "Dark"}</span></button></div></details>`;
-		const toolbar = `<header class="reader-toolbar"><div class="reader-toolbar-line"><div class="reader-passage-navigation">${passageControl}</div><div class="reader-tools">${search}${settings}</div></div></header>`;
+		const historyControl = `<div class="reader-history-controls" role="group" aria-label="Reading history"><button class="reader-icon-button button-control" data-reader-history="back" type="button" title="Back" aria-label="Back" disabled>${PreviousIcon}</button><button class="reader-icon-button button-control" data-reader-history="forward" type="button" title="Forward" aria-label="Forward" disabled>${NextIcon}</button></div>`;
+		const search = `<details class="action-menu reader-search-menu"><summary data-find-toggle title="Find in text" aria-label="Find in text">${SearchIcon}</summary><div class="action-menu-items reader-search-popover"><div class="application-find"><input class="control-input" data-find-input type="search" placeholder="Find in text..." aria-label="Find in text"><span data-find-count aria-live="polite"></span><button data-find-prev type="button" title="Previous match" aria-label="Previous match">${PreviousIcon}</button><button data-find-next type="button" title="Next match" aria-label="Next match">${NextIcon}</button><button data-find-close type="button" title="Close search" aria-label="Close search">${CloseIcon}</button></div></div></details>`;
+		const toolbar = `<header class="reader-toolbar"><div class="reader-toolbar-line"><div class="reader-passage-navigation">${historyControl}${passageControl}</div><div class="reader-tools">${search}</div></div></header>`;
 		return toolbar;
 	}
 
@@ -227,12 +265,9 @@ export class DocumentPanel
 		const target = event.target as HTMLElement | null;
 		const isNext = target?.closest("[data-find-next]") != null;
 		const isPrev = target?.closest("[data-find-prev]") != null;
+		const history = target?.closest<HTMLElement>("[data-reader-history]")?.dataset.readerHistory;
 
-		if (target?.closest("[data-welcome-open-dream]") !== null)
-		{
-			void this.events.PublishAsync("workspace.dreams-focus-requested", {});
-		}
-		if (target?.closest("[data-welcome-create-dream]") !== null)
+		if (target?.closest("[data-welcome-open-library]") !== null)
 		{
 			void this.controller.OpenPreferredAsync();
 		}
@@ -243,6 +278,7 @@ export class DocumentPanel
 			this.RunFind(query, isNext);
 		}
 		if (target?.closest("[data-find-close]") !== null) this.CloseFind();
+		if (history === "back" || history === "forward") this.NavigateHistory(history);
 		const step = target?.closest<HTMLElement>("[data-passage-step]")?.dataset.passageStep;
 		const document = this.library.GetText();
 		if (step !== undefined && document !== null)
@@ -295,17 +331,18 @@ export class DocumentPanel
 	}
 
 	// Scrolls a segment into view below the toolbar and records it as the reading focus.
-	private ScrollToSegment(segment: HTMLElement): void
+	private ScrollToSegment(segment: HTMLElement, recordHistory = true): void
 	{
+		const segmentKey = segment.dataset.segmentKey;
+		if (recordHistory && segmentKey !== undefined) this.RecordNavigation(segmentKey);
 		const toolbar = this.root.querySelector<HTMLElement>(".reader-toolbar");
-		const rootBounds = this.root.getBoundingClientRect();
+		const rootBounds = this.scrollRoot.getBoundingClientRect();
 		const segmentBounds = segment.getBoundingClientRect();
 		const toolbarHeight = toolbar?.getBoundingClientRect().height ?? 0;
-		const targetPosition = this.root.scrollTop + segmentBounds.top - rootBounds.top - toolbarHeight - 16;
-		this.root.scrollTop = Math.max(0, targetPosition);
+		const targetPosition = this.scrollRoot.scrollTop + segmentBounds.top - rootBounds.top - toolbarHeight - 16;
+		this.scrollRoot.scrollTop = Math.max(0, targetPosition);
 
-		const segmentKey = segment.dataset.segmentKey;
-		if (segmentKey !== undefined) this.controller.SetFocusSegment(segmentKey);
+		if (segmentKey !== undefined) this.SetReadingFocus(segmentKey);
 	}
 
 	// Highlights every occurrence of the query and focuses the first or next match.
@@ -407,9 +444,10 @@ export class DocumentPanel
 		if (hit !== undefined)
 		{
 			hit.classList.add("active");
-			hit.scrollIntoView({ behavior: "smooth", block: "center" });
 			const segmentKey = hit.closest<HTMLElement>("[data-segment-key]")?.dataset.segmentKey;
-			if (segmentKey !== undefined) this.controller.SetFocusSegment(segmentKey);
+			if (segmentKey !== undefined) this.RecordNavigation(segmentKey);
+			hit.scrollIntoView({ behavior: "smooth", block: "center" });
+			if (segmentKey !== undefined) this.SetReadingFocus(segmentKey);
 		}
 	}
 
@@ -429,14 +467,15 @@ export class DocumentPanel
 
 		if (bookHeading !== null && firstSegment !== null)
 		{
-			const rootBounds = this.root.getBoundingClientRect();
+			const segmentKey = firstSegment.dataset.segmentKey;
+			if (segmentKey !== undefined) this.RecordNavigation(segmentKey);
+			const rootBounds = this.scrollRoot.getBoundingClientRect();
 			const headingBounds = bookHeading.getBoundingClientRect();
 			const toolbarHeight = toolbar?.getBoundingClientRect().height ?? 0;
-			const targetPosition = this.root.scrollTop + headingBounds.top - rootBounds.top - toolbarHeight - 16;
-			this.root.scrollTop = Math.max(0, targetPosition);
+			const targetPosition = this.scrollRoot.scrollTop + headingBounds.top - rootBounds.top - toolbarHeight - 16;
+			this.scrollRoot.scrollTop = Math.max(0, targetPosition);
 
-			const segmentKey = firstSegment.dataset.segmentKey;
-			if (segmentKey !== undefined) this.controller.SetFocusSegment(segmentKey);
+			if (segmentKey !== undefined) this.SetReadingFocus(segmentKey);
 		}
 	}
 
@@ -457,6 +496,37 @@ export class DocumentPanel
 		if (document !== null) this.controller.SetSelection(CaptureSelection(document));
 	}
 
+	private HandleSelectionDragStart(event: DragEvent): void
+	{
+		const target = event.target as HTMLElement | null;
+		const document = this.library.GetText();
+		const dataTransfer = event.dataTransfer;
+		if (target?.closest(".segment-text") === null || target === null || document === null || dataTransfer === null || dataTransfer === undefined) return;
+		const selection = CaptureSelection(document);
+		if (selection === null) return;
+		const payload = CreateVisionReferencePayload(selection, document.GetSingleGreekWordSelection(selection));
+		dataTransfer.effectAllowed = "copy";
+		dataTransfer.setData(VisionReferenceDragMime, SerializeVisionReferenceDrag(payload));
+		dataTransfer.setData("text/plain", document.ReconstructText(selection));
+		this.controller.SetSelection(selection);
+	}
+
+	private HandleCopy(event: ClipboardEvent): void
+	{
+		const document = this.library.GetText();
+		const clipboard = event.clipboardData;
+		if (document === null || clipboard === null) return;
+		const selection = CaptureSelection(document);
+		if (selection === null) return;
+		const payload = CreateVisionReferencePayload(selection, document.GetSingleGreekWordSelection(selection));
+		const selectedText = document.ReconstructText(selection);
+		event.preventDefault();
+		clipboard.setData(VisionReferenceDragMime, SerializeVisionReferenceDrag(payload));
+		clipboard.setData("text/html", SerializeVisionReferenceClipboardHtml(payload, selectedText));
+		clipboard.setData("text/plain", selectedText);
+		this.controller.SetSelection(selection);
+	}
+
 	// Captures the selection under the pointer and shows the selection context menu.
 	private async HandleContextMenuAsync(event: Event): Promise<void>
 	{
@@ -473,24 +543,22 @@ export class DocumentPanel
 	}
 
 	// Scrolls requested components into view and clears the browser's native selection.
-	private JumpToSelections(selections: readonly TextSelection[], navigationTarget: "source" | "signal" | "word"): void
+	private JumpToSelections(selections: readonly TextSelection[], navigationTarget: "source" | "word"): void
 	{
+		const firstSelection = selections[0];
+		if (firstSelection !== undefined) this.RecordNavigation(firstSelection.start.stephanus);
 		this.ClearFindHighlights();
 		this.ClearWordHighlights();
-		if (navigationTarget !== "word")
-		{
-			this.ClearSignalHighlights();
-		}
 		if (navigationTarget === "source") this.ClearSourceHighlights();
 		const firstSegment = this.HighlightSelections(selections, navigationTarget);
-		const firstSelection = selections[0];
+		this.RenderWordHighlights();
 		firstSegment?.scrollIntoView({ behavior: "smooth", block: "center" });
-		if (firstSegment !== null && firstSelection !== undefined) this.controller.SetFocusSegment(firstSelection.start.stephanus);
+		if (firstSegment !== null && firstSelection !== undefined) this.SetReadingFocus(firstSelection.start.stephanus);
 		ClearBrowserSelection();
 	}
 
-	// Applies exact source or Signal decorations and returns the first covered segment.
-	private HighlightSelections(selections: readonly TextSelection[], targetKind: "source" | "signal" | "word"): HTMLElement | null
+	// Applies exact source or word decorations and returns the first covered segment.
+	private HighlightSelections(selections: readonly TextSelection[], targetKind: "source" | "word"): HTMLElement | null
 	{
 		const document = this.library.GetText();
 		const renderedSegments = Array.from(this.root.querySelectorAll<HTMLElement>("[data-segment-key]"));
@@ -507,7 +575,7 @@ export class DocumentPanel
 				return candidate.dataset.segmentKey === selection.end.stephanus;
 			});
 
-			if (document !== null && startIndex >= 0 && endIndex >= startIndex)
+			if (document !== null && selection.dialogue === document.id && startIndex >= 0 && endIndex >= startIndex)
 			{
 				const targets = renderedSegments.slice(startIndex, endIndex + 1);
 				firstSegment ??= targets[0] ?? null;
@@ -524,8 +592,7 @@ export class DocumentPanel
 					}
 					else
 					{
-						const highlightClass = targetKind === "signal" ? "signal-focus-target" : "word-focus-target";
-						this.HighlightText(target, from, to, highlightClass);
+						this.HighlightText(target, from, to, "word-focus-target");
 					}
 				}
 			}
@@ -537,20 +604,7 @@ export class DocumentPanel
 	// Removes prior exact source decorations without changing the surrounding segment structure.
 	private ClearSourceHighlights(): void
 	{
-		const highlights = Array.from(this.root.querySelectorAll<HTMLElement>(".signal-source-target"));
-
-		for (const highlight of highlights)
-		{
-			const parent = highlight.parentNode;
-			highlight.replaceWith(document.createTextNode(highlight.textContent ?? ""));
-			parent?.normalize();
-		}
-	}
-
-	// Removes the focused Signal decoration while retaining the surrounding Dream source highlight.
-	private ClearSignalHighlights(): void
-	{
-		const highlights = Array.from(this.root.querySelectorAll<HTMLElement>(".signal-focus-target"));
+		const highlights = Array.from(this.root.querySelectorAll<HTMLElement>(".source-focus-target"));
 
 		for (const highlight of highlights)
 		{
@@ -573,6 +627,13 @@ export class DocumentPanel
 		}
 	}
 
+	// Reapplies all active lemma occurrences after reader DOM or navigation changes.
+	private RenderWordHighlights(): void
+	{
+		this.ClearWordHighlights();
+		this.HighlightSelections(this.wordHighlights, "word");
+	}
+
 	// Wraps only the canonical character range belonging to one selected source segment.
 	private HighlightSourceText(segment: HTMLElement, canonicalText: string, from: number, to: number): void
 	{
@@ -585,11 +646,11 @@ export class DocumentPanel
 			const prefix = EscapeHtml(canonicalText.slice(0, start));
 			const selected = EscapeHtml(canonicalText.slice(start, end));
 			const suffix = EscapeHtml(canonicalText.slice(end));
-			textElement.innerHTML = `${prefix}<span class="signal-source-target">${selected}</span>${suffix}`;
+			textElement.innerHTML = `${prefix}<span class="source-focus-target">${selected}</span>${suffix}`;
 		}
 	}
 
-	// Adds a focused Signal layer without replacing an existing Dream source decoration.
+	// Adds an exact inline highlight without replacing existing source decoration.
 	private HighlightText(segment: HTMLElement, from: number, to: number, highlightClass: string): void
 	{
 		const textElement = segment.querySelector<HTMLElement>(".segment-text");
@@ -655,7 +716,7 @@ export class DocumentPanel
 	// Records the first segment visible below the toolbar as the reading focus.
 	private CaptureReadingFocus(): void
 	{
-		const viewport = this.root.getBoundingClientRect();
+		const viewport = this.scrollRoot.getBoundingClientRect();
 		const toolbar = this.root.querySelector<HTMLElement>(".reader-toolbar");
 		const toolbarBottom = toolbar?.getBoundingClientRect().bottom ?? viewport.top;
 		const readingTop = Math.max(viewport.top, toolbarBottom) + 16;
@@ -676,6 +737,44 @@ export class DocumentPanel
 		}
 
 		const segmentKey = closest?.dataset.segmentKey;
-		if (segmentKey !== undefined) this.controller.SetFocusSegment(segmentKey);
+		if (segmentKey !== undefined) this.SetReadingFocus(segmentKey);
+	}
+
+	private RecordNavigation(destination: string): void
+	{
+		const current = this.focusedSegmentKey;
+		if (current !== null && current !== destination)
+		{
+			if (this.historyBack.at(-1) !== current) this.historyBack.push(current);
+			this.historyForward.length = 0;
+			this.UpdateHistoryControls();
+		}
+	}
+
+	private NavigateHistory(direction: "back" | "forward"): void
+	{
+		const source = direction === "back" ? this.historyBack : this.historyForward;
+		const destination = source.pop();
+		if (destination === undefined) return;
+		const opposite = direction === "back" ? this.historyForward : this.historyBack;
+		if (this.focusedSegmentKey !== null && opposite.at(-1) !== this.focusedSegmentKey)
+			opposite.push(this.focusedSegmentKey);
+		const segment = this.root.querySelector<HTMLElement>(`[data-segment-key="${CSS.escape(destination)}"]`);
+		if (segment !== null) this.ScrollToSegment(segment, false);
+		this.UpdateHistoryControls();
+	}
+
+	private SetReadingFocus(segmentKey: string): void
+	{
+		this.focusedSegmentKey = segmentKey;
+		this.controller.SetFocusSegment(segmentKey);
+	}
+
+	private UpdateHistoryControls(): void
+	{
+		const back = this.root.querySelector<HTMLButtonElement>('[data-reader-history="back"]');
+		const forward = this.root.querySelector<HTMLButtonElement>('[data-reader-history="forward"]');
+		if (back !== null) back.disabled = this.historyBack.length === 0;
+		if (forward !== null) forward.disabled = this.historyForward.length === 0;
 	}
 }
