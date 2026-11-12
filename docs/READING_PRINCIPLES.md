@@ -35,8 +35,10 @@ retrieves their supplied occurrences, then returns bounded canonical excerpts.
 The model must inspect those results before suggesting relevance. It must not
 claim a conceptual search is exhaustive or infer absence from a missing word.
 
-Return up to three candidates with a location, a short exact Greek quotation,
-the observable signal and a restrained reason it may be worth examining.
+Present up to three candidates with a location, exact Greek, the observable
+signal and a restrained reason it may be worth examining. The model selects
+retrieved candidate IDs and suggests short reasons; Chora supplies the location
+and Greek from source receipts so the model cannot rewrite them.
 Distinguish incidental references from potentially conspicuous combinations.
 Translations and reasons remain model suggestions and need reader review.
 

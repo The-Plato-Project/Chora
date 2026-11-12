@@ -1,7 +1,8 @@
 ﻿import type { LibraryService } from "../library/LibraryService.js";
 import type { WordExplorationService } from "../library/WordExplorationService.js";
 import type { StudyScope, StudySource } from "../../shared/study/StudyTypes.js";
-import { StudyTopicSearch, type StudyTopicTerm } from "./StudyTopicSearch.js";
+import { StudyTopicSearch, type StudyTopicTerm, type StudyTopicCandidate } from "./StudyTopicSearch.js";
+import type { TextSelection } from "../../shared/text/TextSelection.js";
 import { ApplicationError } from "../../shared/diagnostics/OperationResult.js";
 
 // Text-only evidence: no Vision, anchor repository, note or reader-draft capabilities.
@@ -92,6 +93,7 @@ export class StudyEvidence
 				const found = input.terms.length === 0
 					? { vocabulary: [], candidates: [], total: 0, nextOffset: null }
 					: await this.topics.FindAsync(this.scope.workId, input.terms, offset, this.RequireActive.bind(this));
+				const candidates: (StudyTopicCandidate & { readonly candidateId: string })[] = [];
 				value = { provenance: "dictionary-backed-lexical-candidates", workId: document.id, textVersion: document.textVersion,
 					inputStatus: input.terms.length === 0 ? "invalid-input-not-searched" : "searched-accepted-terms",
 					rejectedTerms: input.rejected,
@@ -115,14 +117,17 @@ export class StudyEvidence
 				receipts.push({ label: "Lexical search coverage", excerpt: coverage, selection: null });
 				for (const candidate of found.candidates)
 				{
+					const candidateId = this.CandidateId(candidate.selection);
+					candidates.push({ ...candidate, candidateId });
 					const forms = candidate.matches.map(function Form(match): string
 					{
 						return match.form;
 					});
 					const unique = [...new Set(forms)];
-					receipts.push({ label: `${document.title} ${candidate.stephanus} · mapped forms: ${unique.join(", ")}`,
+					receipts.push({ candidateId, label: `${document.title} ${candidate.stephanus} · mapped forms: ${unique.join(", ")}`,
 						excerpt: candidate.greek, selection: candidate.selection });
 				}
+				value = { ...value, candidates };
 			}
 			else if (name === "read_passage")
 			{
@@ -134,9 +139,10 @@ export class StudyEvidence
 				if (end < segment.text.length && /[\uDC00-\uDFFF]/u.test(segment.text[end]!)) end -= 1;
 				const selection = document.CreateSelection({ stephanus: segment.key, offset }, { stephanus: segment.key, offset: end });
 				const greek = document.ReconstructText(selection);
+				const candidateId = this.CandidateId(selection);
 				value = { provenance: "canonical-text", workId: document.id, textVersion: document.textVersion,
-					stephanus: segment.key, greek, offset, nextOffset: end < segment.text.length ? end : null };
-				receipts.push({ label: `${document.title} ${segment.key}`, excerpt: greek, selection });
+					candidateId, stephanus: segment.key, greek, offset, nextOffset: end < segment.text.length ? end : null };
+				receipts.push({ candidateId, label: `${document.title} ${segment.key}`, excerpt: greek, selection });
 			}
 			else throw new Error("This tool is not part of the text-only experiment.");
 			this.RequireActive();
@@ -183,50 +189,22 @@ export class StudyEvidence
 		return result;
 	}
 
-	// Checks explicit citations and double-quoted Greek against this turn's actual excerpts.
-	public async CheckCitationsAsync(text: string): Promise<{ readonly unverified: readonly string[]; readonly allowed: readonly string[]; readonly cited: readonly string[]; readonly unverifiedQuotes: readonly string[] }>
+	// Supplies only current-turn canonical receipts; earlier conversation cannot grant a source ID.
+	public GetCandidates(): readonly StudySource[]
 	{
-		const allowed = new Set<string>();
-		const passages: string[] = [];
+		const candidates = new Map<string, StudySource>();
 		for (const source of this.turnSources)
 		{
-			if (source.selection !== null)
-			{
-				allowed.add(source.selection.start.stephanus);
-				const normalized = this.NormalizeQuote(source.excerpt);
-				passages.push(normalized);
-			}
+			if (source.selection !== null && source.candidateId !== undefined) candidates.set(source.candidateId, source);
 		}
-		const unverified = new Set<string>();
-		const cited = new Set<string>();
-		for (const citation of text.matchAll(/\b([1-9]\d{1,2}[a-e])(?:\d+)?\b/gu))
-		{
-			cited.add(citation[1]!);
-			if (!allowed.has(citation[1]!)) unverified.add(citation[1]!);
-		}
-		const unverifiedQuotes: string[] = [];
-		for (const quote of text.matchAll(/[“"«]([^”"»\n]+)[”"»]/gu))
-		{
-			if (/\p{Script=Greek}/u.test(quote[1]!))
-			{
-				const normalized = this.NormalizeQuote(quote[1]!);
-				const found = passages.some(function Contains(passage): boolean
-				{
-					const matches = passage.includes(normalized);
-					return matches;
-				});
-				if (!found) unverifiedQuotes.push(quote[1]!);
-			}
-		}
-		const result = { unverified: [...unverified], allowed: [...allowed], cited: [...cited], unverifiedQuotes };
+		const result = structuredClone([...candidates.values()]);
 		return result;
 	}
 
-	// Whitespace and composition can differ; Greek words, accents and punctuation must match.
-	private NormalizeQuote(text: string): string
+	// IDs identify exact excerpts within this work-scoped turn, not model-invented locations.
+	private CandidateId(selection: TextSelection): string
 	{
-		const composed = text.normalize("NFC");
-		const result = composed.replace(/\s+/gu, " ").trim();
+		const result = `${selection.start.stephanus}:${selection.start.offset}-${selection.end.stephanus}:${selection.end.offset}`;
 		return result;
 	}
 }

@@ -102,6 +102,31 @@ choice, thematic judgment or the significance of any listed passage.
 
 ## Guardrails and future work
 
+### Structured-result follow-up
+
+The reader's real question included the opening Greek passage and asked for
+other places where time is shown similarly. Its first failure was not simply a
+missing search: the model retrieved 328b, 357b, 363c and 369e, then cited unread
+sections and changed one quotation. A correction used matching Greek but
+mentioned rejected references as excluded; the whole-answer scanner rejected
+those mentions and erased the useful material.
+
+The replacement workflow assigns IDs to actual current-turn source receipts.
+The model selects IDs with short provisional English reasons. Chora renders
+locations and Greek directly; extra model fields cannot supply quotations or
+citations. Model JSON and intermediate narration are not displayed. A failed
+selection retains up to three retrieved lexical candidates as an incomplete
+result, without implying that they are thematically significant.
+
+The exact reader question was rerun through an isolated real application using
+the signed runtime. It produced a valid structured selection of 357b, 328b and
+363c; those excerpts were rendered from source receipts. No Vision catalogue
+reads or raw JSON appeared in the displayed answer. The build and all 149 tests
+passed, including unknown-ID rejection, ignored extraneous reference fields,
+canonical-text preservation after failed correction and cancellation behavior.
+Relevance and reasons still require reader review; this is not proof of a strong
+parallel to the reader's interpretation of the opening.
+
 Report literal or lemma-mapped evidence, model-proposed relevance and coverage
 separately. Never conclude that the work has no treatment of a concept merely
 because a bounded lexical search did not find a compelling passage.

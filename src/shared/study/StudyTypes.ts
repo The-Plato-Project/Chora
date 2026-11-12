@@ -39,6 +39,8 @@ export interface StudyConversation
 // A host-validated source card, distinct from citations the model may merely claim.
 export interface StudySource
 {
+	// Host-assigned identity for a retrieved canonical excerpt; never supplied by the model.
+	readonly candidateId?: string;
 	// Human-readable citation, including the saved revision for writing.
 	readonly label: string;
 	// Bounded context for inspecting the retrieved source.

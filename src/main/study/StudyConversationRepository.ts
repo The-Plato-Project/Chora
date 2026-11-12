@@ -118,6 +118,7 @@ export class StudyConversationRepository
 		for (const source of value.sources)
 		{
 			if (typeof source !== "object" || source === null || typeof source.label !== "string" || typeof source.excerpt !== "string") throw new Error("The saved source is invalid.");
+			if (source.candidateId !== undefined && (typeof source.candidateId !== "string" || source.candidateId.length > 120)) throw new Error("The saved candidate identity is invalid.");
 			if (source.selection !== null) DecodeTextSelection(source.selection);
 		}
 		const conversation: StudyConversation = { id: value.id, scope: { workId: value.scope.workId }, model: value.model, messages: value.messages, sources: value.sources };

@@ -92,15 +92,24 @@ allowance; at exhaustion the host stops performing reads and directs synthesis.
 The model should return up to three candidates, not an essay or continued
 investigation. Coverage limits must remain visible.
 
-Recognized explicit Stephanus references must correspond to this turn's retrieved
-sections. Double-quoted Greek must match an actual returned canonical excerpt,
-allowing only whitespace and NFC normalization. One failed check permits a
-correction pass with retrieval revoked. Repeated failure replaces the unsupported
-answer with an explanation marked incomplete.
+The model's final response selects up to three current-turn candidateId values
+and short provisional English reasons. Chora supplies the citation and Greek
+directly from its corresponding receipts; model-provided quotations and reference
+fields cannot replace them. Raw JSON and tool-loop narration remain private.
 
-These checks do not verify translations, unquoted Greek, philosophical claims,
-relevance or dramatic significance. Reader evaluation is the acceptance test.
-A fluent answer, a valid location or a passing software suite is not sufficient.
+One invalid selection permits a bounded correction with retrieval revoked. If
+that fails, the application still presents up to three actual lexical candidates,
+without model endorsements, and marks the result incomplete. It does not discard
+successfully retrieved evidence merely because the model's selection failed.
+No retrieved candidates produces a clear incomplete-search message, not a claim
+that the topic is absent.
+
+The old whole-answer citation/quotation scanner was removed. It falsely rejected
+a corrected answer for mentioning unread references as excluded, despite matching
+Greek quotations. Structured selection checks source membership directly.
+
+Reasons can still misjudge relevance or dramatic significance. Reader evaluation
+is the acceptance test. A valid ID or a passing software suite is not sufficient.
 
 Pinned Goose reports its action-limit notice as ACP end_turn. The adapter also
 recognizes that pinned runtime notice across chunks and classifies it as
@@ -112,7 +121,7 @@ were ignored by its compatibility endpoint in the earlier live check.
 
 The affected tests and full build passed. The existing full suite passed all
 149 tests. Coverage includes tool inventory, dictionary-backed candidates,
-writing exclusion, scope, retrieval closure, quote/citation checks, cancellation,
+writing exclusion, scope, retrieval closure, structured selection, cancellation,
 replacement of rejected answers and separate work histories. The current live
 model trial uses the signed installed runtime. Its first run failed because
 malformed headwords caused a whole batch to be rejected and generic feedback
@@ -123,6 +132,10 @@ tool call and matching Greek quotations. Its relevance, glosses and presentation
 remain provisional. The money contrast failed: no retrieval tool was called,
 and unsupported output was replaced with an incomplete response. Neither trial
 accessed the Vision catalogue. See the trial report for these mixed results.
+After the structured-result change, the reader's actual question with the
+opening Greek passage returned host-rendered 357b, 328b and 363c with a valid
+structured selection. No Vision reads or raw JSON reached the displayed result.
+This validates result handling, not the strength of the proposed thematic parallels.
 Direct fixed-vocabulary retrieval against the real local database succeeded for
 χρόνος and ἅμα, returning dictionary evidence and 88 candidate sections. That
 checks the tool, not the model's vocabulary selection or thematic judgment.

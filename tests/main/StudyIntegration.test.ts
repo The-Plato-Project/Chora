@@ -6,6 +6,7 @@ import { LibraryService } from "../../src/main/library/LibraryService.js";
 import { StudyEvidence } from "../../src/main/study/StudyEvidence.js";
 import { StudyToolServer } from "../../src/main/study/StudyToolServer.js";
 import { StudySession } from "../../src/main/study/StudySession.js";
+import { StudyPassageResult } from "../../src/main/study/StudyPassageResult.js";
 import { StudyConversationRepository } from "../../src/main/study/StudyConversationRepository.js";
 import type { WordEvidenceResult } from "../../src/shared/library/WordExplorationTypes.js";
 import type { StudyBackend } from "../../src/main/study/StudyBackend.js";
@@ -49,8 +50,16 @@ describe("Optional interlocutor integration", function IntegrationTests()
 		const found = JSON.parse(await evidence.CallAsync("find_topic_passages", { terms: [{ lemma: "καταβαίνω", reason: "Model proposal" }, { lemma: "μετ(ά)", reason: "Malformed alternative" }] }));
 		expect(found).toMatchObject({ total: 1, vocabulary: [{ proposal: { lemma: "καταβαίνω" }, occurrences: 1 }], candidates: [{ stephanus: "327a", greek: "κατέβην", matches: [{ form: "κατέβην" }] }] });
 		expect(found).toMatchObject({ inputStatus: "searched-accepted-terms", rejectedTerms: [{ index: 1, lemma: "μετ(ά)" }] });
-		expect(await evidence.CheckCitationsAsync('327a: “κατέβην”')).toMatchObject({ unverified: [], unverifiedQuotes: [] });
-		expect(await evidence.CheckCitationsAsync('108a: «χρόνος»')).toMatchObject({ unverified: ["108a"], unverifiedQuotes: ["χρόνος"] });
+		const candidates = evidence.GetCandidates();
+		const selected = JSON.stringify({ selections: [{ candidateId: candidates[0]!.candidateId, reason: "This may be worth examining." }], excludedReferences: ["108a", "328c"], greek: "Invented Greek must be ignored." });
+		const rendered = StudyPassageResult.FromModel(selected, candidates);
+		expect(rendered.IsValid).toBe(true);
+		expect(rendered.Text).toContain("κατέβην");
+		expect(rendered.Text).not.toContain("108a");
+		expect(rendered.Text).not.toContain("Invented Greek");
+		const rejected = StudyPassageResult.FromModel('{"selections":[{"candidateId":"108a","reason":"Invented source"}]}', candidates);
+		expect(rejected.IsValid).toBe(false);
+		expect(rejected.Text).toContain("κατέβην");
 		await expect(evidence.CallAsync("read_vision", {})).rejects.toThrow(/experiment/u);
 		await expect(evidence.CallAsync("find_visions", {})).rejects.toThrow(/experiment/u);
 		const invalidTerms = JSON.parse(await evidence.CallAsync("find_topic_passages", { terms: [{ lemma: "time", reason: "invalid" }] }));
@@ -61,7 +70,7 @@ describe("Optional interlocutor integration", function IntegrationTests()
 		evidence.EndTurn();
 		await expect(evidence.CallAsync("read_passage", { stephanus: "327a" })).rejects.toThrow();
 		evidence.BeginTurn();
-		expect(await evidence.CheckCitationsAsync('327a')).toMatchObject({ unverified: ["327a"] });
+		expect(evidence.GetCandidates()).toHaveLength(0);
 		const missing = JSON.parse(await evidence.CallAsync("find_topic_passages", { terms: [{ lemma: "χρόνος", reason: "No fixture entry" }] }));
 		expect(missing).toMatchObject({ total: 0, candidates: [], vocabulary: [{ occurrences: 0, dictionary: [] }] });
 		const description = JSON.parse(await evidence.DescribeAsync());
@@ -121,7 +130,11 @@ describe("Optional interlocutor integration", function IntegrationTests()
 			PromptAsync: async function PromptAsync(text) {
 				submittedTask = text;
 				function Pending(_resolve: () => void, reject: (reason: Error) => void): void { rejectTurn = reject; }
-				if (publish !== null) publish({ kind: "text", text: "A possibility" });
+				if (publish !== null)
+				{
+					publish({ kind: "tool", text: "Retrieving evidence" });
+					publish({ kind: "text", text: "A possibility" });
+				}
 				await new Promise<void>(Pending);
 			},
 			CancelAsync: async function CancelAsync() { if (rejectTurn !== null) rejectTurn(new Error("Cancelled")); },
@@ -142,7 +155,8 @@ describe("Optional interlocutor integration", function IntegrationTests()
 			await session.CancelAsync();
 			await failed;
 			const restored = await repository.LoadAsync("republic");
-			expect(restored?.messages[1]).toMatchObject({ text: "A possibility", status: "partial" });
+			expect(restored?.messages[1]?.status).toBe("partial");
+			expect(restored?.messages[1]?.text).not.toContain("A possibility");
 			expect(await repository.LoadAsync("timaeus")).toBeNull();
 			const other = { ...restored!, id: "other", scope: { workId: "timaeus" } };
 			await repository.SaveAsync(other);
@@ -160,7 +174,9 @@ describe("Optional interlocutor integration", function IntegrationTests()
 					prompts += 1;
 					if (prompts === 1) await checkedEvidence.CallAsync("read_passage", { stephanus: "327a" });
 					else await expect(checkedEvidence.CallAsync("read_passage", { stephanus: "327a" })).rejects.toThrow();
-					correctedPublish?.({ kind: "text", text: prompts === 1 || failCorrection ? "Invented passage 108a." : "Republic 327a: κατέβην." });
+					const candidates = checkedEvidence.GetCandidates();
+					const text = JSON.stringify({ selections: [{ candidateId: prompts === 1 || failCorrection ? "108a" : candidates[0]!.candidateId, reason: "A possible place to examine." }] });
+					correctedPublish?.({ kind: "text", text });
 				},
 				CancelAsync: async function CancelAsync() {},
 				Dispose: function Dispose() {}
@@ -171,13 +187,15 @@ describe("Optional interlocutor integration", function IntegrationTests()
 				await checkedSession.StartAsync();
 				const corrected = await checkedSession.SendAsync("Find a passage.");
 				expect(prompts).toBe(2);
-				expect(corrected.messages.at(-1)).toMatchObject({ text: "Republic 327a: κατέβην.", status: "complete" });
+				expect(corrected.messages.at(-1)?.status).toBe("complete");
+				expect(corrected.messages.at(-1)?.text).toContain("κατέβην");
 				expect(updates.some(function Replaced(update) { return update.kind === "replace"; })).toBe(true);
 				prompts = 0;
 				failCorrection = true;
 				const rejected = await checkedSession.SendAsync("Try another passage.");
 				expect(rejected.messages.at(-1)?.status).toBe("partial");
 				expect(rejected.messages.at(-1)?.text).not.toContain("108a");
+				expect(rejected.messages.at(-1)?.text).toContain("κατέβην");
 			}
 			finally
 			{
