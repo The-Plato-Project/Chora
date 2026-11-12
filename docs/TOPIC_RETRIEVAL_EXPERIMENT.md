@@ -46,8 +46,51 @@ submission and quotation/citation rejection. They do not evaluate Greek judgment
 
 The isolated real Electron trial attempted the question above with the installed
 local model on 12 November 2026. Windows Application Control blocked goose.exe
-in the agent's execution environment before model execution. No model answer was received and no personal Vision
-content was sent. A real model-quality result is therefore still pending.
+in the agent's execution environment before model execution. No model answer was
+received in that initial attempt and no personal Vision content was sent.
+
+Installing the official desktop bundle subsequently resolved execution without
+changing Windows security settings. Its signed bundled CLI reports Goose 1.59.0.
+The first live model run then failed on argument quality: proposals such as
+`μετ(ά)` and a multiword phrase caused the whole batch to be rejected. Generic
+tool feedback led the model to infer missing dictionary coverage incorrectly.
+No canonical passages were retrieved and the Vision catalogue was not accessed.
+This was not a successful thematic search despite the model finishing its turn.
+
+The approved follow-up accepts valid headwords independently, returns rejected
+terms with specific reasons, and distinguishes invalid-input-not-searched from
+an actual dictionary lookup. Safe structured validation errors also survive MCP
+instead of being hidden behind a generic dictionary-availability message.
+
+### Live result after feedback correction
+
+The same time question completed with one retrieval call and no Vision catalogue
+reads. The model searched χρόνος, πρόσθεν and ὕστερον, then returned 327c, 328b
+and 345c. Its Greek quotations matched the returned excerpts, including the
+guillemet quotations used in the response. Guillemet quote checks are now part
+of the host validator and focused tests, alongside ordinary double quotes.
+
+This is a retrieval improvement, not thematic acceptance. The results include
+ordinary narrative or argumentative sequence rather than an established striking
+pattern. The gloss of 328b needs reader review, and the model ignored the request
+to omit search narration and follow-up questions. These remain quality findings.
+
+### Money contrast
+
+The question “Where in the Republic is money, wealth or payment explicitly
+discussed? Show a few passages I might want to examine.” produced no tool calls.
+The model generated unsupported source material, and the host's bounded
+correction did not produce a verified answer. Chora replaced the response with
+an inline explanation marked incomplete. No source cards or Vision reads were
+reported. This trial failed retrieval; it must not be counted as a successful
+search merely because the provider finished generating text.
+
+The test therefore remains experimental. Vocabulary quality, obedience to the
+required retrieval step, relevance, translations and restrained presentation
+need reader-led evaluation and further work. A likely next design question is
+whether retrieval must be admitted by application workflow before synthesis,
+rather than relying on the model to choose a tool at all. No such additional
+workflow change has been implemented in this iteration.
 
 A direct check of the actual local PlatoSI database succeeded without Goose.
 Using fixed test vocabulary χρόνος and ἅμα, it returned one dictionary entry for

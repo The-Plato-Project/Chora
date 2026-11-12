@@ -1,23 +1,31 @@
-# Installs the pinned portable Windows runtime without altering ordinary Goose profiles.
+﻿# Verifies the installed signed runtime or downloads the pinned official installer.
 $ErrorActionPreference = 'Stop'
-# The repository owns only this ignored installation directory.
-$repoRoot = Split-Path -Parent $PSScriptRoot
-$destination = Join-Path $repoRoot '.tmp\goose-runtime'
-$archive = Join-Path $destination 'goose.zip'
-New-Item -ItemType Directory -Force $destination | Out-Null
-Invoke-WebRequest 'https://github.com/aaif-goose/goose/releases/download/v1.59.0/goose-x86_64-pc-windows-msvc.zip' -OutFile $archive
-# Release metadata and the extracted binary were independently verified before pinning.
-$hash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash
-if ($hash -ne '8b9ef7be66f469bdafd018de943a095ed83c32775dd623bebb0ab730da22d0d0')
+# Goose Desktop installs its signed CLI next to its other bundled resources.
+$executable = Join-Path $env:LOCALAPPDATA 'Programs\Goose\resources\bin\goose.exe'
+if (Test-Path -LiteralPath $executable)
 {
-	throw 'The Goose archive failed verification.'
+	$signature = Get-AuthenticodeSignature -LiteralPath $executable
+	$binaryHash = (Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash
+	if ($signature.Status -ne 'Valid' -or $binaryHash -ne 'cd4a06fe6811a50394138916517668ba816dee20fa482c0e157b3bbd4279ffcf')
+	{
+		throw 'The installed runtime is not the verified signed Goose 1.59.0 build.'
+	}
+	Write-Output "Verified signed Goose 1.59.0. Set CHORA_GOOSE_BINARY=$executable in .env.local, then restart Chora."
+	Write-Output 'Use the Ollama provider with the existing Chora model profile; no Hugging Face download is needed.'
 }
-Expand-Archive -LiteralPath $archive -DestinationPath $destination -Force
-$executable = Join-Path $destination 'goose-package\goose.exe'
-$binaryHash = (Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash
-if ($binaryHash -ne '5a424ab992d75aaefdc54ccf27719f62c3995e6d9b283d1cca016ec4d4b055ef')
+else
 {
-	throw 'The extracted Goose runtime failed verification.'
+	# The repository owns only this ignored download directory; the installer is not run automatically.
+	$repoRoot = Split-Path -Parent $PSScriptRoot
+	$destination = Join-Path $repoRoot '.tmp\goose-installer'
+	New-Item -ItemType Directory -Force $destination | Out-Null
+	$installer = Join-Path $destination 'Goose-win32-x64-setup.exe'
+	Invoke-WebRequest 'https://github.com/aaif-goose/goose/releases/download/v1.59.0/Goose-win32-x64-setup.exe' -OutFile $installer
+	$hash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash
+	$signature = Get-AuthenticodeSignature -LiteralPath $installer
+	if ($hash -ne '66d83d86953b445dfd64f83517c37e534b427319f3a00e326c7bbef90d61de4b' -or $signature.Status -ne 'Valid')
+	{
+		throw 'The signed Goose installer failed verification.'
+	}
+	Write-Output "Verified installer downloaded to $installer. Run it, then rerun this script to verify the bundled runtime."
 }
-Write-Output "Verified Goose 1.59.0. Set CHORA_GOOSE_BINARY=$executable in .env.local, then restart Chora."
-Write-Output 'With Ollama running and your model installed, run scripts/ConfigureLocalModel.ps1 -Model qwen3.5:9b once to prepare its Chora context profile.'

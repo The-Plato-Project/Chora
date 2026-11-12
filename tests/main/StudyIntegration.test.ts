@@ -46,13 +46,15 @@ describe("Optional interlocutor integration", function IntegrationTests()
 		await evidence.PrepareAsync();
 		await expect(evidence.CallAsync("read_passage", { stephanus: "327a" })).rejects.toThrow();
 		evidence.BeginTurn();
-		const found = JSON.parse(await evidence.CallAsync("find_topic_passages", { terms: [{ lemma: "καταβαίνω", reason: "Model proposal" }] }));
+		const found = JSON.parse(await evidence.CallAsync("find_topic_passages", { terms: [{ lemma: "καταβαίνω", reason: "Model proposal" }, { lemma: "μετ(ά)", reason: "Malformed alternative" }] }));
 		expect(found).toMatchObject({ total: 1, vocabulary: [{ proposal: { lemma: "καταβαίνω" }, occurrences: 1 }], candidates: [{ stephanus: "327a", greek: "κατέβην", matches: [{ form: "κατέβην" }] }] });
+		expect(found).toMatchObject({ inputStatus: "searched-accepted-terms", rejectedTerms: [{ index: 1, lemma: "μετ(ά)" }] });
 		expect(await evidence.CheckCitationsAsync('327a: “κατέβην”')).toMatchObject({ unverified: [], unverifiedQuotes: [] });
-		expect(await evidence.CheckCitationsAsync('108a: “χρόνος”')).toMatchObject({ unverified: ["108a"], unverifiedQuotes: ["χρόνος"] });
+		expect(await evidence.CheckCitationsAsync('108a: «χρόνος»')).toMatchObject({ unverified: ["108a"], unverifiedQuotes: ["χρόνος"] });
 		await expect(evidence.CallAsync("read_vision", {})).rejects.toThrow(/experiment/u);
 		await expect(evidence.CallAsync("find_visions", {})).rejects.toThrow(/experiment/u);
-		await expect(evidence.CallAsync("find_topic_passages", { terms: [{ lemma: "time", reason: "invalid" }] })).rejects.toThrow(/Greek/u);
+		const invalidTerms = JSON.parse(await evidence.CallAsync("find_topic_passages", { terms: [{ lemma: "time", reason: "invalid" }] }));
+		expect(invalidTerms).toMatchObject({ inputStatus: "invalid-input-not-searched", vocabulary: [], candidates: [], rejectedTerms: [{ lemma: "time" }] });
 		await evidence.CallAsync("read_passage", { stephanus: "327a" });
 		await evidence.CallAsync("read_passage", { stephanus: "327a" });
 		expect(JSON.parse(await evidence.CallAsync("read_passage", { stephanus: "327a" }))).toMatchObject({ retrieval: { remainingCalls: 0, closed: true } });
@@ -93,6 +95,9 @@ describe("Optional interlocutor integration", function IntegrationTests()
 			const result = await client.callTool({ name: "read_passage", arguments: { stephanus: "327a" } });
 			expect(result.isError).not.toBe(true);
 			expect(evidence.GetSources()[0]?.selection?.dialogue).toBe("republic");
+			const invalid = await client.callTool({ name: "find_topic_passages", arguments: {} });
+			expect(invalid.isError).toBe(true);
+			expect(JSON.stringify(invalid)).toContain("INVALID_TOPIC_TERMS");
 		}
 		finally
 		{

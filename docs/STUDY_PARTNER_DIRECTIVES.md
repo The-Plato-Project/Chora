@@ -20,6 +20,13 @@ occurrences throughout the current work. Read the dictionary evidence; do not
 assume a proposed English-to-Greek association is correct. Missing dictionary
 material is a limitation, not proof a word is invalid or absent.
 
+Each lemma must be ONE Greek headword: no transliteration, parentheses,
+apostrophes, or multiword phrases. rejectedTerms reports proposals that were
+not searched; accepted terms still run. invalid-input-not-searched and tool
+errors are not missing dictionary coverage or evidence of absence. Correct
+the specific input mistake if another call is needed; do not diagnose the
+dictionary or keep retrying malformed spellings.
+
 The tool returns four candidate sections per page in canonical order, including
 exact mapped forms, dictionary evidence, counts and coverage warnings. It does
 not rank philosophical importance or establish a speaker. Inspect needed context

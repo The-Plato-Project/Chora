@@ -2,6 +2,7 @@
 import type { WordExplorationService } from "../library/WordExplorationService.js";
 import type { StudyScope, StudySource } from "../../shared/study/StudyTypes.js";
 import { StudyTopicSearch, type StudyTopicTerm } from "./StudyTopicSearch.js";
+import { ApplicationError } from "../../shared/diagnostics/OperationResult.js";
 
 // Text-only evidence: no Vision, anchor repository, note or reader-draft capabilities.
 export class StudyEvidence
@@ -85,12 +86,20 @@ export class StudyEvidence
 			let value: object;
 			if (name === "find_topic_passages")
 			{
-				const terms = this.DecodeTerms(args.terms);
+				const input = this.DecodeTerms(args.terms);
 				const offset = args.offset ?? 0;
 				if (typeof offset !== "number" || !Number.isSafeInteger(offset) || offset < 0) throw new Error("Invalid candidate offset.");
-				const found = await this.topics.FindAsync(this.scope.workId, terms, offset, this.RequireActive.bind(this));
+				const found = input.terms.length === 0
+					? { vocabulary: [], candidates: [], total: 0, nextOffset: null }
+					: await this.topics.FindAsync(this.scope.workId, input.terms, offset, this.RequireActive.bind(this));
 				value = { provenance: "dictionary-backed-lexical-candidates", workId: document.id, textVersion: document.textVersion,
+					inputStatus: input.terms.length === 0 ? "invalid-input-not-searched" : "searched-accepted-terms",
+					rejectedTerms: input.rejected,
 					...found, limitations: "Topic relevance is a model proposal. Dictionary evidence validates vocabulary, not contextual sense. All supplied mapped occurrences were examined; missing or ambiguous morphology limits coverage. Canonical order is not an importance ranking. No implicit theme or speaker attribution is established." };
+				for (const rejected of input.rejected)
+				{
+					receipts.push({ label: `Rejected search proposal · ${rejected.lemma ?? "invalid item"}`, excerpt: rejected.message, selection: null });
+				}
 				for (const term of found.vocabulary)
 				{
 					receipts.push({ label: `Search proposal · ${term.proposal.lemma}`,
@@ -100,7 +109,10 @@ export class StudyEvidence
 						receipts.push({ label: `Dictionary excerpt · ${entry.provider} · ${entry.headword}`, excerpt: entry.plainText, selection: null });
 					}
 				}
-				receipts.push({ label: "Lexical search coverage", excerpt: `${found.total} candidate sections for the proposed vocabulary; this page starts at ${offset}. This is not exhaustive conceptual coverage.`, selection: null });
+				const coverage = input.terms.length === 0
+					? "No dictionary or occurrence lookup was performed because every proposed headword was invalid. This is not evidence of missing coverage or absent passages."
+					: `${found.total} candidate sections for the accepted vocabulary; this page starts at ${offset}. This is not exhaustive conceptual coverage.`;
+				receipts.push({ label: "Lexical search coverage", excerpt: coverage, selection: null });
 				for (const candidate of found.candidates)
 				{
 					const forms = candidate.matches.map(function Form(match): string
@@ -142,21 +154,33 @@ export class StudyEvidence
 		return result;
 	}
 
-	// Rejects oversized inventories and non-Greek headwords before any provider call.
-	private DecodeTerms(value: unknown): readonly StudyTopicTerm[]
+	// Invalid proposals are reported individually; valid headwords still reach dictionary lookup.
+	private DecodeTerms(value: unknown): { readonly terms: readonly StudyTopicTerm[]; readonly rejected: readonly { readonly index: number; readonly lemma: string | null; readonly message: string }[] }
 	{
-		if (!Array.isArray(value) || value.length < 1 || value.length > 4) throw new Error("Propose one to four Greek headwords.");
-		const terms: StudyTopicTerm[] = [];
-		for (const item of value)
+		if (!Array.isArray(value) || value.length < 1 || value.length > 4)
 		{
-			if (typeof item !== "object" || item === null || typeof item.lemma !== "string" || item.lemma.length > 80
-				|| !/^[\p{Script=Greek}\p{M}]+$/u.test(item.lemma) || typeof item.reason !== "string" || item.reason.length > 240)
-			{
-				throw new Error("Each proposal needs a Greek headword and a short reason.");
-			}
-			terms.push({ lemma: item.lemma, reason: item.reason });
+			throw ApplicationError.Expected("validation", "INVALID_TOPIC_TERMS", "Supply terms as an array of one to four objects, each with lemma and reason strings. No dictionary search was performed.");
 		}
-		return terms;
+		const terms: StudyTopicTerm[] = [];
+		const rejected: { index: number; lemma: string | null; message: string }[] = [];
+		for (let index = 0; index < value.length; index += 1)
+		{
+			const item = value[index];
+			if (typeof item !== "object" || item === null || typeof item.lemma !== "string" || item.lemma.length > 80
+				|| !/^[\p{Script=Greek}\p{M}]+$/u.test(item.lemma.trim()) || !/\p{Script=Greek}/u.test(item.lemma)
+				|| typeof item.reason !== "string" || item.reason.trim().length === 0 || item.reason.length > 240)
+			{
+				const lemma = typeof item === "object" && item !== null && typeof item.lemma === "string" ? item.lemma.slice(0, 80) : null;
+				rejected.push({ index, lemma, message: "Not searched: provide ONE Greek dictionary headword, without spaces, parentheses, transliteration or apostrophes, and a short reason. This is invalid input, not missing dictionary coverage. Other valid proposals are searched independently." });
+			}
+			else
+			{
+				const lemma = item.lemma.trim().normalize("NFC");
+				terms.push({ lemma, reason: item.reason });
+			}
+		}
+		const result = { terms, rejected };
+		return result;
 	}
 
 	// Checks explicit citations and double-quoted Greek against this turn's actual excerpts.
@@ -181,7 +205,7 @@ export class StudyEvidence
 			if (!allowed.has(citation[1]!)) unverified.add(citation[1]!);
 		}
 		const unverifiedQuotes: string[] = [];
-		for (const quote of text.matchAll(/[“"]([^”"\n]+)[”"]/gu))
+		for (const quote of text.matchAll(/[“"«]([^”"»\n]+)[”"»]/gu))
 		{
 			if (/\p{Script=Greek}/u.test(quote[1]!))
 			{

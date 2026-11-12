@@ -14,7 +14,9 @@ The earlier general-chat and Vision-context experiment is superseded here.
 ## Windows setup
 
 1. Run `powershell -ExecutionPolicy Bypass -File scripts/InstallGoose.ps1`.
-   The installer verifies the pinned Goose 1.59.0 archive and executable.
+   The helper verifies the installed signed Goose 1.59.0 runtime. If absent, it
+   downloads and verifies the official Windows desktop installer; run that
+   installer, then rerun the helper. The unsigned portable CLI is not used.
 2. Set the printed `CHORA_GOOSE_BINARY` path in `.env.local`; never commit that file.
 3. Start Ollama with the chosen base model installed. Chora settings selects
    qwen3.5:9b by default or qwen3.5:4b as an explicit alternative.
@@ -26,10 +28,13 @@ The earlier general-chat and Vision-context experiment is superseded here.
 6. Inspect Sources for model-proposed vocabulary, dictionary excerpts, coverage
    and actual canonical matches. Stop cancels a response; the next Send reconnects.
 
-Windows must permit the executable to run. On 12 November 2026 the isolated live
-trial was blocked by Windows Application Control before a model question was
-sent. Changing or bypassing that policy is outside the experiment. The executable
-needs approval through the normal Windows security or administration process.
+On 12 November 2026 Windows Smart App Control blocked the unsigned portable CLI.
+Installing the official desktop bundle resolved startup: its bundled CLI has a
+valid LF Open Source, LLC signature, runs as version 1.59.0, and has the pinned
+SHA-256 cd4a06fe6811a50394138916517668ba816dee20fa482c0e157b3bbd4279ffcf.
+Chora uses that signed CLI under `Programs/Goose/resources/bin/goose.exe`.
+No Windows security setting was changed. Desktop setup can use the existing
+Ollama provider; its separate Hugging Face model download is unnecessary.
 
 ## Runtime boundaries
 
@@ -109,7 +114,15 @@ The affected tests and full build passed. The existing full suite passed all
 149 tests. Coverage includes tool inventory, dictionary-backed candidates,
 writing exclusion, scope, retrieval closure, quote/citation checks, cancellation,
 replacement of rejected answers and separate work histories. The current live
-model trial remains pending the Windows executable approval described above.
+model trial uses the signed installed runtime. Its first run failed because
+malformed headwords caused a whole batch to be rejected and generic feedback
+was mistaken for missing dictionary coverage. Per-term feedback now preserves
+valid headwords and identifies rejected inputs without implying absence.
+The repeated time question returned actual passages 327c, 328b and 345c with one
+tool call and matching Greek quotations. Its relevance, glosses and presentation
+remain provisional. The money contrast failed: no retrieval tool was called,
+and unsupported output was replaced with an incomplete response. Neither trial
+accessed the Vision catalogue. See the trial report for these mixed results.
 Direct fixed-vocabulary retrieval against the real local database succeeded for
 χρόνος and ἅμα, returning dictionary evidence and 88 candidate sections. That
 checks the tool, not the model's vocabulary selection or thematic judgment.
