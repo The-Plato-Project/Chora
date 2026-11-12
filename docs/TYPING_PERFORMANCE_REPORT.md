@@ -12,7 +12,7 @@ In Write mode, `MarkdownEditor.CreateChangePlugin` detects the changed ProseMirr
 
 The resulting string then enters `VisionController.UpdateMarkdown` and `VisionStore.Update`. The store scans that string for reference directives and compares placement identities. The controller reschedules autosave and publishes only actual state transitions. Finally, `MarkdownEditor.UpdateToolbar` writes button state, even when formatting has not changed.
 
-Sources: [MarkdownEditor.ts:275](../src/renderer/ui/MarkdownEditor.ts), [VisionStore.ts:222](../src/renderer/visions/VisionStore.ts), [VisionController.ts:217](../src/renderer/visions/VisionController.ts), [installed Milkdown serializer](../node_modules/@milkdown/transformer/lib/index.js).
+Sources: [MarkdownEditor.ts:275](../src/renderer/ui/MarkdownEditor.ts), [VisionStore.ts:222](../src/renderer/visions/VisionStore.ts), [VisionController.ts:217](../src/renderer/visions/VisionController.ts), installed Milkdown serializer (`node_modules/@milkdown/transformer/lib/index.js`).
 
 Markdown mode has a different path. CodeMirror already owns text, so it does not perform rich-document serialization. It still converts its text representation to a string, scans references to rebuild decorations, and passes the Markdown to the store for another reference scan.
 
@@ -35,7 +35,7 @@ For the 59.49 KB Write document, the 95th-percentile dispatch time was 9.3 ms. F
 
 Store/controller work had a median below the timer's useful resolution for the reference-free examples and 0.1 ms for the reference-bearing example. These rounded values must not be read as literally zero cost. The reference scan itself had a 0.1 ms median with 40 references. It is repeated work, but it was not the dominant cost in these measurements.
 
-Raw results: [Write measurements](../.tmp/typing-exploration/results.json), [Markdown measurements](../.tmp/typing-exploration/source-results.json). The temporary profiler is retained under [.tmp/typing-exploration](../.tmp/typing-exploration/Run.cjs); it does not enter the application bundle or test suite.
+Raw results: Write measurements (`.tmp/typing-exploration/results.json`), Markdown measurements (`.tmp/typing-exploration/source-results.json`). The temporary profiler is retained under .tmp/typing-exploration (`.tmp/typing-exploration/Run.cjs`); it does not enter the application bundle or test suite.
 
 ## Other findings and ruled-out explanations
 
@@ -43,7 +43,7 @@ Raw results: [Write measurements](../.tmp/typing-exploration/results.json), [Mar
 
 `UpdateToolbar` also runs for selection updates. Its unconditional `aria-pressed` writes and repeated disabled-state assignments can cause avoidable DOM/style work. It even iterates controls when the toolbar is hidden. Those are worthwhile secondary cleanup targets. Source: [MarkdownEditor.ts:589](../src/renderer/ui/MarkdownEditor.ts).
 
-**The undo and redo availability checks do not execute undo/redo operations.** The installed ProseMirror history implementation checks its event count and only constructs/applies an undo transaction when a dispatch function is provided. Chora's toolbar calls omit dispatch. These checks are inexpensive predicates, not accidental history replay. Source: [installed ProseMirror history, `buildCommand`](../node_modules/prosemirror-history/dist/index.js).
+**The undo and redo availability checks do not execute undo/redo operations.** The installed ProseMirror history implementation checks its event count and only constructs/applies an undo transaction when a dispatch function is provided. Chora's toolbar calls omit dispatch. These checks are inexpensive predicates, not accidental history replay. Source: installed ProseMirror history, `buildCommand` (`node_modules/prosemirror-history/dist/index.js`).
 
 **The previous global refresh defect is not the current steady-state path.** The current source only publishes dirty, save-state, metadata, or reference events when their values change. The generated renderer bundle contains the new `vision.dirty-changed` path, and its build time is later than the corrected controller source. The running Electron process was started after that renderer build. This supports the conclusion that the prior source correction was rebuilt; it does not independently prove which in-memory bundle every window is executing.
 
@@ -72,7 +72,7 @@ There was no clear mode-independent delay attributable to the graphics setting i
 
 The actual editors also reported `spellcheck="true"` in Write mode and `spellcheck="false"` in Markdown mode. Native spellchecking alone therefore does not fit the shared symptom. The common store/controller and reference-scan path was inexpensive for the synthetic documents in the earlier measurements. Full-workspace layout, paint/compositing, foreground input scheduling, and costs specific to the reader's document remain unmeasured.
 
-Raw follow-up results: [software-rendering probe](../.tmp/typing-exploration/native-software-results.json), [default-GPU-policy probe](../.tmp/typing-exploration/native-gpu-results.json).
+Raw follow-up results: software-rendering probe (`.tmp/typing-exploration/native-software-results.json`), default-GPU-policy probe (`.tmp/typing-exploration/native-gpu-results.json`).
 
 **The next diagnostic step for the shared symptom is a performance trace in the visible Chora workspace while typing in both modes.** It should correlate input events with scripting, style recalculation, layout, paint, and compositor presentation, and include the exact displayed document and open panes. That trace should precede a claim about the common cause or an application-wide graphics-policy change. No application settings, code, or reader writing were changed by these probes.
 
