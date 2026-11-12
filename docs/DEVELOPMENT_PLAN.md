@@ -143,8 +143,12 @@ about when a contribution serves the present inquiry. These remain consistent
 across backends. The experiment's context, read-only evidence tools, backend
 boundary, and acceptance gates are defined in
 [the interlocutor experiment](GOOSE_STUDY_PARTNER_EXPERIMENT.md).
-This is an experimental branch of work; no runtime is enabled by the design.
-It must not make ordinary reading and writing depend on an agent.
+The current [topic-retrieval trial](TOPIC_RETRIEVAL_EXPERIMENT.md) is canonical-only:
+dictionary-backed passage candidates and exact context reads, without Visions or
+editor drafts. The [reading principles](READING_PRINCIPLES.md) guide attention
+without authorizing hidden-meaning claims. Evaluate useful and incidental
+matches before expanding the tools. Runtime starts only on Send; ordinary
+reading and writing remain independent of an agent.
 
 ## Deferred Work
 

@@ -148,12 +148,17 @@ appeared when asked. It must not:
 - decide which dictionary sense governs a passage.
 
 Reader writing remains local. The open work is always the interlocutor's context.
-Its saved Visions are available when a submitted request calls for them, including
-a request to read all writing so far. The open same-work Vision is automatic
-supporting context on Send, including an explicitly identified editor draft.
-Saved context is refreshed per request. Other works remain outside that request;
-no typing is monitored or sent between submissions. Requests about places in
-Plato's text search canonical Greek, keeping reader writing distinct.
+The current experiment uses canonical Greek and linguistic evidence only;
+Visions, editor drafts and reader notes are not supplied or exposed through tools.
+Its conversation history is separate from the earlier general-chat trial so
+previous writing context is not replayed. Older saved conversations are retained.
+Access to reader writing is a later, explicit phase. No typing is monitored or
+sent between submissions.
+
+The [reading principles](READING_PRINCIPLES.md) guide attention to exact wording,
+speech, action and dramatic circumstances. The first task is topic retrieval
+through explicit vocabulary and clear local juxtapositions. Candidate relevance
+is provisional; the model does not discover an authoritative hidden meaning.
 
 ## Product Principles
 

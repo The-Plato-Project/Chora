@@ -24,6 +24,8 @@ reports live in this folder.
 
 - [Optional local Goose experiment](GOOSE_STUDY_PARTNER_EXPERIMENT.md)
 - [Chora-owned behavioral directives](STUDY_PARTNER_DIRECTIVES.md)
+- [Reading principles for the retrieval experiment](READING_PRINCIPLES.md)
+- [Topic retrieval trial and evaluation](TOPIC_RETRIEVAL_EXPERIMENT.md)
 
 ## Repository guidance
 

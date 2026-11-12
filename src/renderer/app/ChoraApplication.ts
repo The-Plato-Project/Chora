@@ -65,7 +65,7 @@ export class ChoraApplication
 	// Application-wide inference preferences are separate from the chat composer.
 	private readonly studySettings = new StudySettingsStore();
 	private readonly study = new StudyController(this.events, this.errors, this.studyStore, this.studyGateway,
-		this.libraryStore, this.visionStore, this.studySettings);
+		this.libraryStore, this.studySettings);
 	private readonly visionReferences = new VisionReferenceController(this.events, this.errors, this.visionStore, this.anchorGateway, this.libraryStore);
 	private readonly wordVisionReferenceStore = new WordVisionReferenceStore();
 	private readonly wordVisionReferences = new WordVisionReferenceController(

@@ -3,7 +3,6 @@ import type { ChoraEventBus, Unsubscribe } from "../core/events/ChoraEventBus.js
 import type { ChoraEvents } from "../core/events/ChoraEvents.js";
 import type { ErrorManager } from "../core/diagnostics/RendererErrorManager.js";
 import type { LibraryStore } from "../library/LibraryStore.js";
-import type { VisionStore } from "../visions/VisionStore.js";
 import type { StudyGateway } from "./StudyGateway.js";
 import type { StudyStore } from "./StudyStore.js";
 import { StudySettingsStore } from "./StudySettingsStore.js";
@@ -25,7 +24,7 @@ export class StudyController
 	// Shares existing state owners rather than introducing another work catalogue.
 	public constructor(private readonly events: ChoraEventBus<ChoraEvents>, private readonly errors: ErrorManager,
 		private readonly store: StudyStore, private readonly gateway: StudyGateway, private readonly library: LibraryStore,
-		private readonly visions: VisionStore, private readonly settings = new StudySettingsStore())
+		private readonly settings = new StudySettingsStore())
 	{
 		this.librarySubscription = events.Subscribe("library.text-opened", this.WorkChangedAsync.bind(this));
 		void this.WorkChangedAsync();
@@ -84,19 +83,15 @@ export class StudyController
 		if (state !== null && !state.busy && text.trim().length > 0 && !this.disposed)
 		{
 			const workId = state.workId;
-			const active = this.visions.GetActive();
-			const vision = active?.workId === workId ? active : null;
-			const visionId = vision?.id ?? null;
-			const context = vision === null ? {} : { visionDraft: vision.markdown };
 			const generation = this.generation;
 			const model = this.settings.GetModel();
 			this.streamSubscription ??= this.gateway.Subscribe(this.HandleUpdate.bind(this));
 			this.runtimeWorkId = workId;
-			this.store.BeginTurn(workId, text, model, visionId);
+			this.store.BeginTurn(workId, text, model);
 			this.Changed();
 			try
 			{
-				const conversation = await this.gateway.SendAsync({ workId, text, visionId, model, ...context });
+				const conversation = await this.gateway.SendAsync({ workId, text, model });
 				if (!this.disposed && generation === this.generation)
 				{
 					this.store.SetConversation(workId, conversation);
@@ -151,7 +146,6 @@ export class StudyController
 			if (this.library.GetText()?.id !== source.selection.dialogue) await this.events.PublishAsync("library.text-open-requested", { textId: source.selection.dialogue });
 			await this.events.PublishAsync("library.jump-requested", { selection: source.selection });
 		}
-		if (source.visionId !== null) await this.events.PublishAsync("vision.document-open-requested", { visionId: source.visionId });
 	}
 
 	// Releases feature subscriptions; main revokes execution when the window closes.

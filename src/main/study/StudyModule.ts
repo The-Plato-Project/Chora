@@ -8,7 +8,6 @@ import type { ChoraWindowManager } from "../bootstrap/WindowManager.js";
 import { ResolveResourcePath } from "../bootstrap/ResourcePaths.js";
 import { IpcErrorBoundary } from "../diagnostics/IpcErrorBoundary.js";
 import type { LibraryModule } from "../library/LibraryModule.js";
-import type { VisionModule } from "../visions/VisionModule.js";
 import { StudyConversationRepository } from "./StudyConversationRepository.js";
 import { StudyEvidence } from "./StudyEvidence.js";
 import { StudySession } from "./StudySession.js";
@@ -35,9 +34,9 @@ export class StudyModule
 
 	// Existing service owners retain all canonical and reader-document responsibilities.
 	public constructor(private readonly windows: ChoraWindowManager, private readonly library: LibraryModule,
-		private readonly visions: VisionModule, private readonly internalPath: string)
+		private readonly internalPath: string)
 	{
-		this.repository = new StudyConversationRepository(path.join(internalPath, "interlocutor"));
+		this.repository = new StudyConversationRepository(path.join(internalPath, "interlocutor", "canonical-topic-retrieval-v1"));
 	}
 
 	// No start-session or context-selection API is exposed to the renderer.
@@ -115,17 +114,20 @@ export class StudyModule
 				const previous = await this.repository.LoadAsync(command.workId);
 				const directivesPath = ResolveResourcePath("docs", "STUDY_PARTNER_DIRECTIVES.md");
 				const directives = await fs.readFile(directivesPath, "utf8");
+				const principlesPath = ResolveResourcePath("docs", "READING_PRINCIPLES.md");
+				const principles = await fs.readFile(principlesPath, "utf8");
+				const instructions = directives + "\n\n" + principles;
 				if (generation !== this.generation) throw ApplicationError.Expected("cancelled", "STUDY_STOPPED", "Response stopped.");
 				const scope = { workId: command.workId };
-				const backend = new GooseStudyBackend(process.env.CHORA_GOOSE_BINARY ?? "", path.join(this.internalPath, "goose"), directives);
-				const evidence = new StudyEvidence(this.library.GetService(), this.visions.GetService(), this.visions.GetAnchors(), this.library.GetWords(), scope);
-				const session = new StudySession(scope, command.model, backend, evidence, this.repository, directives, this.Publish.bind(this), previous);
+				const backend = new GooseStudyBackend(process.env.CHORA_GOOSE_BINARY ?? "", path.join(this.internalPath, "goose"), instructions);
+				const evidence = new StudyEvidence(this.library.GetService(), this.library.GetWords(), scope);
+				const session = new StudySession(scope, command.model, backend, evidence, this.repository, instructions, this.Publish.bind(this), previous);
 				this.session = session;
 				await session.StartAsync();
 			}
 			const session = this.session;
 			if (session === null || generation !== this.generation) throw ApplicationError.Expected("cancelled", "STUDY_STOPPED", "Response stopped.");
-			result = await session.SendAsync(command.text, command.visionId, command.visionDraft);
+			result = await session.SendAsync(command.text);
 		}
 		catch (error)
 		{
@@ -159,17 +161,12 @@ export class StudyModule
 	{
 		if (typeof value !== "object" || value === null || !("workId" in value) || typeof value.workId !== "string" || value.workId.length > 100
 			|| !("text" in value) || typeof value.text !== "string" || value.text.trim().length === 0 || value.text.length > 8000
-			|| !("visionId" in value) || (value.visionId !== null && (typeof value.visionId !== "string" || value.visionId.length > 100))
 			|| !("model" in value) || (value.model !== "qwen3.5:9b" && value.model !== "qwen3.5:4b"))
 		{
 			throw ApplicationError.Expected("validation", "INVALID_STUDY_MESSAGE", "Enter a message for the current work and choose a supported model in Chora settings.");
 		}
-		if ("visionDraft" in value && (value.visionId === null || typeof value.visionDraft !== "string" || value.visionDraft.length > 500000))
-		{
-			throw ApplicationError.Expected("validation", "INVALID_STUDY_CONTEXT", "The open Vision context is invalid or exceeds 500,000 characters.");
-		}
-		const context = "visionDraft" in value ? { visionDraft: value.visionDraft as string } : {};
-		const command: StudySendCommand = { workId: value.workId, text: value.text, visionId: value.visionId, model: value.model, ...context };
+		if ("visionId" in value || "visionDraft" in value) throw ApplicationError.Expected("validation", "STUDY_TEXT_ONLY", "This experiment accepts canonical text questions only.");
+		const command: StudySendCommand = { workId: value.workId, text: value.text, model: value.model };
 		return command;
 	}
 

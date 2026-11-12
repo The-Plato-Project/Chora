@@ -165,7 +165,7 @@ export class ChoraApplication
 		this.platosi = platosi;
 		this.library = library;
 		this.visions = new VisionModule(this.documentsPath, library.GetService());
-		this.study = new StudyModule(this.windows, library, this.visions, this.internalPath);
+		this.study = new StudyModule(this.windows, library, this.internalPath);
 	}
 
 	// Returns the configured PlatoSI client.

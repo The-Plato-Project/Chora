@@ -1,6 +1,6 @@
 import type { TextSelection } from "../text/TextSelection.js";
 
-// Canonical work owning a conversation; its saved Visions are available on request.
+// Canonical work owning a text-only research conversation.
 export interface StudyScope
 {
 	// Canonical work whose text and linguistic material may be read.
@@ -19,8 +19,6 @@ export interface StudyMessage
 	readonly text: string;
 	// Interrupted generation must never appear as a completed answer.
 	readonly status: "complete" | "partial";
-	// The open Vision at submission remains identifiable in conversation history.
-	readonly visionId?: string;
 }
 
 // Application-owned transcript, independent of a backend's native session ID.
@@ -45,8 +43,6 @@ export interface StudySource
 	readonly label: string;
 	// Bounded context for inspecting the retrieved source.
 	readonly excerpt: string;
-	// Optional document navigation target, resolved by the Vision owner.
-	readonly visionId: string | null;
 	// Optional canonical navigation target, validated by the text owner.
 	readonly selection: TextSelection | null;
 }
@@ -64,17 +60,13 @@ export interface StudyUpdate
 	readonly text: string;
 }
 
-// One ordinary chat message, bound to its work and optional saved attachment.
+// One ordinary chat message, bound to its canonical work.
 export interface StudySendCommand
 {
 	// Work open when the reader submitted the message, validated by the host.
 	readonly workId: string;
 	// Current request; earlier conversation remains contextual evidence.
 	readonly text: string;
-	// Open same-work Vision captured automatically at submission.
-	readonly visionId: string | null;
-	// Current editor prose is context only; supplying it never saves or edits a Vision.
-	readonly visionDraft?: string;
 	// Deliberate local choice; no provider or model fallback is permitted.
 	readonly model: StudyModel;
 }

@@ -69,7 +69,7 @@ export class StudyPanel
 		this.input.rows = 3;
 		this.input.maxLength = 8000;
 		this.input.setAttribute("aria-label", "Message The Agentian Stranger");
-		this.input.placeholder = "Ask about this work or your Visions…";
+		this.input.placeholder = "Find passages in this work…";
 		this.form.className = "study-composer";
 		const actions = document.createElement("div");
 		actions.className = "study-actions";
@@ -84,8 +84,6 @@ export class StudyPanel
 		this.input.addEventListener("input", this.typing);
 		this.input.addEventListener("keydown", this.key);
 		this.subscriptions.push(events.Subscribe("study.changed", this.Render.bind(this)));
-		this.subscriptions.push(events.Subscribe("vision.opened", this.Render.bind(this)));
-		this.subscriptions.push(events.Subscribe("vision.closed", this.Render.bind(this)));
 		this.Render();
 	}
 
@@ -139,10 +137,6 @@ export class StudyPanel
 		{
 			const action = button.dataset.studyAction;
 			if (action === "stop") await this.controller.StopAsync();
-			else if (action === "attached-source" && button.dataset.visionId !== undefined)
-			{
-				await this.controller.OpenSourceAsync({ visionId: button.dataset.visionId, selection: null, label: "Vision context", excerpt: "" });
-			}
 			else if (action === "source")
 			{
 				const source = this.sourceCards[Number(button.dataset.sourceIndex)];
@@ -183,7 +177,7 @@ export class StudyPanel
 			body?.parentElement?.remove();
 		}
 		this.empty.hidden = messages.length > 0;
-		this.empty.textContent = state === null ? "Open a work to begin." : "Ask about " + state.title + " or your Visions.";
+		this.empty.textContent = state === null ? "Open a work to begin." : "Find passages in " + state.title + ".";
 		const atBottom = this.transcript.scrollHeight - this.transcript.scrollTop - this.transcript.clientHeight < 48;
 		for (let index = 0; index < messages.length; index += 1)
 		{
@@ -196,12 +190,6 @@ export class StudyPanel
 				author.textContent = message.role === "reader" ? "You" : "The Agentian Stranger";
 				body = document.createElement("p");
 				article.append(author, body);
-				if (message.visionId !== undefined)
-				{
-					const attachment = this.Button("Vision context", "attached-source");
-					attachment.dataset.visionId = message.visionId;
-					article.append(attachment);
-				}
 				this.transcript.append(article);
 				this.messageNodes.push(body);
 			}
@@ -220,11 +208,21 @@ export class StudyPanel
 		for (let index = this.sourceCards.length; index < sources.length; index += 1)
 		{
 			const source = sources[index]!;
-			const button = this.Button(source.label, "source");
-			button.dataset.sourceIndex = String(index);
+			let label: HTMLElement;
+			if (source.selection === null)
+			{
+				label = document.createElement("strong");
+				label.textContent = source.label;
+			}
+			else
+			{
+				const button = this.Button(source.label, "source");
+				button.dataset.sourceIndex = String(index);
+				label = button;
+			}
 			const excerpt = document.createElement("p");
 			excerpt.textContent = source.excerpt;
-			this.sources.append(button, excerpt);
+			this.sources.append(label, excerpt);
 			this.sourceCards.push(source);
 		}
 	}
