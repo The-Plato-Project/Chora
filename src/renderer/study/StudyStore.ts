@@ -81,13 +81,12 @@ export class StudyStore
 	}
 
 	// Shows outgoing text immediately while the host lazily opens execution.
-	public BeginTurn(workId: string, text: string, model: string, visionId: string | null = null): void
+	public BeginTurn(workId: string, text: string, model: string): void
 	{
 		const state = this.RequireWork(workId);
 		const conversation = state.conversation ?? { id: "", scope: { workId }, model, messages: [], sources: [] };
-		const attachment = visionId === null ? {} : { visionId };
 		state.conversation = { ...conversation, messages: [...conversation.messages,
-			{ role: "reader", text, status: "complete", ...attachment }, { role: "interlocutor", text: "", status: "partial" }] };
+			{ role: "reader", text, status: "complete" }, { role: "interlocutor", text: "", status: "partial" }] };
 		state.draft = "";
 		state.busy = true;
 		state.status = "Responding…";

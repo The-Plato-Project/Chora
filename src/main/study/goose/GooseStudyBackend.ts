@@ -8,8 +8,8 @@ import type { StudyBackend, StudyToolEndpoint } from "../StudyBackend.js";
 import type { StudyUpdate } from "../../../shared/study/StudyTypes.js";
 import { ApplicationError } from "../../../shared/diagnostics/OperationResult.js";
 
-// Pinned Windows release whose explicit extension-selection behavior has been inspected.
-const GooseDigest = "5a424ab992d75aaefdc54ccf27719f62c3995e6d9b283d1cca016ec4d4b055ef";
+// Signed runtime bundled with the official Goose 1.59.0 Windows desktop installer.
+const GooseDigest = "cd4a06fe6811a50394138916517668ba816dee20fa482c0e157b3bbd4279ffcf";
 
 // Pinned Goose 1.59.0 emits this runtime notice with ACP end_turn instead of max_turn_requests.
 const GooseActionLimitNotice = "I've reached the maximum number of actions I can do without user input.";

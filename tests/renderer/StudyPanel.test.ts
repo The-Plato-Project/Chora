@@ -92,7 +92,7 @@ describe("Interlocutor surface", function StudyPanelTests()
 		visions.SetCatalogue({ visions: [{ id: "vision", workId: "republic", title: "A question", folderPath: "", markdown: "My question", createdAt: "2026-01-01", updatedAt: "2026-01-01" }], folders: [] });
 		visions.Open("vision");
 		library.Open(CreateWork("republic"), null);
-		const controller = new StudyController(events, errors, store, gateway, library, visions);
+		const controller = new StudyController(events, errors, store, gateway, library);
 		const root = document.createElement("section");
 		document.body.append(root);
 		const panel = new StudyPanel(root, events, errors, store, controller);
@@ -106,7 +106,7 @@ describe("Interlocutor surface", function StudyPanelTests()
 			input.value = "A question";
 			input.dispatchEvent(new Event("input"));
 			root.querySelector<HTMLButtonElement>("[data-study-action=send]")!.click();
-			await vi.waitFor(function Sent() { expect(gateway.Command).toMatchObject({ workId: "republic", visionId: "vision", visionDraft: "My question", text: "A question" }); });
+			await vi.waitFor(function Sent() { expect(gateway.Command).toMatchObject({ workId: "republic", text: "A question" }); });
 			input.value = "Unsent thinking";
 			input.dispatchEvent(new Event("input"));
 			gateway.Callback?.({ workId: "absent", conversationId: "stale", kind: "text", text: "wrong" });
@@ -117,7 +117,8 @@ describe("Interlocutor surface", function StudyPanelTests()
 			gateway.Callback?.({ workId: "republic", conversationId: "fixture", kind: "replace", text: "Verified possibility" });
 			await events.PublishAsync("study.changed", {});
 			expect(response?.textContent).toBe("Verified possibility");
-			expect(root.querySelector<HTMLButtonElement>("[data-study-action=attached-source]")?.dataset.visionId).toBe("vision");
+			expect(gateway.Command).not.toHaveProperty("visionDraft");
+			expect(gateway.Command).not.toHaveProperty("visionId");
 			gateway.Callback?.({ workId: "republic", conversationId: "fixture", kind: "text", text: ", still open" });
 			await events.PublishAsync("study.changed", {});
 			expect(root.querySelector("article:last-child p")).toBe(response);

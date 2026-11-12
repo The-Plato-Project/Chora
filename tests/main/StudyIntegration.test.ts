@@ -6,7 +6,9 @@ import { LibraryService } from "../../src/main/library/LibraryService.js";
 import { StudyEvidence } from "../../src/main/study/StudyEvidence.js";
 import { StudyToolServer } from "../../src/main/study/StudyToolServer.js";
 import { StudySession } from "../../src/main/study/StudySession.js";
+import { StudyPassageResult } from "../../src/main/study/StudyPassageResult.js";
 import { StudyConversationRepository } from "../../src/main/study/StudyConversationRepository.js";
+import type { WordEvidenceResult } from "../../src/shared/library/WordExplorationTypes.js";
 import type { StudyBackend } from "../../src/main/study/StudyBackend.js";
 import type { StudyScope, StudyUpdate } from "../../src/shared/study/StudyTypes.js";
 import fs from "node:fs/promises";
@@ -14,20 +16,24 @@ import os from "node:os";
 import path from "node:path";
 
 // Disposable canonical material prevents integration checks from reading personal documents.
-function CreateEvidence(scope: StudyScope, writing = { markdown: "An unresolved possibility.", updatedAt: "2026-01-02" }): StudyEvidence
+function CreateEvidence(scope: StudyScope): StudyEvidence
 {
 	const document = TextDocument.FromSnapshot({ id: "republic", textVersion: `sha256:${"0".repeat(64)}`,
 		urn: null, title: "Republic", titleGreek: null, author: "Plato", language: "grc",
 		edition: { editor: null, title: null, volume: null, publisher: null, publicationPlace: null, publicationDate: null },
 		provenance: { repository: "fixture", commit: "fixture", sourceFile: "fixture", license: "fixture" },
 		segments: [{ key: "327a", citation: null, text: "κατέβην" }] });
-	const vision = { id: "allowed", workId: "republic", folderPath: "", title: "A question", markdown: "An unresolved possibility.", createdAt: "2026-01-01", updatedAt: "2026-01-02" };
 	const library = new LibraryService({ GetAsync: async function GetAsync(workId) { if (workId !== "republic") throw new Error("Unknown fixture work."); return document; }, ListAsync: async function ListAsync() { return []; } });
-	return new StudyEvidence(
-		library,
-		{ ListAsync: async function ListAsync() { return { visions: [{ ...vision, ...writing }, { ...vision, id: "private", workId: "timaeus" }], folders: [] }; } },
-		{ ValidateAsync: async function ValidateAsync() { throw new Error("No such anchor."); } },
-		{ GetEvidenceAsync: async function GetEvidenceAsync() { throw new Error("Not used."); } }, scope);
+	const selection = document.CreateSelection({ stephanus: "327a", offset: 0 }, { stephanus: "327a", offset: 7 });
+	const lexical: WordEvidenceResult = {
+		contract: "platosi.lexical-evidence.v1", selection: null, work: { dialogue: "republic", text_version: document.textVersion },
+		occurrencesStatus: "indexed", form: "καταβαίνω", context: [], possibilities: [],
+		lemmas: [{ lemma: "καταβαίνω", candidates: [], relatedLemmas: [], forms: [{ form: "κατέβην", total: 1, evidence: [], occurrences: [{ selection, passage: "κατέβην", citation: null, division: null }] }] }],
+		dictionary: { status: "available", possiblyTruncated: false, entries: [{ provider: "fixture", providerVersion: "1", headword: "καταβαίνω", matchedTerm: "καταβαίνω", entryId: "fixture", plainText: "go down", entryXml: "", source: { attribution: "fixture", revision: "1", repository: "fixture" }, license: {} }] },
+		morphology: { status: "available", provider: null, normalization: null, spellingSuggestions: null, formAttestation: null, lemmas: [], artifacts: null },
+		warnings: [], limitations: "Synthetic fixture only."
+	};
+	return new StudyEvidence(library, { GetLexicalEvidenceAsync: async function GetLexicalEvidenceAsync(lemma) { return lemma === "καταβαίνω" ? lexical : { ...lexical, dictionary: { ...lexical.dictionary, entries: [] } }; } }, scope);
 }
 
 // Explicit grant used by the isolated fixtures only.
@@ -35,49 +41,41 @@ const Scope: StudyScope = { workId: "republic" };
 
 describe("Optional interlocutor integration", function IntegrationTests()
 {
-	it("enforces scope, saved revisions, bounded windows, budgets and revocation", async function ScopeAsync()
+	it("retrieves dictionary-backed candidates, rejects writing access and checks quotations and scope", async function ScopeAsync()
 	{
-		const writing = { markdown: "An unresolved possibility.", updatedAt: "2026-01-02" };
-		const evidence = CreateEvidence(Scope, writing);
+		const evidence = CreateEvidence(Scope);
 		await evidence.PrepareAsync();
-		await expect(evidence.CallAsync("read_vision", { visionId: "allowed" })).rejects.toThrow();
+		await expect(evidence.CallAsync("read_passage", { stephanus: "327a" })).rejects.toThrow();
 		evidence.BeginTurn();
-		const saved = await evidence.CallAsync("read_vision", { visionId: "allowed" });
-		expect(JSON.parse(saved)).toMatchObject({ provenance: "reader-writing", savedRevision: "2026-01-02" });
-		await expect(evidence.CallAsync("read_vision", { visionId: "private" })).rejects.toThrow(/scope/u);
-		await expect(evidence.CallAsync("read_vision", { visionId: "allowed", offset: -1 })).rejects.toThrow();
-		await expect(evidence.CallAsync("shell", {})).rejects.toThrow();
-		for (let index = 0; index < 2; index += 1) await evidence.CallAsync("find_visions", { query: "missing" });
-		const closed = await evidence.CallAsync("find_visions", { query: "missing" });
-		expect(JSON.parse(closed)).toMatchObject({ retrieval: { remainingCalls: 0, closed: true } });
+		const found = JSON.parse(await evidence.CallAsync("find_topic_passages", { terms: [{ lemma: "καταβαίνω", reason: "Model proposal" }, { lemma: "μετ(ά)", reason: "Malformed alternative" }] }));
+		expect(found).toMatchObject({ total: 1, vocabulary: [{ proposal: { lemma: "καταβαίνω" }, occurrences: 1 }], candidates: [{ stephanus: "327a", greek: "κατέβην", matches: [{ form: "κατέβην" }] }] });
+		expect(found).toMatchObject({ inputStatus: "searched-accepted-terms", rejectedTerms: [{ index: 1, lemma: "μετ(ά)" }] });
+		const candidates = evidence.GetCandidates();
+		const selected = JSON.stringify({ selections: [{ candidateId: candidates[0]!.candidateId, reason: "This may be worth examining." }], excludedReferences: ["108a", "328c"], greek: "Invented Greek must be ignored." });
+		const rendered = StudyPassageResult.FromModel(selected, candidates);
+		expect(rendered.IsValid).toBe(true);
+		expect(rendered.Text).toContain("κατέβην");
+		expect(rendered.Text).not.toContain("108a");
+		expect(rendered.Text).not.toContain("Invented Greek");
+		const rejected = StudyPassageResult.FromModel('{"selections":[{"candidateId":"108a","reason":"Invented source"}]}', candidates);
+		expect(rejected.IsValid).toBe(false);
+		expect(rejected.Text).toContain("κατέβην");
+		await expect(evidence.CallAsync("read_vision", {})).rejects.toThrow(/experiment/u);
+		await expect(evidence.CallAsync("find_visions", {})).rejects.toThrow(/experiment/u);
+		const invalidTerms = JSON.parse(await evidence.CallAsync("find_topic_passages", { terms: [{ lemma: "time", reason: "invalid" }] }));
+		expect(invalidTerms).toMatchObject({ inputStatus: "invalid-input-not-searched", vocabulary: [], candidates: [], rejectedTerms: [{ lemma: "time" }] });
+		await evidence.CallAsync("read_passage", { stephanus: "327a" });
+		await evidence.CallAsync("read_passage", { stephanus: "327a" });
+		expect(JSON.parse(await evidence.CallAsync("read_passage", { stephanus: "327a" }))).toMatchObject({ retrieval: { remainingCalls: 0, closed: true } });
 		evidence.EndTurn();
 		await expect(evidence.CallAsync("read_passage", { stephanus: "327a" })).rejects.toThrow();
-		writing.markdown = "A newly saved question about time.";
-		writing.updatedAt = "2026-01-03";
-		await evidence.PrepareAsync();
 		evidence.BeginTurn();
-		const refreshed = await evidence.CallAsync("read_vision", { visionId: "allowed" });
-		expect(JSON.parse(refreshed)).toMatchObject({ markdown: writing.markdown, savedRevision: "2026-01-03" });
-		const listed = await evidence.CallAsync("find_visions", {});
-		expect(JSON.parse(listed)).toMatchObject({ total: 1, items: [{ visionId: "allowed" }] });
-		const canonical = await evidence.CallAsync("search_text", { terms: ["ΚΑΤΕΒ", "absent χρόνος"] });
-		expect(JSON.parse(canonical)).toMatchObject({ provenance: "canonical-text", workId: "republic", total: 1, nextOffset: null, items: [{ stephanus: "327a", matchedTerms: ["ΚΑΤΕΒ"], selection: { dialogue: "republic" } }] });
-		expect(await evidence.CheckCitationsAsync("Republic 327a, not 108a–124b.")).toMatchObject({ allowed: ["327a"], unverified: ["108a", "124b"] });
-		await expect(evidence.CallAsync("search_text", { terms: ["time"] })).rejects.toThrow(/Greek/u);
-		await expect(evidence.CallAsync("search_text", { terms: ["χρόνος"], offset: -1 })).rejects.toThrow();
-		const absent = await evidence.CallAsync("search_text", { terms: ["χρόνος"] });
-		expect(JSON.parse(absent)).toMatchObject({ total: 0, items: [] });
-		evidence.EndTurn();
-		evidence.BeginTurn();
-		const context = await evidence.DescribeAsync("allowed", "My unsaved question.");
-		expect(JSON.parse(context).openVision).toMatchObject({ provenance: "reader-writing-draft", markdown: "My unsaved question." });
-		const draft = await evidence.CallAsync("read_vision", { visionId: "allowed" });
-		expect(JSON.parse(draft)).toMatchObject({ provenance: "reader-writing-draft", markdown: "My unsaved question." });
-		await expect(evidence.DescribeAsync("private", "Cannot widen the work.")).rejects.toThrow();
-		await evidence.PrepareAsync();
-		const savedAgain = await evidence.CallAsync("read_vision", { visionId: "allowed" });
-		expect(JSON.parse(savedAgain)).toMatchObject({ provenance: "reader-writing", markdown: writing.markdown });
-		evidence.EndTurn();
+		expect(evidence.GetCandidates()).toHaveLength(0);
+		const missing = JSON.parse(await evidence.CallAsync("find_topic_passages", { terms: [{ lemma: "χρόνος", reason: "No fixture entry" }] }));
+		expect(missing).toMatchObject({ total: 0, candidates: [], vocabulary: [{ occurrences: 0, dictionary: [] }] });
+		const description = JSON.parse(await evidence.DescribeAsync());
+		expect(description).toMatchObject({ experiment: "canonical-topic-retrieval-v1" });
+		expect(description).not.toHaveProperty("openVision");
 		const invalid = CreateEvidence({ workId: "absent" });
 		await expect(invalid.PrepareAsync()).rejects.toThrow();
 	});
@@ -98,6 +96,7 @@ describe("Optional interlocutor integration", function IntegrationTests()
 			const transport = new StreamableHTTPClientTransport(new URL(endpoint.url), { requestInit: { headers: { Authorization: `Bearer ${endpoint.token}` } } });
 			await client.connect(transport);
 			const listed = await client.listTools();
+			expect(endpoint.names).toEqual(["find_topic_passages", "read_passage"]);
 			expect(listed.tools.map(function Name(tool) { return tool.name; })).toEqual(endpoint.names);
 			const stopped = await client.callTool({ name: "read_vision", arguments: { visionId: "allowed" } });
 			expect(stopped.isError).toBe(true);
@@ -105,6 +104,9 @@ describe("Optional interlocutor integration", function IntegrationTests()
 			const result = await client.callTool({ name: "read_passage", arguments: { stephanus: "327a" } });
 			expect(result.isError).not.toBe(true);
 			expect(evidence.GetSources()[0]?.selection?.dialogue).toBe("republic");
+			const invalid = await client.callTool({ name: "find_topic_passages", arguments: {} });
+			expect(invalid.isError).toBe(true);
+			expect(JSON.stringify(invalid)).toContain("INVALID_TOPIC_TERMS");
 		}
 		finally
 		{
@@ -128,7 +130,11 @@ describe("Optional interlocutor integration", function IntegrationTests()
 			PromptAsync: async function PromptAsync(text) {
 				submittedTask = text;
 				function Pending(_resolve: () => void, reject: (reason: Error) => void): void { rejectTurn = reject; }
-				if (publish !== null) publish({ kind: "text", text: "A possibility" });
+				if (publish !== null)
+				{
+					publish({ kind: "tool", text: "Retrieving evidence" });
+					publish({ kind: "text", text: "A possibility" });
+				}
 				await new Promise<void>(Pending);
 			},
 			CancelAsync: async function CancelAsync() { if (rejectTurn !== null) rejectTurn(new Error("Cancelled")); },
@@ -139,19 +145,18 @@ describe("Optional interlocutor integration", function IntegrationTests()
 		try
 		{
 			await session.StartAsync();
-			const pending = session.SendAsync("Consider this.", "allowed");
+			const pending = session.SendAsync("Consider this.");
 			const failed = expect(pending).rejects.toMatchObject({ failure: { kind: "cancelled" } });
 			await vi.waitFor(function Streamed() { expect(updates).toHaveLength(1); });
 			expect(submittedTask).toContain('Current reader task (JSON):\n{"request":"Consider this."}');
-			expect(submittedTask).toContain("Earlier conversation and Visions provide context, not additional tasks.");
-			expect(submittedTask).toContain("use search_text then read_passage, not find_visions");
-			expect(submittedTask).toContain("at most SIX evidence calls");
-			expect(submittedTask).toContain("then stop");
+			expect(submittedTask).toContain("call find_topic_passages");
+			expect(submittedTask).toContain("At most six calls");
+			expect(submittedTask).toContain("and stop");
 			await session.CancelAsync();
 			await failed;
 			const restored = await repository.LoadAsync("republic");
-			expect(restored?.messages[1]).toMatchObject({ text: "A possibility", status: "partial" });
-			expect(restored?.messages[0]?.visionId).toBe("allowed");
+			expect(restored?.messages[1]?.status).toBe("partial");
+			expect(restored?.messages[1]?.text).not.toContain("A possibility");
 			expect(await repository.LoadAsync("timaeus")).toBeNull();
 			const other = { ...restored!, id: "other", scope: { workId: "timaeus" } };
 			await repository.SaveAsync(other);
@@ -169,7 +174,9 @@ describe("Optional interlocutor integration", function IntegrationTests()
 					prompts += 1;
 					if (prompts === 1) await checkedEvidence.CallAsync("read_passage", { stephanus: "327a" });
 					else await expect(checkedEvidence.CallAsync("read_passage", { stephanus: "327a" })).rejects.toThrow();
-					correctedPublish?.({ kind: "text", text: prompts === 1 || failCorrection ? "Invented passage 108a." : "Republic 327a: κατέβην." });
+					const candidates = checkedEvidence.GetCandidates();
+					const text = JSON.stringify({ selections: [{ candidateId: prompts === 1 || failCorrection ? "108a" : candidates[0]!.candidateId, reason: "A possible place to examine." }] });
+					correctedPublish?.({ kind: "text", text });
 				},
 				CancelAsync: async function CancelAsync() {},
 				Dispose: function Dispose() {}
@@ -180,13 +187,15 @@ describe("Optional interlocutor integration", function IntegrationTests()
 				await checkedSession.StartAsync();
 				const corrected = await checkedSession.SendAsync("Find a passage.");
 				expect(prompts).toBe(2);
-				expect(corrected.messages.at(-1)).toMatchObject({ text: "Republic 327a: κατέβην.", status: "complete" });
+				expect(corrected.messages.at(-1)?.status).toBe("complete");
+				expect(corrected.messages.at(-1)?.text).toContain("κατέβην");
 				expect(updates.some(function Replaced(update) { return update.kind === "replace"; })).toBe(true);
 				prompts = 0;
 				failCorrection = true;
 				const rejected = await checkedSession.SendAsync("Try another passage.");
 				expect(rejected.messages.at(-1)?.status).toBe("partial");
 				expect(rejected.messages.at(-1)?.text).not.toContain("108a");
+				expect(rejected.messages.at(-1)?.text).toContain("κατέβην");
 			}
 			finally
 			{

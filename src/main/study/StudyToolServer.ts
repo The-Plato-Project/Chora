@@ -6,15 +6,12 @@ import { CallToolRequestSchema, ListToolsRequestSchema, type Tool, type CallTool
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { StudyEvidence } from "./StudyEvidence.js";
 import type { StudyToolEndpoint } from "./StudyBackend.js";
+import { ApplicationError } from "../../shared/diagnostics/OperationResult.js";
 
 // Closed tool catalogue; annotations describe read behavior without granting authority.
 export const StudyTools: readonly Tool[] = [
-	{ name: "search_text", description: "Search the current work's canonical Greek text, NOT Visions. Use this first for requests to find places/passages in the Republic or another open work. Translate topic labels into plausible Greek words/stems, search alternatives, then inspect read_passage. terms matches ANY substring, ignoring accents/case/final sigma. Six sections/page; follow nextOffset. Lexical candidates are not exhaustive conceptual search. Cite actual retrieved sections.", inputSchema: { type: "object", properties: { terms: { type: "array", items: { type: "string", maxLength: 80 }, minItems: 1, maxItems: 8 }, offset: { type: "integer", minimum: 0 } }, required: ["terms"], additionalProperties: false }, annotations: { readOnlyHint: true } },
-	{ name: "find_visions", description: "List or search all saved Visions in the current work. Empty query lists documents; use nextOffset to continue. Read each relevant document with read_vision before claiming knowledge of it.", inputSchema: { type: "object", properties: { query: { type: "string", maxLength: 120 }, offset: { type: "integer", minimum: 0 } }, additionalProperties: false }, annotations: { readOnlyHint: true } },
-	{ name: "read_vision", description: "Read a 6,000-character window of an approved saved Vision. Cite its ID and savedRevision. Follow nextOffset for more.", inputSchema: { type: "object", properties: { visionId: { type: "string" }, offset: { type: "integer", minimum: 0 } }, required: ["visionId"], additionalProperties: false }, annotations: { readOnlyHint: true } },
-	{ name: "read_passage", description: "Read one canonical Stephanus section of the approved work. Cite work, textVersion and stephanus.", inputSchema: { type: "object", properties: { stephanus: { type: "string" } }, required: ["stephanus"], additionalProperties: false }, annotations: { readOnlyHint: true } },
-	{ name: "resolve_anchor", description: "Validate an existing exact anchor in the approved work. Never invent anchor or placement IDs.", inputSchema: { type: "object", properties: { anchorId: { type: "string" } }, required: ["anchorId"], additionalProperties: false }, annotations: { readOnlyHint: true } },
-	{ name: "get_word_evidence", description: "Exact-word evidence. Default overview returns all lemma candidates, morphology status and dictionary entry labels. section dictionary reads one entryIndex at character offset; section occurrences requires a candidate lemma and paginates at offset. Preserve uncertainty. selection requires dialogue, text_version, start/end {stephanus,offset}.", inputSchema: { type: "object", properties: { selection: { type: "object" }, section: { type: "string", enum: ["overview", "dictionary", "occurrences"] }, lemma: { type: "string" }, entryIndex: { type: "integer", minimum: 0 }, offset: { type: "integer", minimum: 0 } }, required: ["selection"], additionalProperties: false }, annotations: { readOnlyHint: true } }
+	{ name: "find_topic_passages", description: "Controlled topic retrieval in the current canonical work. Propose one to four Greek dictionary headwords, each with a tentative reason. The host looks up dictionary evidence and all supplied lemma-form occurrences, preserving ambiguity. Four candidate sections/page in canonical order; follow nextOffset if needed. Dictionary evidence does not establish contextual sense or thematic significance. Inspect explicit expressions and clear juxtapositions; never invent hidden meanings.", inputSchema: { type: "object", properties: { terms: { type: "array", minItems: 1, maxItems: 4, items: { type: "object", properties: { lemma: { type: "string", maxLength: 80, description: "One Greek dictionary headword only. No spaces, parentheses, transliteration or apostrophes. Example: χρόνος." }, reason: { type: "string", maxLength: 240 } }, required: ["lemma", "reason"], additionalProperties: false } }, offset: { type: "integer", minimum: 0 } }, required: ["terms"], additionalProperties: false }, annotations: { readOnlyHint: true } },
+	{ name: "read_passage", description: "Read the current work's exact Greek section, including surrounding speech and action. Offset paginates long sections. Cite only returned text; use double quotes around exact Greek excerpts.", inputSchema: { type: "object", properties: { stephanus: { type: "string" }, offset: { type: "integer", minimum: 0 } }, required: ["stephanus"], additionalProperties: false }, annotations: { readOnlyHint: true } }
 ];
 
 // Owns a session-scoped authenticated MCP listener, never accessible on external interfaces.
@@ -122,9 +119,12 @@ export class StudyToolServer
 						const text = await evidence.CallAsync(toolRequest.params.name, toolRequest.params.arguments ?? {});
 						result = { content: [{ type: "text" as const, text }] };
 					}
-					catch
+					catch (error)
 					{
-						result = { content: [{ type: "text" as const, text: "Evidence unavailable: the reference is invalid, outside the approved scope, revoked, or exceeds the turn budget. Do not invent a replacement." }], isError: true };
+						const text = error instanceof ApplicationError && error.failure.kind === "validation"
+							? JSON.stringify({ status: "invalid-input-not-searched", code: error.failure.code, message: error.failure.message })
+							: "The tool failed or access was revoked. This is not a successful search or evidence that a word or passage is absent. Do not invent results or diagnose missing dictionary coverage from this error.";
+						result = { content: [{ type: "text" as const, text }], isError: true };
 					}
 					return result;
 				}

@@ -114,12 +114,11 @@ export class StudyConversationRepository
 		{
 			if (typeof message !== "object" || message === null || !["reader", "interlocutor"].includes(message.role)
 				|| typeof message.text !== "string" || !["complete", "partial"].includes(message.status)) throw new Error("The saved contribution is invalid.");
-			if (message.visionId !== undefined && (typeof message.visionId !== "string" || message.visionId.length > 100)) throw new Error("The saved attachment is invalid.");
 		}
 		for (const source of value.sources)
 		{
-			if (typeof source !== "object" || source === null || typeof source.label !== "string" || typeof source.excerpt !== "string"
-				|| (source.visionId !== null && typeof source.visionId !== "string")) throw new Error("The saved source is invalid.");
+			if (typeof source !== "object" || source === null || typeof source.label !== "string" || typeof source.excerpt !== "string") throw new Error("The saved source is invalid.");
+			if (source.candidateId !== undefined && (typeof source.candidateId !== "string" || source.candidateId.length > 120)) throw new Error("The saved candidate identity is invalid.");
 			if (source.selection !== null) DecodeTextSelection(source.selection);
 		}
 		const conversation: StudyConversation = { id: value.id, scope: { workId: value.scope.workId }, model: value.model, messages: value.messages, sources: value.sources };
