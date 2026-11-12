@@ -22,7 +22,7 @@ add empty layers or generic manager classes.
 
 ## Product Direction
 
-Read `VISION.md` before making product, UX, or architecture decisions. Use this
+Read `docs/VISION.md` before making product, UX, or architecture decisions. Use this
 question as the design test:
 
 > Does this deepen the conversation between the reader and the text?
