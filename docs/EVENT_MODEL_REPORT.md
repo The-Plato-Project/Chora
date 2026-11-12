@@ -16,7 +16,7 @@ Write mode serializes the changed ProseMirror document in `MarkdownEditor.Create
 
 The controller updates `VisionStore`, then calls `PublishChange`. That method publishes **both** `vision.changed` and `vision.catalogue-changed` for every changed Markdown value, and schedules autosave. The catalogue event contains only a count, even though neither membership nor count changed.
 
-Sources: [MarkdownEditor.ts:273](src/renderer/ui/MarkdownEditor.ts), [VisionMarkdownSourceEditor.ts](src/renderer/visions/VisionMarkdownSourceEditor.ts), [VisionController.ts:94 and :176](src/renderer/visions/VisionController.ts).
+Sources: [MarkdownEditor.ts:273](../src/renderer/ui/MarkdownEditor.ts), [VisionMarkdownSourceEditor.ts](../src/renderer/visions/VisionMarkdownSourceEditor.ts), [VisionController.ts:94 and :176](../src/renderer/visions/VisionController.ts).
 
 ```mermaid
 flowchart TD
@@ -47,14 +47,14 @@ Consequently, one ordinary edit starts two reference refresh attempts. The gener
 
 `WordExplorationPanel` handles every reference notification with its general `Update` method. That method synchronizes tabs, deep-clones the word snapshot, regenerates dictionary and occurrence markup, replaces the active content's `innerHTML`, reapplies column layout, and repopulates open floating panels. Occurrence rendering also rebuilds and sorts the navigation rows. This is much more work than changing a linked-Vision list.
 
-Sources: [WordVisionReferenceController.ts:25–100](src/renderer/library/words/WordVisionReferenceController.ts), [WordVisionReferenceStore.ts](src/renderer/library/words/WordVisionReferenceStore.ts), [WordExplorationPanel.ts:137–168, :584 and :806](src/renderer/library/words/WordExplorationPanel.ts), [WordExplorationStore.ts:32](src/renderer/library/words/WordExplorationStore.ts).
+Sources: [WordVisionReferenceController.ts:25–100](../src/renderer/library/words/WordVisionReferenceController.ts), [WordVisionReferenceStore.ts](../src/renderer/library/words/WordVisionReferenceStore.ts), [WordExplorationPanel.ts:137–168, :584 and :806](../src/renderer/library/words/WordExplorationPanel.ts), [WordExplorationStore.ts:32](../src/renderer/library/words/WordExplorationStore.ts).
 
 Two distinctions matter:
 
 - This path requests anchors again. It does **not** request dictionary or morphology evidence again. Those displays are reconstructed from existing state.
 - Main-process `TextAnchorService` loads its anchor repository once and lists from memory afterward. Repeated calls still involve IPC, filtering, sorting, transport, and renderer work; they are not repeated anchor-directory scans.
 
-Source: [TextAnchorService.ts:19 and :63](src/main/anchors/TextAnchorService.ts).
+Source: [TextAnchorService.ts:19 and :63](../src/main/anchors/TextAnchorService.ts).
 
 Dismissing Word Lookup does not remove its evidence or these subscriptions. The controller does not check visibility, and the panel's update continues after setting its hidden state when a selection remains available. Hidden UI can therefore still incur this work.
 
@@ -64,7 +64,7 @@ Dismissing Word Lookup does not remove its evidence or these subscriptions. The 
 
 `VisionTabsPanel` subscribes to edit-time Vision events and rebuilds the document tab strip for each delivery. Subsequent characters do not change an already-visible dirty dot, but still trigger this reconstruction. Autosave adds further tab updates through save-state and saved events.
 
-Sources: [WorkspacePanel.ts](src/renderer/workspace/WorkspacePanel.ts), [VisionTabsPanel.ts](src/renderer/workspace/VisionTabsPanel.ts), [VisionStore.ts](src/renderer/visions/VisionStore.ts).
+Sources: [WorkspacePanel.ts](../src/renderer/workspace/WorkspacePanel.ts), [VisionTabsPanel.ts](../src/renderer/workspace/VisionTabsPanel.ts), [VisionStore.ts](../src/renderer/visions/VisionStore.ts).
 
 ### What this does and does not establish
 
@@ -141,7 +141,7 @@ The immediate fix does not require changing this bus contract. Narrowing events 
 
 If a later change introduces non-awaiting fact notifications, audit all callers that rely on completion first. Preserve explicitly awaited command workflows such as opening a Vision before focusing a placement. Neither `Promise.all` nor changing the method name makes DOM rendering asynchronous. VS Code's emitter implementation is a useful reference, not a reason to silently change Chora's existing completion guarantees.
 
-Source: [ChoraEventBus.ts:54](src/renderer/core/events/ChoraEventBus.ts).
+Source: [ChoraEventBus.ts:54](../src/renderer/core/events/ChoraEventBus.ts).
 
 ## 4. Implementation sequence and risks
 
