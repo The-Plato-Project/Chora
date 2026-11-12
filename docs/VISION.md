@@ -120,8 +120,26 @@ The application should not impose a universal division of the dialogue.
 A model is not required for the core reading and writing loop. Exact anchors,
 canonical texts, and linguistic material are enough to support reliable return.
 
-A future local model may help retrieve the reader's own earlier writing. It may
-return a small set of candidates and explain why each appeared. It must not:
+The optional interlocutor works on specific tasks given by the reader: finding
+relevant passages, locating information in the current work's Visions, or addressing a
+particular question. It must not independently interpret the text, elaborate
+on meaning, review writing, or search for contradictions without that request.
+It returns the requested result and stops.
+
+The more the reader writes, the more guidance their Visions can provide. This
+growing body of reader-authored context is central to Chora: it records questions,
+distinctions, references, corrections, and developing thought that a model would
+otherwise have to guess. Later tasks can draw on more of that writing when the
+reader includes it in the permitted scope. Writing is not a duplicate prompt or
+a technical belief profile; it is the reader's own durable account.
+
+Richer guidance can make assistance more useful and better grounded in the
+reader's inquiry. Trust can grow through repeated, inspectable results that use
+that guidance faithfully. This is contextual improvement, not automatic model
+training or a guarantee that additional writing makes every claim correct.
+
+The interlocutor may return a small set of candidates and explain why each
+appeared when asked. It must not:
 
 - create or rewrite reader prose;
 - make a relationship permanent;
@@ -129,8 +147,13 @@ return a small set of candidates and explain why each appeared. It must not:
 - present semantic similarity as linguistic proof;
 - decide which dictionary sense governs a passage.
 
-Reader writing remains local unless a future explicit action states exactly
-what material will be read and why.
+Reader writing remains local. The open work is always the interlocutor's context.
+Its saved Visions are available when a submitted request calls for them, including
+a request to read all writing so far. The open same-work Vision is automatic
+supporting context on Send, including an explicitly identified editor draft.
+Saved context is refreshed per request. Other works remain outside that request;
+no typing is monitored or sent between submissions. Requests about places in
+Plato's text search canonical Greek, keeping reader writing distinct.
 
 ## Product Principles
 

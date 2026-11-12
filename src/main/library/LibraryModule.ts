@@ -40,6 +40,12 @@ export class LibraryModule extends ApplicationModule
 		return this.service;
 	}
 
+	// Shares the existing linguistic use cases with optional read-only integrations.
+	public GetWords(): WordExplorationService
+	{
+		return this.words;
+	}
+
 	// Registers the Library IPC boundary.
 	protected StartCore(): void
 	{

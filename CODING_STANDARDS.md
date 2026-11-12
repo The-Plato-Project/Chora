@@ -38,7 +38,7 @@ This repository uses a strict, architecture-first C#-style discipline, applied t
 - Panels own persistent DOM roots and register delegated DOM events once. Do not rebuild the entire application DOM in response to state changes.
 - Retain and dispose subscriptions when a component has a shorter lifetime than the application.
 - Use `ErrorManager` for debug output, operational logs, and user-facing errors. Preserve the original failure for diagnosis at the owning boundary.
-- Reader inquiries go through the owning feature gateway, typed preload API, and main-process PlatoSI client. Chora does not configure or invoke model providers directly.
+- Reader inquiries go through the owning feature gateway, typed preload API, and main-process PlatoSI client. The optional interlocutor has a separate backend boundary; Goose-specific local execution stays in that adapter and never enters reading or writing owners.
 
 ## Required Rules
 

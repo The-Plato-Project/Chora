@@ -10,6 +10,8 @@ export type ReaderHighlightKind = "source" | "word";
 // Every application event name and its payload shape, published on the shared ChoraEventBus.
 export interface ChoraEvents
 {
+	// Updates only the optional interlocutor surface.
+	"study.changed": Record<string, never>;
 	// Startup barrier preserves saved host geometry while features restore availability.
 	"application.restoring": Record<string, never>;
 	"application.restored": Record<string, never>;
@@ -46,6 +48,8 @@ export interface ChoraEvents
 	"library.selection-changed": Record<string, never>;
 	"library.jump-requested": { selection?: TextSelection; selections?: readonly TextSelection[]; target?: ReaderHighlightKind };
 	"vision.opened": Record<string, never>;
+	// Source surfaces request document navigation through the Vision workflow owner.
+	"vision.document-open-requested": { visionId: string };
 	"vision.view-changed": Record<string, never>;
 	"vision.rename-requested": Record<string, never>;
 	"vision.closed": Record<string, never>;

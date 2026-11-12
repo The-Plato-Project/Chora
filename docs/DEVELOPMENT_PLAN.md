@@ -134,6 +134,18 @@ Fix concrete problems discovered through this use before expanding the product.
 - Do not imply multi-device synchronization until conflict behavior is
   explicitly designed.
 
+## Optional Local Interlocutor Experiment
+
+The reader has requested a separate, removable Goose experiment with a local
+model. Its reader-facing interlocutor is **The Agentian Stranger**. Chora owns
+the [behavioral directives](STUDY_PARTNER_DIRECTIVES.md), including discernment
+about when a contribution serves the present inquiry. These remain consistent
+across backends. The experiment's context, read-only evidence tools, backend
+boundary, and acceptance gates are defined in
+[the interlocutor experiment](GOOSE_STUDY_PARTNER_EXPERIMENT.md).
+This is an experimental branch of work; no runtime is enabled by the design.
+It must not make ordinary reading and writing depend on an agent.
+
 ## Deferred Work
 
 The following work is deliberately deferred:

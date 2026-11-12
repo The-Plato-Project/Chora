@@ -22,8 +22,8 @@ add empty layers or generic manager classes.
 
 ## Product Direction
 
-Read `docs/VISION.md` before making product, UX, or architecture decisions. Use this
-question as the design test:
+Read `docs/VISION.md` before making product, UX, or architecture decisions.
+Use this question as the design test:
 
 > Does this deepen the conversation between the reader and the text?
 
@@ -89,7 +89,9 @@ The permanent workflow is writing-first:
 - Use `ErrorManager` for application logs, diagnostics, and user-facing errors.
 - PlatoSI owns canonical texts, dictionary material, morphology, occurrences,
   related lexical material, and name research.
-- Chora has no model-provider or chat runtime.
+- Core reading and writing do not depend on a model-provider or chat runtime.
+  The optional interlocutor module owns a replaceable backend, explicit context
+  grants, and read-only evidence tools. Goose-specific execution stays in its adapter.
 - Reading uses PlatoSI's canonical catalogue. Arbitrary external text import is
   not supported.
 
@@ -109,6 +111,9 @@ npm run package
 On Windows, use `npm.cmd` when PowerShell blocks `npm.ps1`.
 
 ## Code Conventions
+
+Keep design documents, architecture reports, and behavioral specifications under
+`docs/`, and maintain the index in `docs/README.md`.
 
 Read `CODING_STANDARDS.md` first. Important rules include:
 

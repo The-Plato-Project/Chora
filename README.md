@@ -177,6 +177,6 @@ npm run package
 
 On Windows, use `npm.cmd` if PowerShell blocks `npm.ps1`.
 
-See [docs/VISION.md](docs/VISION.md) for product principles,
-[docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) for current delivery phases, and
-[CODING_STANDARDS.md](CODING_STANDARDS.md) for implementation conventions.
+See the [design and architecture index](docs/README.md),
+[product vision](docs/VISION.md), and [development plan](docs/DEVELOPMENT_PLAN.md).
+[CODING_STANDARDS.md](CODING_STANDARDS.md) defines implementation conventions.

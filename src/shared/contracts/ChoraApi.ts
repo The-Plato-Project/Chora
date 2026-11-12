@@ -15,6 +15,7 @@ import type {
 } from "../visions/VisionTypes.js";
 import type { CreateTextAnchorCommand, TextAnchorSnapshot } from "../anchors/TextAnchorTypes.js";
 import type { VisionReferenceDragPayload } from "../visions/VisionReferenceTypes.js";
+import type { StudyConversation, StudySendCommand, StudyUpdate } from "../study/StudyTypes.js";
 
 export type ApiSubscription = () => void;
 
@@ -26,6 +27,11 @@ export type ApplicationMenuCommand = "quit" | "settings" | "logs";
 
 export interface ChoraApi
 {
+	// Explicit optional interlocutor commands, independent of the execution backend.
+	SendStudy(command: StudySendCommand): Promise<OperationResult<StudyConversation>>;
+	StopStudy(workId: string): Promise<OperationResult<void>>;
+	LoadStudyHistory(workId: string): Promise<OperationResult<StudyConversation | null>>;
+	SubscribeStudy(callback: (update: StudyUpdate) => void): ApiSubscription;
 	// macOS retains its operating-system application menu.
 	readonly UsesNativeMenu: boolean;
 	// Privileged menu actions are validated by the application's main-process boundary.
